@@ -36,7 +36,18 @@ export const condor: AircraftConfig = {
     twoSeat: false,
     sensorFusion: false,
   },
-  stores: { cannon: 'RC-20', cannonRounds: 940, srm: 4, mrm: 4, countermeasures: 60 },
+  // F-15C: four AIM-9X on the wing pylons and four AIM-120D on the fuselage corners (USAF fact sheet); M61A1 with
+  // 940 rounds; ALE-45 with 60 flares and 120 chaff.
+  stores: {
+    cannon: 'M61A1',
+    cannonRounds: 940,
+    missiles: [
+      { missile: 'AIM-9X', count: 4 },
+      { missile: 'AIM-120D', count: 4 },
+    ],
+    flares: 60,
+    chaff: 120,
+  },
   damage: { hitPoints: 105, hitRadiusM: 7 },
   visual: {
     lengthM: 19.4,

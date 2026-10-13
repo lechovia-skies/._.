@@ -51,6 +51,6 @@ describe('TeamDeathmatchMode', () => {
     const m = new TeamDeathmatchMode();
     const map = createTestRange(1);
     expect(m.spawnPoint(map, 'usa')).toBe(map.spawns.usa);
-    expect([m.groundTargets(), m.bombLoad(), m.canRespawn()]).toEqual([[], 0, true]);
+    expect([m.groundTargets(), m.strikes(), m.canRespawn()]).toEqual([[], false, true]);
   });
 });

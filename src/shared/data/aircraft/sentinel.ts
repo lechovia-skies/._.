@@ -41,7 +41,7 @@ function sentinel(team: 'usa' | 'russia'): AircraftConfig {
       twoSeat: true,
       sensorFusion: false,
     },
-    stores: { cannon: 'RC-20', cannonRounds: 0, srm: 0, mrm: 0, countermeasures: 60 },
+    stores: { cannon: 'M61A1', cannonRounds: 0, missiles: [], flares: 60, chaff: 60 },
     damage: { hitPoints: 400, hitRadiusM: 16 },
     visual: {
       lengthM: 46,

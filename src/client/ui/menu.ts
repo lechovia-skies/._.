@@ -1,11 +1,12 @@
 import { DIFFICULTIES, type DifficultyId } from '../../shared/ai/difficulty.ts';
 import { listAircraft, TEAM_NAMES } from '../../shared/data/aircraft/registry.ts';
 import type { AircraftConfig } from '../../shared/data/aircraft/types.ts';
+import { loadoutFor } from '../../shared/data/loadout.ts';
 import { MAP_IDS, MAP_NAMES, type MapId } from '../../shared/data/maps/registry.ts';
 import { SPAWN_STARTS, type SpawnStart } from '../../shared/world/spawns.ts';
 import { type EnvironmentSettings, START_HOURS, TIME_OF_DAY_IDS, TIME_OF_DAY_LABELS, type TimeOfDayId } from '../../shared/world/time-of-day.ts';
 import type { WeatherId } from '../../shared/world/weather.ts';
-import { STRIKE_DEFAULTS, STRIKE_DEFENDER } from '../../shared/modes/strike.ts';
+import { STRIKE_ATTACKER, STRIKE_DEFAULTS, STRIKE_DEFENDER } from '../../shared/modes/strike.ts';
 import { MISSION_RULES } from '../hud/objective-hud.ts';
 import type { ControlMode } from '../input/control-mapper.ts';
 import { controlsHelp, GAMEPAD_HELP } from './controls-help.ts';
@@ -82,6 +83,20 @@ export function strikeRole(c: AircraftConfig): string {
   return c.team === STRIKE_DEFENDER
     ? `${c.name} · ${TEAM_NAMES[c.team]}: hold all three targets for ${STRIKE_DEFAULTS.timeLimitS / 60} minutes`
     : `${c.name} · ${TEAM_NAMES[c.team]}: destroy two of the three targets`;
+}
+
+/**
+ * What the jet carries (revision 30), as the real jet does: "M61A1 gun, 511 rounds · 2 AIM-9X, 4 AIM-120D · 30 flares,
+ * 60 chaff". A Strike attacker's line shows its strike load.
+ */
+export function armamentLine(c: AircraftConfig, strike: boolean): string {
+  const s = c.stores;
+  const l = loadoutFor(c, strike);
+  const parts = [`${s.cannon} gun, ${s.cannonRounds} rounds`];
+  if (l.bomb && l.bombs > 0) parts.push(`${l.bombs} ${l.bomb.name}`);
+  parts.push(l.missiles.map((m) => `${m.count} ${m.missile}`).join(', '));
+  parts.push(`${s.flares} flares, ${s.chaff} chaff`);
+  return parts.filter((p) => p.length > 0).join(' · ');
 }
 
 export function aircraftSummary(c: AircraftConfig): string {
@@ -313,11 +328,13 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
 
   const summary = el('p', 'pick-note');
   summary.setAttribute('aria-live', 'polite');
+  const arms = el('p', 'pick-arms');
   // In Strike the line under the jets says what the chosen jet must do; otherwise it describes the jet.
   const showSummary = () => {
     const a = aircraft.find((x) => x.id === aircraftId) ?? aircraft[0];
     summary.textContent =
       mission === 'strike' ? strikeRole(a) : mission === 'air-superiority' || mission === 'team-objective' ? `${a.name} · ${MISSION_RULES[mission]}` : aircraftSummary(a);
+    arms.textContent = armamentLine(a, mission === 'strike' && a.team === STRIKE_ATTACKER);
   };
   const jets = choiceGroup(
     'aircraft',
@@ -336,7 +353,7 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
     },
     (c) => TEAM_NAMES[aircraft.find((a) => a.id === c.value)?.team ?? 'usa'],
   );
-  jets.appendChild(summary);
+  jets.append(summary, arms);
   showSummary();
 
   let world = loadWorldChoice();

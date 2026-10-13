@@ -246,8 +246,7 @@ export class World implements ModeDirector, CombatHost, BotWorld {
       isBot: opts.bot !== undefined,
       flight: this.spawnState(opts.team, slot, config.physics, opts.firstStart ?? opts.start ?? 'air'),
       spawnSlot: slot,
-      bombLoad: this.mode.bombLoad(opts.team),
-      lanceLoad: this.mode.lanceLoad?.() ?? null,
+      strike: this.mode.strikes(opts.team),
       start: opts.start ?? 'air',
     });
     this.aircraft.set(entity.id, entity);
@@ -276,7 +275,6 @@ export class World implements ModeDirector, CombatHost, BotWorld {
       isBot: true,
       flight,
       spawnSlot: -1,
-      bombLoad: 0,
     });
     this.aircraft.set(entity.id, entity);
     // The orbit center lies one radius to the right of the start: (cos h, sin h) in x/z.
@@ -300,7 +298,6 @@ export class World implements ModeDirector, CombatHost, BotWorld {
       isBot: true,
       flight: supportFlightState(spec, config.physics, this.map.combatArea),
       spawnSlot: -1,
-      bombLoad: 0,
       support: spec,
     });
     this.aircraft.set(entity.id, entity);

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { SRM_DART } from '../data/weapons.ts';
+import { MISSILES } from '../data/weapons.ts';
 import { DEG } from '../math/units.ts';
 import { blockedTerrain, openTerrain, type TestAircraft, testAircraft } from '../testing/fixtures.ts';
 import { createSeeker, irLockRange, updateSeeker } from './ir-seeker.ts';
+
+const R_73 = MISSILES['R-73'];
 
 const DT = 1 / 60;
 
@@ -10,7 +12,7 @@ const DT = 1 / 60;
 function updatesToLock(owner: TestAircraft, target: TestAircraft, designated: TestAircraft | null = null, max = 200) {
   const s = createSeeker();
   for (let i = 1; i <= max; i++) {
-    updateSeeker(s, owner, [target], designated, SRM_DART, openTerrain, DT);
+    updateSeeker(s, owner, [target], designated, R_73, openTerrain, DT);
     if (s.mode === 'locked') return i;
   }
   return Infinity;
@@ -21,17 +23,17 @@ const at = (deg: number, rangeM: number) => [rangeM * Math.sin(deg * DEG), 3000,
 describe('irLockRange', () => {
   it('reaches 9 km from behind and 4 km head-on, times the target IR signature', () => {
     const target = testAircraft(2, 'kestrel', 0, 3000, -5000, 0); // flying north, away from the origin
-    expect(irLockRange(SRM_DART, testAircraft(1, 'kobchik', 0, 3000, 0).flight.pos, target)).toBeCloseTo(9000, 3);
+    expect(irLockRange(R_73, testAircraft(1, 'kobchik', 0, 3000, 0).flight.pos, target)).toBeCloseTo(9000, 3);
     const headOn = testAircraft(3, 'kestrel', 0, 3000, -5000, 180);
-    expect(irLockRange(SRM_DART, testAircraft(1, 'kobchik', 0, 3000, 0).flight.pos, headOn)).toBeCloseTo(4000, 3);
+    expect(irLockRange(R_73, testAircraft(1, 'kobchik', 0, 3000, 0).flight.pos, headOn)).toBeCloseTo(4000, 3);
     const base = testAircraft(4, 'kobchik', 0, 3000, -5000, 0);
     const hot = { ...base, config: { ...base.config, sensors: { ...base.config.sensors, irSignature: 1.2 } } };
-    expect(irLockRange(SRM_DART, testAircraft(1, 'kestrel', 0, 3000, 0).flight.pos, hot)).toBeCloseTo(10800, 3);
+    expect(irLockRange(R_73, testAircraft(1, 'kestrel', 0, 3000, 0).flight.pos, hot)).toBeCloseTo(10800, 3);
   });
 
   it('is 30% longer against afterburner', () => {
     const target = testAircraft(2, 'kestrel', 0, 3000, -5000, 0, 1);
-    expect(irLockRange(SRM_DART, testAircraft(1, 'kobchik', 0, 3000, 0).flight.pos, target)).toBeCloseTo(11700, 3);
+    expect(irLockRange(R_73, testAircraft(1, 'kobchik', 0, 3000, 0).flight.pos, target)).toBeCloseTo(11700, 3);
   });
 });
 
@@ -52,7 +54,7 @@ describe('updateSeeker', () => {
     const owner = testAircraft(1, 'kestrel', 0, 3000, 0);
     expect(updatesToLock(owner, testAircraft(2, 'kobchik', 0, 3000, -10500))).toBe(Infinity);
     const s = createSeeker();
-    updateSeeker(s, owner, [testAircraft(2, 'kobchik', 0, 3000, -3000)], null, SRM_DART, blockedTerrain, DT);
+    updateSeeker(s, owner, [testAircraft(2, 'kobchik', 0, 3000, -3000)], null, R_73, blockedTerrain, DT);
     expect(s.mode).toBe('search');
   });
 
@@ -86,13 +88,13 @@ describe('updateSeeker', () => {
     const owner = testAircraft(1, 'kestrel', 0, 3000, 0);
     const target = testAircraft(2, 'kobchik', 0, 3000, -3000);
     const s = createSeeker();
-    for (let i = 0; i < 60; i++) updateSeeker(s, owner, [target], null, SRM_DART, openTerrain, DT);
+    for (let i = 0; i < 60; i++) updateSeeker(s, owner, [target], null, R_73, openTerrain, DT);
     expect(s.mode).toBe('locked');
     target.flight.pos.set(0, 3000, -10500); // beyond the 9 km lock range, inside 1.2 × 9 km
-    updateSeeker(s, owner, [target], null, SRM_DART, openTerrain, DT);
+    updateSeeker(s, owner, [target], null, R_73, openTerrain, DT);
     expect(s.mode).toBe('locked');
     target.flight.pos.set(...at(65, 3000));
-    updateSeeker(s, owner, [target], null, SRM_DART, openTerrain, DT);
+    updateSeeker(s, owner, [target], null, R_73, openTerrain, DT);
     expect(s.mode).toBe('search');
     expect(s.targetId).toBeNull();
   });
@@ -102,9 +104,9 @@ describe('updateSeeker', () => {
     const first = testAircraft(2, 'kobchik', 0, 3000, -3000);
     const second = testAircraft(3, 'kobchik', ...at(20, 2500));
     const s = createSeeker();
-    for (let i = 0; i < 60; i++) updateSeeker(s, owner, [first, second], null, SRM_DART, openTerrain, DT);
+    for (let i = 0; i < 60; i++) updateSeeker(s, owner, [first, second], null, R_73, openTerrain, DT);
     expect(s.targetId).toBe(2);
-    updateSeeker(s, owner, [first, second], second, SRM_DART, openTerrain, DT);
+    updateSeeker(s, owner, [first, second], second, R_73, openTerrain, DT);
     expect(s.targetId).toBe(3);
     expect(s.mode).toBe('track');
   });

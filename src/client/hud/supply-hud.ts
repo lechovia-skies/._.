@@ -2,6 +2,7 @@ import { Vector3 } from 'three';
 import type { UnitSystem } from '../../shared/data/aircraft/types.ts';
 import { type Airfield, airfieldWorld, type MapFeatures } from '../../shared/map/features.ts';
 import { TOUCHDOWN_MAX_SINK_MS } from '../../shared/physics/ground.ts';
+import { missilesLeft } from '../../shared/world/entities.ts';
 import { nearestFriendlyAirfield, SUPPLY_PASS_HEIGHT_M, SUPPLY_PASS_SPEED_MS } from '../../shared/world/supply.ts';
 import { type Bindings, keyLabel } from '../input/bindings.ts';
 import type { AircraftView } from '../session/game-session.ts';
@@ -38,7 +39,7 @@ export interface HomeCue {
 export function rtbReason(v: AircraftView): RtbReason | null {
   if (!v.alive || v.config.support) return null;
   const s = v.stores;
-  if (s.srm + s.mrm === 0 || s.cannonRounds <= REARM_ROUNDS) return 'rearm';
+  if (missilesLeft(s) === 0 || s.cannonRounds <= REARM_ROUNDS) return 'rearm';
   if (s.fuelKg < BINGO_SHARE * v.config.physics.fuelKg) return 'fuel';
   if (v.hp < REPAIR_BELOW_SHARE * v.config.damage.hitPoints) return 'repair';
   return null;

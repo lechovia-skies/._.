@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DIFFICULTIES } from '../ai/difficulty.ts';
 import { buildTerrain } from '../data/maps/map-definition.ts';
 import { createTestRange } from '../data/maps/test-range.ts';
-import { BOMB_ANVIL } from '../data/weapons.ts';
+import { FAB_500M_62 } from '../data/weapons.ts';
 import { FreeFlightMode } from '../modes/free-flight.ts';
 import { TeamDeathmatchMode } from '../modes/team-deathmatch.ts';
 import { type ControlInput, neutralInput } from '../physics/controls.ts';
@@ -103,14 +103,14 @@ describe('wind in the World (revision 16)', () => {
   it('drifts falling bombs downwind, and the bomb sight allows for it', () => {
     const w = new World({ map, terrain, mode: new FreeFlightMode(), seed: 1, environment: RAIN });
     const flight = createFlightState({ position: new Vector3(0, 1500, 0), headingRad: 0, speed: 220 });
-    const calmLanding = predictImpact(flight.pos, flight.vel, BOMB_ANVIL, terrain, DT, new Vector3())!;
-    const windyLanding = predictImpact(flight.pos, flight.vel, BOMB_ANVIL, terrain, DT, new Vector3(), w.wind)!;
+    const calmLanding = predictImpact(flight.pos, flight.vel, FAB_500M_62, terrain, DT, new Vector3())!;
+    const windyLanding = predictImpact(flight.pos, flight.vel, FAB_500M_62, terrain, DT, new Vector3(), w.wind)!;
     const drift = windyLanding.clone().sub(calmLanding).setY(0);
     const air = w.wind.steadyAt(800, new Vector3()).setY(0);
     expect(drift.length()).toBeGreaterThan(20);
     expect(drift.angleTo(air)).toBeLessThan(0.5);
     // The real bomb lands where the sight said.
-    const b = releaseBomb(1, { id: 1, team: 'russia', flight }, BOMB_ANVIL);
+    const b = releaseBomb(1, { id: 1, team: 'russia', flight }, FAB_500M_62);
     while (b.pos.y > terrain.surfaceAt(b.pos.x, b.pos.z)) stepBomb(b, DT, w.wind);
     expect(Math.hypot(b.pos.x - windyLanding.x, b.pos.z - windyLanding.z)).toBeLessThan(5);
   });

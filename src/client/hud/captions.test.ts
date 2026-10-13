@@ -11,18 +11,19 @@ describe('warning captions', () => {
     for (const mode of ['track', 'locked'] as const) {
       const tone = seekerTone(mode);
       if (tone === 'none') throw new Error(`${mode} should sound`);
-      expect(WARNING_CAPTIONS[tone]).toBe(`SRM ${seekerLabel(mode)}`);
+      expect(WARNING_CAPTIONS[tone]).toBe(`IR ${seekerLabel(mode)}`);
     }
   });
 
-  it('shows the Lance radar-lock tone as the weapons-status text the HUD draws', () => {
+  it('shows the radar-lock tone with the state the weapons status draws after the radar missile', () => {
     const radarLock = createRadarLock();
     const v = testView(1, { radarLock });
     for (const mode of ['tracking', 'locked'] as const) {
       radarLock.mode = mode;
       const tone = missileTone('off', mode);
       if (tone === 'none') throw new Error(`${mode} should sound`);
-      expect(WARNING_CAPTIONS[tone]).toBe(weaponsLine(v, 'mrm').status.text);
+      // The Kestrel's AIM-120D is its slot 1: "AIM-120D TRK" against the caption "RDR TRK".
+      expect(WARNING_CAPTIONS[tone]).toBe(weaponsLine(v, 1).status.text.replace('AIM-120D', 'RDR'));
     }
   });
 

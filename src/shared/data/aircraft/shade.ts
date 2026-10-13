@@ -7,7 +7,7 @@ export const shade: AircraftConfig = {
   team: 'usa',
   role: 'Stealth multirole fighter',
   description:
-    'Stealthy multirole jet with the longest-range sensors. Enemy radars see it late and its sensor fusion locks fast, but it accelerates slowly and carries its missiles inside.',
+    'Stealthy multirole jet with the longest-range sensors. Enemy radars see it late and its sensor fusion locks fast, but it accelerates slowly and carries only its four AIM-120D inside, no heat-seekers.',
   physics: {
     massKg: 21000,
     wingAreaM2: 43,
@@ -36,7 +36,10 @@ export const shade: AircraftConfig = {
     twoSeat: false,
     sensorFusion: true,
   },
-  stores: { cannon: 'RC-25', cannonRounds: 180, srm: 2, mrm: 4, countermeasures: 32 },
+  // F-35A in its stealth air-to-air load: four AIM-120D in the two bays (the inner stations take only air-to-air
+  // missiles); its AIM-9X would ride outside and give the stealth away. GAU-22/A with 182 rounds over the left intake.
+  // Flare and chaff loads are not published: the game's earlier 32 salvos, as 32 of each.
+  stores: { cannon: 'GAU-22/A', cannonRounds: 182, missiles: [{ missile: 'AIM-120D', count: 4 }], flares: 32, chaff: 32 },
   damage: { hitPoints: 100, hitRadiusM: 5 },
   visual: {
     lengthM: 15.7,

@@ -1,7 +1,7 @@
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { getAircraft } from '../data/aircraft/registry.ts';
-import { SRM_DART } from '../data/weapons.ts';
+import { MISSILES } from '../data/weapons.ts';
 import { GridTerrain } from '../map/terrain.ts';
 import { DEG } from '../math/units.ts';
 import { neutralInput } from '../physics/controls.ts';
@@ -10,6 +10,8 @@ import { createSeeker, updateSeeker } from '../targeting/ir-seeker.ts';
 import { type Contact, detectContacts, type SensedAircraft } from '../targeting/sensors.ts';
 import { CALM_NOON, daylight, hourAt, moonDirection, START_HOURS, sunDirection } from './time-of-day.ts';
 import { CloudField, WEATHER, WEATHER_IDS } from './weather.ts';
+
+const R_73 = MISSILES['R-73'];
 
 const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
 
@@ -81,11 +83,11 @@ describe('clouds and sensors (spec §12.3)', () => {
     const me = jet(1, 'usa', v(0, 800, 0), 90 * DEG);
     const ahead = jet(2, 'russia', v(2500, 1000, 0), 90 * DEG);
     const seeker = createSeeker();
-    updateSeeker(seeker, me, [ahead], null, SRM_DART, flat, 1 / 60, deck);
+    updateSeeker(seeker, me, [ahead], null, R_73, flat, 1 / 60, deck);
     expect(seeker.mode).toBe('track');
     ahead.flight.pos.set(2500, 2500, 0);
     const blind = createSeeker();
-    updateSeeker(blind, me, [ahead], null, SRM_DART, flat, 1 / 60, deck);
+    updateSeeker(blind, me, [ahead], null, R_73, flat, 1 / 60, deck);
     expect(blind.mode).toBe('search');
   });
 });

@@ -1,7 +1,7 @@
 import type { Vector3 } from 'three';
 import { TEAM_NAMES } from '../../shared/data/aircraft/registry.ts';
 import type { TeamId } from '../../shared/data/aircraft/types.ts';
-import { BOMB_ANVIL } from '../../shared/data/weapons.ts';
+import { FAB_500M_62 } from '../../shared/data/weapons.ts';
 import type { StrikeStatus } from '../../shared/modes/mode.ts';
 import type { GroundTargetView } from '../session/game-session.ts';
 import { formatClock } from './format.ts';
@@ -48,7 +48,7 @@ export function bombCue(impact: Vector3 | null, targets: readonly GroundTargetVi
 
 /** True while the predicted impact point lies within a standing target's full-damage radius. */
 export function releaseCue(impact: Vector3 | null, targets: readonly GroundTargetView[]): boolean {
-  return impact !== null && near(impact, targets, BOMB_ANVIL.fullDamageRadiusM);
+  return impact !== null && near(impact, targets, FAB_500M_62.fullDamageRadiusM);
 }
 
 export function targetDestroyedText(targetId: string): string {

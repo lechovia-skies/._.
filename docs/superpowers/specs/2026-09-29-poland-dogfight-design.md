@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 29)
+# Lechovia Skies — Design Spec (revision 30)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -104,6 +104,15 @@
     and cannon lag compensation returns.
   - Revision 29 (2026-10-13): the owner found fullscreen hard to reach. A button in the bottom-right corner of every
     screen does it at a click (§15.5).
+  - Revision 30 (2026-10-13): at the owner's request ("the types of weapons and the rounds carried exactly as in
+    reality") every jet carries the real weapons of the jet it is modelled on, under their real names and in the real
+    numbers (§9.2, §9.3, §10): the M61A1/M61A2, GAU-22/A and GSh-30-1 guns with their real magazines; AIM-9X,
+    AIM-120D, R-73, R-74M2, R-27R, R-77-1, R-77M and R-37M missiles, each with its own character (seeker, guidance,
+    reach, warhead); flares and chaff counted apart; the FAB-500M-62 in Strike, in each jet's real strike load. The
+    jets keep their fictional names. Keys 1 and 2 step through a jet's infrared and radar missiles (§15.3); the HUD and
+    the title screen show the loads by name (§15.2, §15.5). Team Objective drops its one Lance load for all (§13.4),
+    online play moves to protocol 6 (§7.1), AI pilots pull out of a dive with the power off (§14), and the balance
+    tournament runs 300 seeds (§9.4).
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -135,6 +144,7 @@ was built in M2 and removed again. Revision 28: online play is back, hosted in a
 | Netcode | Authoritative server + client prediction/reconciliation + snapshot interpolation + lag-compensated bullets | Q&A |
 | Aircraft | 8 fictional aircraft with fictional names and specifications, 4 per team, data-driven | Brief (supersedes real F-15C/F-16C/Su-27/MiG-29) |
 | Weapons | Cannon, short-range IR missile, medium-range radar missile, flares + chaff; behavior abstracted | Brief (supersedes guns + IR only) |
+| Real weapons | Each jet carries the real weapons of the type it is modelled on: real names, guns, missiles, rounds, flares and chaff; ranges scaled to the game's sky | Owner, 2026-10-13 (revision 30) |
 | Map | Fictional, procedurally generated Poland-inspired landscape with fictional locations; no real-world data download | Brief (supersedes real elevation data) |
 | Modes | Team Deathmatch, Air Superiority, Team Objective, Free Flight | Brief |
 | Environment | Clouds, weather presets, day/night cycle | Brief |
@@ -370,7 +380,9 @@ browser hosts the room and runs the match, and the others connect to it directly
     their seat back to an AI pilot. When the host leaves, the room closes and the pilots are told why.
   - A hidden host tab gets no frames: a tiny worker's timer keeps stepping the match (`BackgroundTicker`), so a host who
     switches tabs does not freeze the room; pilots' pages do the same, so they are not timed out.
-- **Protocol 5 (`shared/net/protocol.ts`, `codec.ts`):** M2's layout, brought up to date.
+- **Protocol 6 (`shared/net/protocol.ts`, `codec.ts`):** M2's layout, brought up to date (5 in revision 28; 6 since
+  revision 30: the input's weapon is the selected missile slot, 3 bits; a missile in flight names its type from
+  `MISSILE_IDS`; the pilot's own section counts missiles per type of its load, flares and chaff).
   - `hello` carries the callsign, jet and start; the `welcome` carries the room's settings (mode, map, weather and
     clock, seats, AI skill), the match seed (the wind comes from it), the tick and the host's callsign.
   - Inputs: 17 bytes, as in M2. Snapshots: per jet also the gear and load factor (for the vapour); the pilot's own
@@ -505,7 +517,7 @@ Each aircraft is one `AircraftConfig` data object in `src/shared/data/aircraft/<
 | identity | id, name, team, role, description, "inspired by" note (docs only) |
 | physics | mass, wing area, military/afterburner thrust, CD0, K, CLα, `α_max`, AoA limiter, G limits, max pitch/roll/yaw rates, thrust vectoring (0–1) |
 | sensors | radar range and cone, stealth (0–1), IR signature multiplier, special traits (helmet sight, two-seat crew) |
-| stores | cannon type and rounds, SRM count, MRM count, countermeasure salvos |
+| stores | the real jet's gun and rounds, its missiles by type and number, flares, chaff, and (Russian jets) a strike load of bombs and the missiles kept for it (revision 30) |
 | damage | hit points, hit radius |
 | visual | parametric model spec (fuselage, wing planform, tail type, intakes, nozzles, canards), livery colors |
 | hud | default units |
@@ -519,18 +531,19 @@ Each aircraft is one `AircraftConfig` data object in `src/shared/data/aircraft/<
 
 ### 9.2 Roster
 
-All names and numbers are fictional. The "inspired by" column is for design reference only and is never shown in game.
+The jets' names and flight numbers are fictional. The "inspired by" column was for design reference only; since
+revision 30 each jet carries the real weapons of that type (§9.3, §10), and the game names those weapons.
 
 | Team | Name | Inspired by | Role | Strengths | Weaknesses |
 |---|---|---|---|---|---|
-| USA | **Shade** | F-35 | Stealth multirole | Highest stealth, longest-range sensors, faster radar locks | Lowest thrust-to-weight, low top speed, internal stores only (2 SRM + 4 MRM), 180 cannon rounds |
-| USA | **Tempest** | F-22 | Stealth air superiority | High stealth, supercruise, best acceleration, pitch thrust vectoring | Lowest hit points, internal stores only (2 SRM + 4 MRM), fewest countermeasures |
-| USA | **Kestrel** | F-16 | Light multirole | Best roll rate, strong acceleration, agile at high speed | Low hit points, small radar, 4 SRM + 2 MRM |
-| USA | **Condor** | F-15 | Heavy air superiority | Fastest, big radar, 4 SRM + 4 MRM, 940 rounds, high hit points | No stealth, larger turning circle |
-| Russia | **Prizrak** | Su-57 | Stealth fighter | Moderate stealth, 3-D thrust vectoring, widest radar cone | Internal stores only (2 SRM + 4 MRM), 150 cannon rounds |
-| Russia | **Yastreb** | Su-35 | Supermaneuverable heavy | Best low-speed agility (3-D thrust vectoring), biggest payload (4 SRM + 6 MRM) | No stealth, bleeds energy in sustained turns |
-| Russia | **Sapsan** | Su-30 | Two-seat multirole | Two-seat crew: fastest locks, most hit points, 4 SRM + 6 MRM | Lowest acceleration, no stealth |
-| Russia | **Kobchik** | MiG-29 | Light fighter | Helmet sight: widest SRM off-boresight and fastest SRM lock; strong low-speed turn | Smallest radar, 4 SRM + 2 MRM, low hit points |
+| USA | **Shade** | F-35 | Stealth multirole | Highest stealth, longest-range sensors, faster radar locks | Lowest thrust-to-weight, low top speed, internal stores only (4 AIM-120D, no heat-seeker), 182 cannon rounds |
+| USA | **Tempest** | F-22 | Stealth air superiority | High stealth, supercruise, best acceleration, pitch thrust vectoring | Lowest hit points, internal stores only (2 AIM-9X + 6 AIM-120D), fewest countermeasures |
+| USA | **Kestrel** | F-16 | Light multirole | Best roll rate, strong acceleration, agile at high speed | Low hit points, small radar, 2 AIM-9X + 4 AIM-120D, 30 flares |
+| USA | **Condor** | F-15 | Heavy air superiority | Fastest, big radar, 4 AIM-9X + 4 AIM-120D, 940 rounds, high hit points | No stealth, larger turning circle |
+| Russia | **Prizrak** | Su-57 | Stealth fighter | Moderate stealth, 3-D thrust vectoring, widest radar cone, the R-77M and R-74M2 | Internal stores only (2 R-74M2 + 4 R-77M), 150 cannon rounds |
+| Russia | **Yastreb** | Su-35 | Supermaneuverable heavy | Best low-speed agility (3-D thrust vectoring), the long-range R-37M (2 R-73 + 2 R-77-1 + 2 R-37M) | No stealth, bleeds energy in sustained turns |
+| Russia | **Sapsan** | Su-30 | Two-seat multirole | Two-seat crew: fastest locks, 4 R-73 + 4 R-27R | Lowest acceleration, no stealth, semi-active R-27R |
+| Russia | **Kobchik** | MiG-29 | Light fighter | Helmet sight: widest R-73 off-boresight and fastest R-73 lock; strong low-speed turn | Smallest radar, 4 R-73 + 2 semi-active R-27R, low hit points |
 
 ### 9.3 Initial physical parameters (tuned against performance targets in tests)
 
@@ -546,9 +559,29 @@ All names and numbers are fictional. The "inspired by" column is for design refe
 | Hit points | 100 | 85 | 80 | 120 | 95 | 115 | 130 | 85 |
 | Radar range (km) / cone (±°) | 60 / 60 | 50 / 60 | 35 / 60 | 55 / 60 | 50 / 75 | 55 / 60 | 60 / 60 | 30 / 60 |
 | Stealth | 0.85 | 0.80 | 0.15 | 0 | 0.60 | 0.05 | 0 | 0.15 |
-| SRM / MRM | 2 / 4 | 2 / 4 | 4 / 2 | 4 / 4 | 2 / 4 | 4 / 6 | 4 / 6 | 4 / 2 |
-| Cannon / rounds | RC-25 / 180 | RC-20 / 480 | RC-20 / 510 | RC-20 / 940 | HC-30 / 150 | HC-30 / 150 | HC-30 / 150 | HC-30 / 150 |
-| Countermeasure salvos | 24 | 24 | 40 | 60 | 30 | 60 | 60 | 40 |
+| SRM / MRM (before revision 30) | 2 / 4 | 2 / 4 | 4 / 2 | 4 / 4 | 2 / 4 | 4 / 6 | 4 / 6 | 4 / 2 |
+| Cannon / rounds (before revision 30) | RC-25 / 180 | RC-20 / 480 | RC-20 / 510 | RC-20 / 940 | HC-30 / 150 | HC-30 / 150 | HC-30 / 150 | HC-30 / 150 |
+| Countermeasure salvos (before revision 30) | 24 | 24 | 40 | 60 | 30 | 60 | 60 | 40 |
+
+**Stores since revision 30: the real jet's.** At the owner's request each jet carries the real weapons of the jet it is
+modelled on, in its standard air-to-air load. Guns, rounds and missile loads come from official fact sheets and
+published configurations; flare and chaff loads are rarely published, so they come from the dispensers' published
+capacities where known, and stay at the game's earlier figure where not.
+
+| Jet (modelled on) | Gun and rounds | Missiles | Flares / chaff | Strike load (Russia, §13.1) | Source of the load |
+|---|---|---|---|---|---|
+| Shade (F-35A) | GAU-22/A 25 mm, 182 | 4 AIM-120D (internal) | 32 / 32 | — | Stealth air-to-air load: two missiles in each bay; its AIM-9X would ride outside. Flares and chaff not published: the game's earlier 32 salvos |
+| Tempest (F-22A) | M61A2 20 mm, 480 | 2 AIM-9X + 6 AIM-120D (internal) | 24 / 24 | — | USAF fact sheet (six AMRAAM in the main bay, a Sidewinder in each side bay). Flares and chaff not published: the game's earlier 24 |
+| Kestrel (F-16C Block 50) | M61A1 20 mm, 511 | 2 AIM-9X + 4 AIM-120D | 30 / 60 | — | Air-to-air stations 1–3 and 7–9; four ALE-47 magazines, two of 15 flares and two of 30 chaff |
+| Condor (F-15C) | M61A1 20 mm, 940 | 4 AIM-9X + 4 AIM-120D | 60 / 120 | — | USAF fact sheet (four AIM-120, four AIM-9X); ALE-45 as commonly cited |
+| Prizrak (Su-57) | GSh-30-1 30 mm, 150 | 2 R-74M2 + 4 R-77M (internal) | 21 / 21 | 4 FAB-500M-62 + 2 R-74M2 | Two missiles in each main bay, one in each side bay; three dispensers of 14 cartridges |
+| Yastreb (Su-35S) | GSh-30-1, 150 | 2 R-73 + 2 R-77-1 + 2 R-37M | 48 / 48 | 6 FAB-500M-62 + 2 R-73 + 2 R-77-1 | The air-combat load shown by Russian television (R-73 on the wing pylons, R-77 under the intakes, R-37M between the engines; Khibiny pods on the wingtips); 96 cartridges |
+| Sapsan (Su-30SM) | GSh-30-1, 150 | 4 R-73 + 4 R-27R | 48 / 48 | 6 FAB-500M-62 + 2 R-73 + 2 R-27R | As photographed over Syria; 96 cartridges |
+| Kobchik (MiG-29 9.12) | GSh-30-1, 150 | 4 R-73 + 2 R-27R | 30 / 30 | 4 FAB-500M-62 + 2 R-73 | Two R-27R inboard and four R-73 outboard; two BVP-30-26M dispensers of 30 |
+
+The USAF carries the AIM-120D on its F-15C, F-16C, F-22A and F-35A, so every US jet does (the AIM-120C, the earlier
+standard, stays in the game as the reference missile). Where a published total of cartridges has no split, it is half
+flares and half chaff. The Sentinels (§13.4) are fictional and keep 60 of each.
 
 Revision 10 (M3 balance pass, §9.4) changed these from the table above, in the data files only: hit points Condor 105,
 Prizrak 110, Yastreb 100, Sapsan 100, Kobchik 90 (a proximity hit does about 85 damage, so hit points decided most
@@ -563,8 +596,9 @@ M 1.9–2.3 at 11 km and M 1.1–1.4 at sea level; instantaneous turn 20–27 °
 ### 9.4 Balance process
 
 - A seeded bot-vs-bot tournament runs in tests (M3): every aircraft pairing, ace bots, a neutral head-on merge,
-  100 seeds per pairing (revision 10: about 60% of Ace duels end undecided after 3 minutes, so 50 seeds left too few
-  decided duels). `npm run tournament` runs it on all cores in about 15 s; `TOURNAMENT=1 npm test` runs it as a test.
+  300 seeds per pairing (revision 30; 100 since revision 10: about 60% of Ace duels end undecided after 3 minutes, so
+  50 seeds left too few decided duels). `npm run tournament` runs it on all cores in about 70 s; `TOURNAMENT=1 npm
+  test` runs it as a test.
 - Each pairing's win rate (of the decided duels; a mid-air collision is a draw) must be 35–65%. If one isn't, adjust
   that aircraft's data file (never the flight code) and re-run.
 - Result (revision 10): every pairing within 35–65% over seeds 1–100, and between 38% and 62% over seeds 1–200.
@@ -580,11 +614,30 @@ M 1.9–2.3 at 11 km and M 1.1–1.4 at sea level; instantaneous turn 20–27 °
   and easing to 0.55, and every pairing is within 35–65% over seeds 1–100 again (1,021 draws). Over seeds 1001–1300
   five pairings fall outside (Kestrel and Condor against the Prizrak and Yastreb, Tempest–Yastreb), against four
   before revision 21 on the same seeds: those pairings were already weak, and stay for a later balance pass.
+- Revision 30 (the real weapons, §10): with each jet's real load, 8 pairings fell outside 35–65% over seeds 1–100,
+  the USA losing: the Tempest won 12% against the Prizrak. Three causes, three fixes:
+  - The Prizrak's R-77M against the AIM-120C. The USAF carries the AIM-120D on all four US types, and that is the
+    R-77M's counterpart (§10.2): with it 6 pairings were outside.
+  - US jets chasing a Russian jet low flew into the ground at nearly 400 m/s on full afterburner (5–6 of every 60
+    duels for the Tempest and the Condor): an AI pilot sinking faster than 40 m/s now pulls out with the power off and
+    the airbrake out (§14). 2 pairings outside over seeds 1–300.
+  - Hit points (data): the Prizrak back to the 95 of the first table (it got 110 in revision 10, before it carried a
+    better missile than its opponents), and the Kestrel, which carries 30 flares where it had 40 salvos, 90 (was 80).
+  - Over seeds 1–100 three pairings still read 24–35% (Kestrel–Prizrak, Kestrel–Yastreb, Condor–Yastreb) where seeds
+    1–300 give 38–45% and seeds 1001–1300 36–51%: about 35 decided duels per pairing are known to only ±9%. The
+    tournament now runs 300 seeds (about 100 decided duels, ±5%; 70 s on four cores, `TOURNAMENT=1 npm test` about
+    five minutes on one). Result: every pairing within 35–65% over seeds 1–300 (lowest Kestrel–Yastreb and
+    Tempest–Yastreb 38%, highest Shade–Kobchik 61%) and over seeds 1001–1300 (36% to 61%).
 
-## 10. Weapons, targeting and countermeasures (abstracted)
+## 10. Weapons, targeting and countermeasures
 
-Weapons are gameplay abstractions with fictional names. No real-world construction, performance data or operational
-procedures are modeled.
+Until revision 30 the weapons were gameplay abstractions with fictional names (the RC-20, RC-25 and HC-30 guns, the
+"Dart" and "Lance" missiles, the "Anvil" bomb). Since revision 30 they are the real weapons of the jets the roster is
+modelled on (§9.3), under their real names (`src/shared/data/weapons.ts`): calibres, rates of fire, muzzle velocities
+and the differences between the missiles (seeker, guidance, motor, warhead) follow public figures, but ranges are
+scaled to the game's sky, where radars see 30–60 km: a missile reaches about a fifth as far as the real one, and each
+keeps its place against the others. Hit points and damage stay game numbers. Nothing about how the real weapons are
+built or employed is modelled beyond that.
 
 ### 10.1 Cannons
 
@@ -592,20 +645,27 @@ Projectiles inherit the shooter's velocity and feel gravity and drag. Each simul
 rounds to keep entity counts low. Hit test: the projectile's swept segment against each enemy's hit sphere (lag-
 compensated in multiplayer). There is no friendly fire.
 
-| | RC-20 (rotary, light) | RC-25 (rotary, medium) | HC-30 (single barrel, heavy) |
+| | M61A1 / M61A2 (F-15C, F-16C / F-22A) | GAU-22/A (F-35A) | GSh-30-1 (Russian jets) |
 |---|---|---|---|
-| Rounds/s (projectiles/s × rounds each) | 100 (25 × 4) | 55 (18 × 3) | 30 (15 × 2) |
-| Muzzle velocity (m/s) | 1,030 | 1,000 | 880 |
+| Calibre, barrels | 20 × 102 mm, six | 25 × 137 mm, four | 30 × 165 mm, one |
+| Rate of fire (projectiles/s × rounds each) | 6,000 rpm (25 × 4) | 3,300 rpm (18.3 × 3) | 1,800 rpm (15 × 2) |
+| Muzzle velocity (m/s) | 1,030 | 1,040 | 860 |
 | Damage per projectile | 10.4 | 14.0 | 17.4 |
 | Dispersion σ (mrad) | 2.5 | 3.0 | 3.5 |
 | Lifetime (s) | 3 | 3 | 3 |
+
+The last projectile of a magazine stands for the rounds left (511 is not a multiple of 4), with its damage in
+proportion. (Before revision 30: the RC-20, RC-25 and HC-30, with the same numbers except 1,000 and 880 m/s and the
+RC-25's 54 rounds a second.)
 
 **Lead marker** (a shared function used by the HUD, bots and the player's aim assist, §10.5): iterate the time of flight `t` three times,
 then aim direction `= normalize(Δp + Δv·t + ½g·t²·ŷ)`.
 
 ### 10.2 Missiles
 
-| | SRM "Dart" (infrared) | MRM "Lance" (radar, M3) |
+The reference missiles: the R-73 has the numbers of the old "Dart" and the AIM-120C those of the old "Lance".
+
+| | R-73 (infrared; the "Dart" until revision 30) | AIM-120C (radar, M3; the "Lance" until revision 30) |
 |---|---|---|
 | Needs | IR seeker lock | Radar lock on a radar contact |
 | Seeker acquisition cone | 10° half-angle around the designated target, nose, or helmet-sight direction | n/a (the launcher's radar) |
@@ -615,11 +675,29 @@ then aim direction `= normalize(Δp + Δv·t + ½g·t²·ŷ)`.
 | Guidance | proportional navigation (N = 3), 20 g limit, 0.5 s response lag | launcher-supported mid-course (target must stay in radar cone), independent when within 10 km × (1 − 0.5·stealth); N = 3, 20 g limit, 0.5 s response lag |
 | Motor | 150 m/s² for 5 s | 110 m/s² for 8 s |
 | Max flight time | 25 s | 60 s |
-| Countermeasure | flares: 35% decoy chance per salvo (×0.5 if the target is on afterburner) | chaff: 30% break chance per salvo (×1.3 vs stealthy targets) |
+| Countermeasure | flares: 35% decoy chance per flare (×0.5 if the target is on afterburner) | chaff: 30% break chance per chaff cartridge (×1.3 vs stealthy targets) |
 | Blast | 130 damage ≤ 4 m, linear to 0 at 18 m; proximity fuze 9 m | same |
 
+**The real missiles (revision 30)** differ from the reference ones as the real weapons differ (reach is the
+straight-line distance flown from 250 m/s at 6 km; real ranges for comparison):
+
+| Missile | Carried by | Guidance | Differs from its reference | Reach |
+|---|---|---|---|---|
+| AIM-9X Block II | Tempest, Kestrel, Condor | imaging infrared | looks and turns its seeker 90° off the nose (±90° off-boresight and gimbal), flares fool it 15% (R-73: 35%), lock range 10 km tail / 4.5 km head-on | 13.7 km (real about 35 km) |
+| R-73 | Yastreb, Sapsan, Kobchik | infrared | the reference | 13.7 km (real about 30 km) |
+| R-74M2 | Prizrak | infrared | better seeker against flares (20%) and a longer burn (6 s), lock range 10 / 4.5 km | 14.9 km (real about 40 km) |
+| AIM-120C | (reference) | active radar | the reference | 32 km (real about 105 km) |
+| AIM-120D | Shade, Tempest, Kestrel, Condor | active radar | GPS-aided, two-way datalink: 12 s burn, 90 s flight, chaff fools it 20% | 47 km (real about 160 km) |
+| R-77-1 | Yastreb | active radar | matches the AIM-120C (lattice tail fins) | 32 km (real about 110 km) |
+| R-77M | Prizrak | active radar (AESA) | two-pulse motor (13 s burn, 95 s flight), goes active from 12 km, chaff fools it 20% | 49 km (real about 190 km) |
+| R-27R | Sapsan, Kobchik | **semi-active radar** | never goes active: the launcher's radar must hold the target to impact, and the target hears the lock all the way; shorter burn (6 s) and flight (45 s), more drag, chaff fools it 40%; 39 kg warhead: 140 damage, out to 20 m | 22.6 km (real about 73 km) |
+| R-37M | Yastreb | active radar | made for big aircraft: 12 g, 0.7 s response lag, 14 s burn, 130 s flight, active from 20 km, 2 s lock, 3 s between launches; 60 kg warhead: 200 damage ≤ 6 m, out to 25 m, 12 m fuze | 74 km (real about 300 km) |
+
+Each has its real length and diameter for the model in flight (from the 3 m AIM-9X to the 4.2 m, 38 cm R-37M), and the
+range AI pilots fire it in (§14). `MISSILE_IDS` lists them for the wire (§7.1).
+
 - **Common rules:**
-  - Minimum interval between launches: 1 s (SRM) and 2 s (MRM).
+  - Minimum interval between launches: 1 s for infrared missiles and 2 s for radar missiles (3 s after an R-37M).
   - The fuze uses closest approach within each tick, so fast closure never tunnels.
   - Missiles lose their target on leaving the seeker limit, terrain occlusion, or a successful countermeasure roll;
     they then fly ballistic.
@@ -628,9 +706,11 @@ then aim direction `= normalize(Δp + Δv·t + ½g·t²·ŷ)`.
   - **Response lag:** the turning acceleration follows the guidance command with a first-order lag. A hard break
     started shortly before impact (roughly 1–2 s, depending on aspect) makes the missile miss; flying straight,
     turning gently, or breaking at launch does not. This gives skilled pilots a way to beat a missile without flares.
-- **Countermeasures:** one key press releases a salvo (one flare plus one chaff; chaff arrives with the MRM in M3), at
-  most one salvo per 0.4 s. Each missile guiding on that aircraft rolls once per salvo against the matching
-  countermeasure. Flares burn 3 s; chaff lasts 4 s.
+- **Countermeasures:** one key press releases a flare and a chaff cartridge (until revision 30 a "salvo" from one
+  count; now each from its own, in the jet's real numbers, §9.3), whichever are left, at most once per 0.4 s. Each
+  missile guiding on that aircraft rolls once per press against its own countermeasure: an infrared missile against a
+  flare, a radar missile against chaff; with no flares left, chaff alone does nothing to an infrared missile. Flares
+  burn 3 s; chaff lasts 4 s.
 - **Launch input:** one key press launches one missile, and only with a lock.
 
 ### 10.3 Targeting and sensors
@@ -647,39 +727,45 @@ then aim direction `= normalize(Δp + Δv·t + ½g·t²·ŷ)`.
   - When nothing is designated, the contact closest to the nose (within 60°) is designated automatically at each
     radar scan. This helps new players, and bots use the same rule.
   - A designation is dropped when the target dies or is no longer a contact.
-- **IR seeker (SRM)** has states `SEARCH → TRACK (growl) → LOCKED (tone)`, evaluated every tick.
+- **IR seeker** (of the selected infrared missile, with its own off-boresight limit and lock ranges) has states `SEARCH → TRACK (growl) → LOCKED (tone)`, evaluated every tick.
   - It looks toward the designated target when that is inside the off-boresight limit; otherwise along the nose, or
     along the helmet-sight direction when active.
   - Its lock is kept while the target stays inside the limit, within 1.2× range, and visible.
-- **Radar lock (MRM):** builds only while the MRM is selected (keys 1 / 2) and one is left. The designated target must
-  be an own-radar contact inside the cone. Lock builds over the lock time and is kept while detected; it also counts
-  toward kill credit like an IR lock.
-- **Lance flight (M3):** until the missile is within its active range, the launcher must stay alive with the target on
-  its radar (inside the cone), or the missile loses the target and flies ballistic. Inside the active range its own
-  seeker takes over (gimbal limit and terrain masking as for the Dart). The IR seeker runs only while the Dart is
-  selected.
+- **Radar lock:** builds only while a radar missile is selected (keys 1 / 2, §15.3) and one of its type is left, over
+  that missile's lock time. The designated target must be an own-radar contact inside the cone. The lock is kept while
+  detected; it also counts toward kill credit like an IR lock.
+- **Radar missile flight (M3):** until the missile is within its active range, the launcher must stay alive with the
+  target on its radar (inside the cone), or the missile loses the target and flies ballistic. Inside the active range
+  its own seeker takes over (gimbal limit and terrain masking as for an infrared missile). A semi-active R-27R never
+  goes active. The IR seeker runs only while an infrared missile is selected.
 - **Clouds (M4):** a cloud between two points hides each from the other's eyes and from infrared seekers (search,
-  track and lock) and breaks an infrared missile's guidance; radar and an active Lance see through. The cloud field is
+  track and lock) and breaks an infrared missile's guidance; radar and radar missiles see through. The cloud field is
   shared by the server, the simulation and the renderer.
 - **Warnings:**
-  - `LOCK` when an enemy radar lock is on you, or a Lance its launcher still guides (HUD "RADAR LOCK", a warble).
+  - `LOCK` when an enemy radar lock is on you, or a radar missile its launcher still guides (HUD "RADAR LOCK", a
+    warble): until it goes active, or to the end for an R-27R.
   - `MISSILE` (with bearing, range and time to impact) from the moment a missile guides on you. When the time to
     impact drops below 2 s the HUD tells you to turn hard.
 
 ### 10.4 Bombs (Strike mode only, M1d)
 
-The "Anvil" is an abstract, unguided free-fall bomb for the Strike mode (§13.1).
+The FAB-500M-62, the Russian 500 kg general-purpose bomb in its low-drag shape for fighters (2.4 m, 40 cm), unguided,
+for the Strike mode (§13.1). (Until revision 30: the abstract "Anvil", 8 to a jet, 40 damage within 30 m, 0 at 90 m.)
 
-- **Carriage:** only Russian aircraft in a Strike match carry it, 8 per aircraft. Every new aircraft (respawn) starts
-  with 8. No other mode or team carries bombs.
+- **Carriage:** only Russian aircraft in a Strike match carry it, in their jet's strike load (§9.3): four for the
+  Prizrak (in its main bays) and the Kobchik, six for the Yastreb and the Sapsan, with the missiles kept for
+  self-defence in place of the rest. Every new aircraft (respawn) starts with a full strike load. No other mode or team
+  carries bombs.
 - **Release:** one press of G releases one bomb, at most one per 0.25 s. The bomb starts at the aircraft's position
   with the aircraft's velocity.
 - **Flight:** gravity plus a simple speed-squared drag, like cannon projectiles (§10.1); no guidance. It detonates on
   reaching the surface (land or water). A bomb that leaves the combat area or falls for 60 s disappears.
-- **Effect:** bombs damage ground targets only, never aircraft. Damage is 40 within 30 m of a target's center,
-  falling linearly to 0 at 90 m, so three good hits destroy a target (100 HP, §11). The blast is generous on
-  purpose: at 250 m/s the impact point sweeps about 4 m per frame, so a release a fraction of a second late should
-  still count.
+- **Effect:** bombs damage ground targets only, never aircraft. Damage is 62 within 35 m of a target's center,
+  falling linearly to 0 at 100 m, so two good hits (one two-bomb stick on target) destroy a target (100 HP, §11). The
+  blast is generous on purpose: at 250 m/s the impact point sweeps about 4 m per frame, so a release a fraction of a
+  second late should still count. The numbers were chosen with the Strike bot tests (§19): at 50 / 30 m / 90 m a
+  Veteran with four bombs never destroyed two targets unopposed, at 60 / 35 / 100 it did 5 times in 10 (8 needed), at
+  75 the Veteran Kobchik beat the Veteran Kestrel 16 times in 20 (7–13 wanted); 62 gives 8 in 10 and 20 of 40.
 - **Impact prediction:** a shared function integrates the same bomb physics from the current aircraft state until the
   path meets the terrain. The HUD and the bots use it; it must agree with the real impact within 5 m.
 - **After the launcher dies:** bombs already falling keep going and still count. Impacts after the match has ended
@@ -693,17 +779,18 @@ last three seconds rolls again, so a disciplined bot that releases six salvos de
 player's weapons (`PLAYER_MISSILES`, `PLAYER_GUN_REACH` in `src/shared/data/weapons.ts`) therefore differ from the
 table above; AI pilots fire the plain ones.
 
-| | Player's Dart and Lance |
+| | Player's missiles (the R-73 and AIM-120C figures; since revision 30 the same changes apply to every missile) |
 |---|---|
-| Countermeasures | decoy or break chance ×0.3 (Dart 10.5% per salvo, Lance 9%) |
-| Lock time | ×0.7 (Dart 0.56 s, Lance 1.05 s) |
-| Dart acquisition cone | ×1.3 (13°) |
-| Guidance | N = 3.5, 25 g, 0.35 s response lag, 70° gimbal limit |
-| Blast | 130 damage ≤ 6 m, linear to 0 at 20 m; proximity fuze 11 m |
+| Countermeasures | decoy or break chance ×0.3 (R-73 10.5% per flare, AIM-120C 9% per chaff) |
+| Lock time | ×0.7 (R-73 0.56 s, AIM-120C 1.05 s) |
+| Infrared acquisition cone | ×1.3 (13°) |
+| Guidance | N + 0.5 (3.5), g limit ×1.25 (25 g), response lag ×0.7 (0.35 s), gimbal limit + 10° (70°) |
+| Blast | full-damage and outer radius + 2 m (130 damage ≤ 6 m, linear to 0 at 20 m); proximity fuze + 2 m (11 m) |
 | Cannon | rounds hit within three times the target's hit radius (twice at first; the owner asked for more) |
 | Gun aim assist | with the nose within 10° of an enemy's lead point (the HUD pipper) and within 1.5 km, the rounds leave toward the lead point; the help fades out by 15° (`src/shared/weapons/gun-assist.ts`; 3°/6° at first). The HUD draws a ring that closes on the pipper as the assist takes hold and turns red when it holds fully |
 
-Measured with the same duels (missile hit rates; wins out of the duels flown, 60 after):
+Measured with the same duels (missile hit rates; wins out of the duels flown, 60 after; "Dart" and "Lance" are the
+R-73 and AIM-120C of today):
 
 | | Before | After |
 |---|---|---|
@@ -732,7 +819,7 @@ The owner asked for a way to fly home and take on missiles and gun rounds again 
   neutral (Wilkowo and Sokolica, 58 km either side of the middle; Morzysko and Skalnik). Strike and Training fly on
   the Test Range, which has none.
 - **Supply pass:** over the runway (its length, within 250 m of the centre line), at most 150 m above it and 130 m/s
-  (about 250 kt), for 3 s: missiles (Darts, Lances, or the mode's Lance load), gun rounds and flares back to a fresh
+  (about 250 kt), for 3 s: missiles (of every type the jet's load has), gun rounds, flares and chaff back to a fresh
   jet's, and the tanks full. The roll-out after a landing counts the same, below 130 m/s on the runway.
 - **Stopped:** on the wheels anywhere on a friendly airfield's ground (the runway, its overruns and ±450 m either
   side, so a jet that has steered off the runway still counts) at under 5 m/s for 5 s, the jet is repaired to full hit
@@ -944,6 +1031,10 @@ and the player's jet decides the side: the Kestrel defends for the USA, the Kobc
   respawn. (Online, from M2, each team gets 4 aircraft per player.)
 - **Time limit:** 9 minutes (8 before revision 10: with Lances on both sides the Veteran attacker's win rate fell to
   29%; 9 minutes brings it back to 49% over 80 seeds).
+- **Loads (revision 30):** the attackers carry their jet's strike load (§9.3, §10.4): four or six FAB-500M-62 and two
+  to four missiles; the defenders their usual air-to-air load. The Strike bot tests still hold: a Veteran or an Ace
+  Prizrak destroys two targets unopposed within 9 minutes in 8 or more of 10 seeds, and a Veteran Kobchik attacking
+  beats a Veteran Kestrel defending in 7–13 of 20 (20 of 40 over seeds 1–40).
 - **Russia wins** when two targets are destroyed, or when the USA loses its 4th aircraft.
 - **The USA wins** when the time runs out, or when Russia loses its 4th aircraft.
 - **No draws.** The checks run each tick in this order, and the first that applies decides the match:
@@ -989,7 +1080,7 @@ and the player's jet decides the side: the Kestrel defends for the USA, the Kobc
 
 - **Sentinels:** two per team, 0.6 × the combat radius behind the front on the team's side and a quarter radius either
   side of its axis, orbiting (radius 0.15 × the combat radius, at most 8 km) at 7,000 m and 150 m/s. A fictional
-  four-engine radar aircraft: 60 t, 400 HP, a 16 m hit radius, a 150 km all-round radar, 60 countermeasure salvos, no
+  four-engine radar aircraft: 60 t, 400 HP, a 16 m hit radius, a 150 km all-round radar, 60 flares and 60 chaff, no
   weapons; never offered to pilots or bots and outside the balance tournament. Each starts (and returns) on the point
   of its orbit farthest from the middle of the combat area (revision 19; before, both teams' started west of the orbit
   centre, one team's 16 km nearer the front).
@@ -1003,6 +1094,14 @@ and the player's jet decides the side: the Kestrel defends for the USA, the Kobc
   carries 4 Lances (a mode rule, like Strike's bombs), and the USA's Sentinels have 400 + 50 HP per Russian fighter
   (450 in 1 v 1, 550 in 3 v 3, 600 in 4 v 4; the game passes the fighters per side to the mode). Bot play, Veterans
   with random jets: the USA won 11–14 (1 v 1, 15 draws), 16–24 (2 v 2), 35–42 (3 v 3, 80 matches) and 19–21 (4 v 4).
+- **Balance (revision 30):** with every jet's real load the mode rule of 4 Lances for all is gone (each jet carries its
+  own missiles, as in the other modes). The USA now carries the more radar missiles (AIM-120D on every jet, 4.5 a jet
+  against Russia's 3.5), and the Sentinel bonus tipped the mode its way: Veteran bot play on the Test Range, random
+  jets, 40 matches per size, gave the USA 19–10 (1 v 1, 11 draws), 14–26, 28–12 and 31–9 (4 v 4). The bonus is 0 now
+  (`USA_SENTINEL_HP_PER_ENEMY`, kept as a lever), both sides' Sentinels have 400 HP, and the USA won 18–13 (9 draws),
+  15–25, 23–17 and 26–14: 58%, 38%, 58% and 65%. In 2 v 2 nobody escorts (one fighter in three does), so the race to
+  shoot Sentinels down decides, and Russia's R-37M (200 damage, from 45 km) and R-27R (140) hurt a Sentinel more than
+  the AIM-120D (130).
 - **Scoring:** a Sentinel shot down gives the other team +20 and takes its own team's datalink down for 60 s; it
   returns at its orbit after 120 s. Every death of a fighter gives the other team +1. First to 60, or the higher
   score after 15 minutes.
@@ -1068,15 +1167,22 @@ stands still. Mission 1 is always open; clearing (winning) a mission opens the n
   from 72 m/s, and climbs out straight ahead at 12° with the wings level until 300 m above the ground; nothing else
   runs until then. Every jet lifts off in 9–12 s and reaches 300 m in 22–28 s.
 - **Behavior priority** (highest first):
-  1. **Ground avoidance:** if the flight path predicted 5 s ahead gets closer than 150 m to the surface, pull up.
+  1. **Ground avoidance:** if the flight path predicted 5 s ahead gets closer than 150 m to the surface, pull up;
+     sinking faster than 40 m/s, with the power at idle and the airbrake out (revision 30: chasing low at nearly
+     400 m/s on full afterburner, the US jets flew into the ground in about one duel in ten).
   2. **Boundary:** turn back inside the area.
   3. **Defend:** a missile is guiding on the bot → release countermeasures once it is within 3 s of impact; beam it
      and pull as hard as the profile allows once it is within (2 s − reaction delay) of impact. The bot judges each
      missile's time to impact with a per-missile error (spread in the table below), so weaker pilots mistime the
      break and get hit more.
   4. **Engage:**
-     - Choose a target. Fire MRM within 60% of the lock range, SRM within 0.5–7 km, at most one missile per target
-       per 5 s.
+     - Choose a target. Fire an infrared missile within its range (0.5–7 km for the R-73, 8 km for the AIM-9X and
+       R-74M2), at most one per target per 5 s. Beyond infrared range, a radar missile (revision 30: the one of the
+       jet's types that reaches; of those, the shortest-reaching, keeping an R-37M for far targets, but the
+       longest-reaching against a Sentinel; none reaching yet, the longest-reaching, so its lock builds while the range
+       closes), from 6 km (15 km for the R-37M; 2 km for a jet with no infrared missile left, such as the Shade), one
+       at a time per target, when it should arrive within two-thirds of its flight time. Bots go for a Sentinel from
+       25 km, or from as far as their longest radar missile reaches (45 km with an R-37M).
      - Lead pursuit with the cannon inside gun range, firing when the aim error is under the threshold.
   5. **Patrol:** fly toward the nearest enemy or the area center.
   6. **Energy:** afterburner in combat; ease the pull below corner speed.
@@ -1159,8 +1265,10 @@ The game is always third-person (revision 4). There is no first-person, cockpit 
 - **Flight:** airspeed, altitude, heading tape, throttle and afterburner, G (current and max), Mach, AoA,
   flight-path marker.
 - **Aircraft status:** HP and damage state, airbrake, stall warning, pull-up warning.
-- **Weapons:** selected weapon, remaining cannon rounds, SRM, MRM and countermeasures. Gun boresight cross and lead
-  marker on the designated target within 2 km.
+- **Weapons:** by their real names (revision 30), the gun and its rounds, each missile type with how many are left,
+  flares and chaff (and bombs): `M61A1 511  AIM-9X 2  AIM-120D 4  FLR 30  CHF 60`; the selected missile boxed and its
+  state under the row (`AIM-9X TRK`, `R-27R LOCK`, `AIM-120D EMPTY`). Gun boresight cross and lead marker on the
+  designated target within 2 km.
 - **Targeting:**
   - Target box and target info (type, range, closure, aspect); lock status (SRCH / TRK / LOCK).
   - Contact markers (friendly blue, enemy red) and an off-screen arrow for every enemy contact.
@@ -1220,7 +1328,7 @@ The game is always third-person (revision 4). There is no first-person, cockpit 
 - **Gamepad and flight stick (M1c):** the browser Gamepad API.
   - Standard layout: left stick pitch/roll (push = nose down), right stick look, LB/RB rudder, LT/RT throttle
     down/up, X cannon (hold), A missile, B flares and chaff, Y next target, D-pad down bomb, D-pad up airbrake (hold),
-    D-pad left / right select SRM / MRM (M3), Start pause, Back scores (hold).
+    D-pad left / right select an infrared / a radar missile (M3), Start pause, Back scores (hold).
   - Other devices (flight sticks): assignable roll, pitch, rudder and throttle axes with invert flags and assignable
     buttons; calibration records each axis's travel and rest position (levers use mid-travel); 0.08 dead zone.
   - Stick input overrides the mouse aim like the keyboard; in mouse-aim mode the aim follows the nose while the pad
@@ -1235,7 +1343,7 @@ The game is always third-person (revision 4). There is no first-person, cockpit 
 | Space or left mouse | Cannon |
 | F | Fire missile (one per press, needs a lock) |
 | G | Drop a bomb (one per press; Strike, Russian side, M1d) |
-| 1 / 2 | Select SRM / MRM (MRM from M3) |
+| 1 / 2 | Select an infrared / a radar missile (M3). Pressed again, each steps to the jet's next type of that kind (revision 30: the Yastreb's R-77-1 and R-37M); a jet without one (the Shade has no infrared missile) stays on what it has. A new jet starts on its first infrared missile |
 | R | Cycle target |
 | X | Countermeasures |
 | B | Airbrake (hold) |
@@ -1377,7 +1485,8 @@ The game is always third-person (revision 4). There is no first-person, cockpit 
 - **Audio:** WebAudio-synthesized, no asset files.
   - Wind, cannons. (The engine and afterburner were removed at the owner's request in revision 19: "the engine sound
     is awful, I don't want it".)
-  - SRM growl and lock tone, radar lock warning, missile warning, explosions and hits.
+  - Infrared growl and lock tone, radar lock beeps and tone, radar lock warning, missile warning, explosions and hits
+    (captions IR TRK, IR LOCK, RDR TRK, RDR LOCK, RADAR LOCK, MISSILE, HIT).
   - Bomb release (a short thump); bomb impacts use the explosion sound, scaled by distance.
   - Master volume.
   - M5: explosions panned to where they happen; the nearest missile within 700 m as a positional voice with a
@@ -1516,16 +1625,19 @@ brief (§11 of the brief: steps 1–11).
 
 ## 22. Content, attribution and licensing
 
-- **Fictional content:** aircraft, weapons, the country, cities, villages and airfields are fictional.
-  - Aircraft are only "inspired by" real types; no real designations or real specifications are shown.
+- **Fictional content:** aircraft, the country, cities, villages and airfields are fictional.
+  - Aircraft are only "inspired by" real types and keep invented names and flight numbers.
+  - Revision 30: at the owner's request the jets carry the real weapons of those types, under their real
+    designations (§10), with their published loads and public performance figures scaled to the game; how the
+    weapons are built or used in service is not modelled.
   - Revision 7: at the owner's request two jets look like the F-35A and the Su-57, using the owner's own models (some
     textures carry markings); since revision 10 these are the Shade and the Prizrak, the jets inspired by those types.
     Their names and specifications stay fictional.
   - No real-world military installations are reproduced.
   - Strike targets are fictional facilities in open country (a supply depot, a radar site, a fuel depot). Towns,
     villages and people are never targets, and no casualties are shown.
-- **Abstraction:** weapons and sensors are gameplay abstractions (§10). No real-world construction or operational
-  guidance.
+- **Abstraction:** sensors and the weapons' behaviour are gameplay models (§10): ranges scaled to the game, damage in
+  game hit points. No real-world construction or operational guidance.
 - **Tone:** a neutral game scenario, with no real events, casualties or political messaging.
 - **Licensing:** `three` and `ws` are MIT licensed. No project license file is added; the owner decides.
 

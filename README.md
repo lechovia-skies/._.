@@ -1,7 +1,7 @@
 # Lechovia Skies
 
 A browser-based flight-combat prototype. Two teams, **USA** and **Russia**, fly **fictional** fighters inspired by
-real aircraft over a fictional landscape inspired by Poland. This repository is being built in milestones (see
+real aircraft, armed with those aircraft's real weapons, over a fictional landscape inspired by Poland. This repository is being built in milestones (see
 `docs/superpowers/specs/2026-09-29-poland-dogfight-design.md`).
 
 **Play it:** https://lechovia-skies.github.io/._./ (desktop or laptop with a keyboard and mouse). The site
@@ -11,6 +11,29 @@ is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The
 **Current milestone: M5 "Modes & polish"** (after M1a "Fly", M1b "Fight", M1d "Strike", M1c "Website basics", M2
 "Multiplayer", M3 "Roster & weapons" and M4 "World"). Online play (M2) was taken out again on 2026-10-02 and came back
 on 2026-10-08 without any server: the game still runs entirely in the browser.
+- **Real weapons** (2026-10-13): every jet carries the real weapons of the type it is modelled on, by their real names
+  and in the real numbers, shown on the title screen and the HUD (`M61A1 511  AIM-9X 2  AIM-120D 4  FLR 30  CHF 60`):
+
+  | Jet (type) | Gun, rounds | Missiles | Flares / chaff |
+  |---|---|---|---|
+  | Shade (F-35A) | GAU-22/A 25 mm, 182 | 4 AIM-120D (in the bays) | 32 / 32 |
+  | Tempest (F-22A) | M61A2 20 mm, 480 | 2 AIM-9X, 6 AIM-120D (in the bays) | 24 / 24 |
+  | Kestrel (F-16C) | M61A1 20 mm, 511 | 2 AIM-9X, 4 AIM-120D | 30 / 60 |
+  | Condor (F-15C) | M61A1 20 mm, 940 | 4 AIM-9X, 4 AIM-120D | 60 / 120 |
+  | Prizrak (Su-57) | GSh-30-1 30 mm, 150 | 2 R-74M2, 4 R-77M (in the bays) | 21 / 21 |
+  | Yastreb (Su-35S) | GSh-30-1 30 mm, 150 | 2 R-73, 2 R-77-1, 2 R-37M | 48 / 48 |
+  | Sapsan (Su-30SM) | GSh-30-1 30 mm, 150 | 4 R-73, 4 R-27R | 48 / 48 |
+  | Kobchik (MiG-29) | GSh-30-1 30 mm, 150 | 4 R-73, 2 R-27R | 30 / 30 |
+
+  Each missile behaves like its namesake, at the game's scale: the AIM-9X locks 90° off the nose and shrugs off most
+  flares; the R-27R is semi-active, so its launcher must hold you on radar until it hits and your RADAR LOCK warning
+  stays on to the end; the R-77M and AIM-120D reach half as far again as the R-77-1; the R-37M reaches furthest of all
+  and hits hard but turns only at 12 g. 1 and 2 step through a jet's heat-seeking and radar missiles (the Yastreb's
+  2 goes R-77-1 → R-37M); the Shade carries no heat-seeker. Flares and chaff are counted apart: X drops one of each
+  while they last. In Strike the Russian jets carry their real strike load of FAB-500M-62 bombs (4 or 6) with fewer
+  missiles; two bombs on a target destroy it. Team Objective no longer gives every jet the same 4 missiles. Guns,
+  rounds and missile loads follow official fact sheets and published loads; flare and chaff loads are rarely
+  published, so some are the commonly cited figures and the Shade's and Tempest's are the game's earlier ones.
 - **Online play** (2026-10-08): **Online** on the title screen. One of you hosts a room (Dogfight, Air Superiority,
   Team Objective, Free Flight or Strike; 1, 2 or 4 pilots a side, AI pilots in the empty seats) and gets a six-letter
   code; up to seven friends join with the code or the invite link (pause menu: *Copy invite link*). The match runs in
@@ -35,7 +58,7 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
   key to skip.
 - **Rearm at an airfield** (2026-10-06, Lechovia): out of missiles or down to 40 gun rounds, the HUD points the way to the nearest
   airfield you can use (your team's or a neutral one). Fly low and slow along its runway (under about 250 kt and
-  450 ft for 3 s) to reload missiles, gun rounds and flares and refuel; or land: the gear comes down by itself on
+  450 ft for 3 s) to reload missiles, gun rounds, flares and chaff and refuel; or land: the gear comes down by itself on
   approach, the HUD outlines the runway and shows your sink rate, and stopped on the runway (B brakes) you are also
   repaired. The map (M) shows how far each of those airfields is. In Free Flight the whole map is open: a click on
   the map flies you from exactly there.
@@ -82,7 +105,7 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
     side with more jets inside takes a zone; each zone you own scores a point every 2 s. First to 300.
   - **Team Objective**: each side guards two slow **Sentinel** radar planes flown by the game. Shooting one down is
     worth 20 points and takes the other side's datalink down for 60 s; it comes back after 2 minutes. Every fighter
-    shot down is worth a point. Every jet carries 4 Lances here. First to 60.
+    shot down is worth a point. First to 60.
   - **Free Flight**: no enemies. From the pause menu set the time of day, the clock and the weather, and call up
     target drones; on the map (M) click anywhere to fly from there, or on an airfield to start on its runway.
   - Strike and the Training flight are still there.
@@ -120,8 +143,9 @@ Earlier milestones:
 - **Eight aircraft**, four per team: USA Shade, Tempest, Kestrel and Condor; Russia Prizrak, Yastreb, Sapsan and
   Kobchik, each with its own flight model, sensors, stores and strengths. The Shade and the Prizrak wear the owner's
   3D models (inspired by the F-35A and the Su-57); the others are generated with team paint schemes.
-- The medium-range radar missile **Lance** (key 2) with radar locks, chaff, and a RADAR LOCK warning when an enemy
-  radar locks on to you. AI pilots fly a mix of jets and use Lances beyond Dart range.
+- The medium-range radar missile (key 2; the "Lance" until 2026-10-13) with radar locks, chaff, and a RADAR LOCK
+  warning when an enemy radar locks on to you. AI pilots fly a mix of jets and use radar missiles beyond heat-seeker
+  range.
 - Balanced by a bot tournament: every USA jet against every Russian jet, Ace against Ace, within 35–65% wins.
 - A **training flight** (about 3 minutes): fly through rings, gun a drone, lock and fire a missile, beat a missile.
 - **Settings**: volume, mouse sensitivity and invert, rebindable keys, gamepad and flight-stick setup, HUD color and
@@ -130,7 +154,7 @@ Earlier milestones:
 - AI pilots at three skills (Rookie, Veteran, Ace).
 - **Strike** mode: Russia bombs three fictional targets while the USA holds them for 9 minutes; 4 aircraft per pilot
   per team.
-- Weapons: a cannon with a lead marker, heat-seeking (Dart) and radar (Lance) missiles that need a lock, and flares
+- Weapons: a cannon with a lead marker, heat-seeking and radar missiles that need a lock, and flares
   with chaff.
 - Damage, kill credit and respawns; tracers, missile trails, flares, explosions and smoke; synthesized sound.
 - A combat HUD with target box, missile lock, missile warning, radar display, kill feed and scoreboard.
@@ -171,7 +195,7 @@ frames per second, angle of attack, G, Mach, altitude, the landing gear and the 
 | Airbrake | B (hold) |
 | Cannon | Space or left mouse (hold) |
 | Missile (needs the lock tone) | F |
-| Select short-range Dart / medium-range Lance | 1 / 2 |
+| Select a heat-seeking / radar missile (again: the next type) | 1 / 2 |
 | Bomb (Strike, Russian jets) | G |
 | Flares and chaff | X |
 | Next target | R |
@@ -197,7 +221,7 @@ A pad with the standard layout (Xbox, PlayStation and most others) works straigh
 | LT / RT | Throttle down / up |
 | X · A · B · Y | Cannon (hold) · missile · flares and chaff · next target |
 | D-pad ↓ / ↑ | Bomb · airbrake (hold) |
-| D-pad ← / → | Select Dart / Lance |
+| D-pad ← / → | Select a heat-seeking / radar missile |
 | Start · Back | Pause · scores (hold) |
 | While waiting to respawn | Left stick ← / → watch another pilot · LB / RB pick the next jet |
 
@@ -207,16 +231,18 @@ buttons (move or press each one), then **Calibrate**.
 In a fight:
 - The nearest enemy ahead is targeted automatically; R picks the next one.
 - The missile seeker growls while it tracks and gives a steady tone when locked. Then press F.
-- For targets beyond about 6 km, press 2 for the Lance: a diamond closes on the target box while the radar locks
-  (quick beeps), then turns red with a steady tone. Press F, and keep the target inside your radar cone (roughly
-  ahead) until the missile is about 10 km from it; after that it guides itself. Press 1 to go back to the Dart.
-- RADAR LOCK flashes when an enemy radar has locked on to you or its Lance is on the way: expect a missile.
+- For targets beyond about 6 km, press 2 for your radar missile (AIM-120D, R-77-1, R-77M or R-27R; the Yastreb's
+  second press selects the long-range R-37M): a diamond closes on the target box while the radar locks (quick beeps),
+  then turns red with a steady tone. Press F, and keep the target inside your radar cone (roughly ahead) until the
+  missile is about 10 km from it; after that it guides itself. An R-27R never does: keep the target in the cone until
+  it hits. Press 1 to go back to your heat-seeker.
+- RADAR LOCK flashes when an enemy radar has locked on to you or its radar missile is on the way: expect a missile.
 - Inside 2 km a gun aim circle appears. Put the nose on it and fire.
 - A missile fired at you shows as MISSILE with its range from the moment it launches, and a red marker (or an arrow
   at the screen edge) shows where it is. You can beat it without flares: when the HUD flashes TURN HARD NOW, about
   two seconds before impact, turn hard to put the missile on your wing. Breaking too early or too late does not
-  work. Flares and chaff (X) help too: flares against the Dart (better off afterburner), chaff against the Lance
-  (better for the stealthy jets).
+  work. Flares and chaff (X) help too: flares against heat-seekers (better off afterburner; the AIM-9X ignores most),
+  chaff against radar missiles (better for the stealthy jets; the AIM-120D and R-77M ignore more of it).
 - Distant jets and missiles are drawn a little larger than life so they never shrink to a single pixel.
 - Watch the fuel: afterburner all the time empties the tank in 6–12 minutes near the ground (longer up high).
 - Keep your speed up: a stalled, slow jet that rolls can spin (see above), and spinning low is fatal.
@@ -224,9 +250,10 @@ In a fight:
 In Strike (choose **Strike** under Mission on the title screen):
 - The USA jets defend: keep at least two of the three targets standing for 9 minutes, or shoot Russia's jets down
   four times.
-- The Russian jets attack with 8 bombs each: destroy two targets, or shoot the USA's jets down four times.
+- The Russian jets attack with their strike load of FAB-500M-62 bombs (4 for the Prizrak and Kobchik, 6 for the
+  Yastreb and Sapsan): destroy two targets, or shoot the USA's jets down four times.
 - Fly level about 1,500 m above a target. The circle on the ground shows where a bomb would land; press G as it
-  crosses the target (RELEASE flashes). Three good hits destroy a target.
+  crosses the target (RELEASE flashes). Two good hits destroy a target.
 - Each side has 4 aircraft. Losing the fourth loses the match.
 
 In Air Superiority:
@@ -344,5 +371,6 @@ type, LERX, canards), painted in its team's scheme, so no rendering code changes
 
 ## Content note
 
-All aircraft, weapons, places and organizations are fictional. Aircraft are only *inspired by* real types and use
-invented names and specifications.
+All aircraft, places and organizations are fictional. Aircraft are only *inspired by* real types and use invented names
+and flight figures. Since 2026-10-13 they carry the real weapons of those types under their real names, with published
+loads and public figures scaled to the game; how the weapons are built or used in service is not modelled.

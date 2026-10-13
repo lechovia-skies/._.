@@ -3,7 +3,8 @@ import { getAircraft } from '../../shared/data/aircraft/registry.ts';
 import type { AircraftConfig, TeamId } from '../../shared/data/aircraft/types.ts';
 import type { MapDefinition } from '../../shared/data/maps/map-definition.ts';
 import type { MapId } from '../../shared/data/maps/registry.ts';
-import { CANNONS, type CannonSpec, missilesFor } from '../../shared/data/weapons.ts';
+import { type Loadout, loadoutFor, slotMissile } from '../../shared/data/loadout.ts';
+import { CANNONS, type CannonSpec, MISSILES, missilesFor } from '../../shared/data/weapons.ts';
 import type { Terrain } from '../../shared/map/terrain.ts';
 import { Rng } from '../../shared/math/rng.ts';
 import type { GameMode, ModeStatus } from '../../shared/modes/mode.ts';
@@ -101,8 +102,10 @@ class NetAircraft implements AircraftView {
   kills = 0;
   deaths = 0;
   firingCannon = false;
-  readonly stores: StoresState = { cannonRounds: 0, srm: 0, mrm: 0, countermeasures: 0, bombs: 0, fuelKg: 0 };
-  readonly bombLoad: number;
+  readonly stores: StoresState = { cannonRounds: 0, missiles: [], flares: 0, chaff: 0, bombs: 0, fuelKg: 0 };
+  /** this pilot flies Strike sorties (the mode says so for its team) */
+  readonly strike: boolean;
+  loadout: Loadout;
   targetId: number | null = null;
   contacts: Contact[] = [];
   datalink: number[] = [];
@@ -114,7 +117,7 @@ class NetAircraft implements AircraftView {
   /** tracer timing for the drawn cannon fire */
   cannonAccumulator = 0;
 
-  constructor(r: RosterEntry, isLocal: boolean, bombLoad: number) {
+  constructor(r: RosterEntry, isLocal: boolean, strike: boolean) {
     this.id = r.id;
     this.callsign = r.callsign;
     this.team = r.team;
@@ -122,7 +125,8 @@ class NetAircraft implements AircraftView {
     this.isLocal = isLocal;
     this.isBot = r.isBot;
     this.hp = this.config.damage.hitPoints;
-    this.bombLoad = bombLoad;
+    this.strike = strike;
+    this.loadout = loadoutFor(this.config, strike);
     this.flight = createFlightState({ position: new Vector3(), headingRad: 0, speed: 0 });
     this.stores.fuelKg = this.config.physics.fuelKg;
   }
@@ -644,13 +648,16 @@ export class NetworkSession implements GameSession {
       seen.add(r.id);
       let a = this.aircraft.get(r.id);
       if (!a) {
-        a = new NetAircraft(r, r.id === this.localId, this.mode.bombLoad(r.team));
+        a = new NetAircraft(r, r.id === this.localId, this.mode.strikes(r.team));
         this.aircraft.set(r.id, a);
       }
       a.kills = r.kills;
       a.deaths = r.deaths;
       // A pilot who respawned in another jet.
-      if (a.config.id !== r.aircraftId) a.config = getAircraft(r.aircraftId);
+      if (a.config.id !== r.aircraftId) {
+        a.config = getAircraft(r.aircraftId);
+        a.loadout = loadoutFor(a.config, a.strike);
+      }
     }
     for (const id of [...this.aircraft.keys()]) if (!seen.has(id)) this.aircraft.delete(id);
   }
@@ -730,9 +737,10 @@ export class NetworkSession implements GameSession {
     me.alive = mine.alive;
     const s = me.stores;
     s.cannonRounds = own.cannonRounds;
-    s.srm = own.srm;
-    s.mrm = own.mrm;
-    s.countermeasures = own.countermeasures;
+    s.missiles.length = 0;
+    s.missiles.push(...own.missiles);
+    s.flares = own.flares;
+    s.chaff = own.chaff;
     s.bombs = own.bombs;
     s.fuelKg = own.fuelKg;
     me.hp = own.hp;
@@ -744,7 +752,8 @@ export class NetworkSession implements GameSession {
     v3(me.seeker.axis, own.seekerAxis);
     me.radarLock.mode = own.radarLockMode;
     me.radarLock.targetId = own.radarLockTargetId;
-    me.radarLock.timerS = own.radarLockProgress * radarLockTimeS(missilesFor(me).lance, me.config);
+    const selected = slotMissile(me.loadout, this.stepInput.weapon, missilesFor(me)) ?? MISSILES['AIM-120C'];
+    me.radarLock.timerS = own.radarLockProgress * radarLockTimeS(selected, me.config);
     me.lockedByRadar = own.lockedByRadar;
     me.boundarySecondsLeft = own.outOfBoundsTicks > 0 ? (BOUNDARY_GRACE_S * TICK_RATE - own.outOfBoundsTicks) / TICK_RATE : null;
     me.supply = own.supply;
@@ -888,7 +897,7 @@ export class NetworkSession implements GameSession {
 
     blend(this.missileViews as unknown as Map<number, MovingView>, s0.missiles, s1?.missiles, (id) => {
       const m = s0.missiles.find((x) => x.id === id);
-      return { id, kind: m?.kind ?? 'dart', team: m?.team ?? 'usa', ownerId: m?.ownerId ?? 0, targetId: null, position: new Vector3(), velocity: new Vector3(), motorBurning: true } as MissileView;
+      return { id, kind: m?.kind ?? 'R-73', team: m?.team ?? 'usa', ownerId: m?.ownerId ?? 0, targetId: null, position: new Vector3(), velocity: new Vector3(), motorBurning: true } as MissileView;
     });
     for (const m of s0.missiles) {
       const v = this.missileViews.get(m.id);

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { MRM_LANCE, SRM_DART } from '../data/weapons.ts';
+import { MISSILES } from '../data/weapons.ts';
 import { Rng } from '../math/rng.ts';
 import { decoyChance, rollDecoy } from './countermeasures.ts';
+
+const R_73 = MISSILES['R-73'];
+const AIM_120C = MISSILES['AIM-120C'];
 
 const rate = (chance: number, seed: number) => {
   const rng = new Rng(seed);
@@ -12,21 +15,21 @@ const rate = (chance: number, seed: number) => {
 
 describe('countermeasures', () => {
   it('decoys a short-range missile 35% of the time, half as often against afterburner', () => {
-    expect(decoyChance(SRM_DART, false)).toBeCloseTo(0.35, 9);
-    expect(decoyChance(SRM_DART, true)).toBeCloseTo(0.175, 9);
+    expect(decoyChance(R_73, false)).toBeCloseTo(0.35, 9);
+    expect(decoyChance(R_73, true)).toBeCloseTo(0.175, 9);
   });
 
   it('breaks a Lance lock with chaff 30% of the time, 39% against a stealthy target, whatever the throttle', () => {
-    expect(decoyChance(MRM_LANCE, false, 0)).toBeCloseTo(0.3, 9);
-    expect(decoyChance(MRM_LANCE, true, 0.15)).toBeCloseTo(0.3, 9);
-    expect(decoyChance(MRM_LANCE, false, 0.6)).toBeCloseTo(0.39, 9);
-    expect(decoyChance(SRM_DART, false, 0.85)).toBeCloseTo(0.35, 9);
+    expect(decoyChance(AIM_120C, false, 0)).toBeCloseTo(0.3, 9);
+    expect(decoyChance(AIM_120C, true, 0.15)).toBeCloseTo(0.3, 9);
+    expect(decoyChance(AIM_120C, false, 0.6)).toBeCloseTo(0.39, 9);
+    expect(decoyChance(R_73, false, 0.85)).toBeCloseTo(0.35, 9);
   });
 
   it('matches the expected rate within ±5% over 1,000 seeded trials', () => {
     for (const seed of [1, 2, 3]) {
-      expect(Math.abs(rate(decoyChance(SRM_DART, false), seed) - 0.35)).toBeLessThan(0.05);
-      expect(Math.abs(rate(decoyChance(SRM_DART, true), seed) - 0.175)).toBeLessThan(0.05);
+      expect(Math.abs(rate(decoyChance(R_73, false), seed) - 0.35)).toBeLessThan(0.05);
+      expect(Math.abs(rate(decoyChance(R_73, true), seed) - 0.175)).toBeLessThan(0.05);
     }
   });
 });

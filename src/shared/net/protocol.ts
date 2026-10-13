@@ -14,8 +14,8 @@ import { WEATHER_IDS, type WeatherId } from '../world/weather.ts';
  * status as JSON. The layout follows the dedicated server of milestone M2 (protocols 1 to 4), which this replaces.
  */
 
-/** Bumped whenever a message layout changes; host and pilot must agree. */
-export const PROTOCOL_VERSION = 5;
+/** Bumped whenever a message layout changes; host and pilot must agree (6: the real weapons of revision 30). */
+export const PROTOCOL_VERSION = 6;
 
 /** The host sends a snapshot every this many ticks (30 Hz at 60 Hz ticks). */
 export const SNAPSHOT_EVERY_TICKS = 2;

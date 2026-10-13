@@ -7,8 +7,9 @@ describe('missileAdvice', () => {
     expect(missileAdvice(0.4).urgent).toBe(true);
   });
 
-  it('suggests flares and waiting while the missile is still far off in time', () => {
+  it('suggests flares (or chaff against a radar missile) and waiting while the missile is still far off in time', () => {
     expect(missileAdvice(4.5)).toEqual({ text: 'X  FLARES  ·  BREAK WHEN IT IS CLOSE', urgent: false });
+    expect(missileAdvice(4.5, 'radar')).toEqual({ text: 'X  CHAFF  ·  BREAK WHEN IT IS CLOSE', urgent: false });
     expect(missileAdvice(Infinity).urgent).toBe(false);
   });
 });

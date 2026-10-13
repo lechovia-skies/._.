@@ -23,7 +23,7 @@ export function controlsHelp(mode: ControlMode, bindings: Bindings = DEFAULT_BIN
     [`${k('throttleUp')} · ${k('throttleDown')} · wheel`, 'Throttle up · down (the top notch is afterburner)'],
     [`${k('cannon')} · left click`, 'Cannon'],
     [k('missile'), 'Missile, once the lock tone sounds'],
-    [pair('weaponSrm', 'weaponMrm'), 'Select the short-range (Dart) / medium-range (Lance) missile'],
+    [pair('weaponSrm', 'weaponMrm'), 'Select an infrared / a radar missile (press again for the next type, e.g. R-77-1 → R-37M)'],
     [k('bomb'), 'Bomb (Strike, Russian jets)'],
     [k('flares'), 'Flares and chaff'],
     [k('nextTarget'), 'Next target'],
@@ -46,6 +46,6 @@ export const GAMEPAD_HELP: readonly HelpRow[] = [
   ['B', 'Flares and chaff'],
   ['Y', 'Next target'],
   ['D-pad ↓ / ↑', 'Bomb · airbrake (hold)'],
-  ['D-pad ← / →', 'Select SRM / MRM'],
+  ['D-pad ← / →', 'Select an infrared / a radar missile'],
   ['Start · Back', 'Pause · scores (hold)'],
 ];

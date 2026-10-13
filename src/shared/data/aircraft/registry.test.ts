@@ -26,28 +26,45 @@ describe('aircraft registry', () => {
     expect(listAircraft('russia').map((a) => a.id)).toEqual(['prizrak', 'yastreb', 'sapsan', 'kobchik']);
   });
 
-  it('matches the roster table in the spec (§9.3, with the M3 balance changes of revision 10)', () => {
-    // id: mass, wing area, thrust mil/AB kN, roll, HP, radar km/cone, stealth, SRM/MRM, cannon/rounds, salvos, TV
-    const table: Record<string, [number, number, number, number, number, number, number, number, number, number, number, string, number, number, number]> = {
-      shade: [21000, 43, 120, 195, 130, 100, 60, 60, 0.85, 2, 4, 'RC-25', 180, 32, 0],
-      tempest: [27000, 78, 225, 315, 155, 85, 50, 60, 0.8, 2, 4, 'RC-20', 480, 24, 0.5],
-      kestrel: [12000, 28, 76, 130, 180, 80, 35, 60, 0.15, 4, 2, 'RC-20', 510, 40, 0],
-      condor: [20500, 56, 128, 212, 135, 105, 55, 60, 0, 4, 4, 'RC-20', 940, 60, 0],
-      prizrak: [26000, 78, 185, 300, 160, 110, 50, 75, 0.6, 2, 4, 'HC-30', 150, 30, 1],
-      yastreb: [25000, 62, 170, 285, 140, 100, 55, 60, 0.05, 4, 6, 'HC-30', 150, 60, 1],
-      sapsan: [26500, 62, 150, 243, 120, 100, 60, 60, 0, 4, 6, 'HC-30', 150, 60, 0],
-      kobchik: [15000, 38, 100, 165, 160, 90, 30, 60, 0.15, 4, 2, 'HC-30', 150, 40, 0],
+  it('matches the roster table in the spec (§9.3, with the balance changes of revisions 10 and 30)', () => {
+    // id: mass, wing area, thrust mil/AB kN, roll, HP, radar km/cone, stealth, TV
+    const table: Record<string, [number, number, number, number, number, number, number, number, number, number]> = {
+      shade: [21000, 43, 120, 195, 130, 100, 60, 60, 0.85, 0],
+      tempest: [27000, 78, 225, 315, 155, 85, 50, 60, 0.8, 0.5],
+      kestrel: [12000, 28, 76, 130, 180, 90, 35, 60, 0.15, 0],
+      condor: [20500, 56, 128, 212, 135, 105, 55, 60, 0, 0],
+      prizrak: [26000, 78, 185, 300, 160, 95, 50, 75, 0.6, 1],
+      yastreb: [25000, 62, 170, 285, 140, 100, 55, 60, 0.05, 1],
+      sapsan: [26500, 62, 150, 243, 120, 100, 60, 60, 0, 0],
+      kobchik: [15000, 38, 100, 165, 160, 90, 30, 60, 0.15, 0],
     };
     for (const [id, row] of Object.entries(table)) {
       const c = getAircraft(id);
       const p = c.physics;
       const s = c.sensors;
-      const st = c.stores;
-      expect([p.massKg, p.wingAreaM2, p.thrustMilN / 1000, p.thrustAbN / 1000, p.maxRollRateDegS, c.damage.hitPoints, s.radarRangeKm, s.radarConeDeg, s.stealth, st.srm, st.mrm, st.cannon, st.cannonRounds, st.countermeasures, p.thrustVectoring], id).toEqual(row);
+      expect([p.massKg, p.wingAreaM2, p.thrustMilN / 1000, p.thrustAbN / 1000, p.maxRollRateDegS, c.damage.hitPoints, s.radarRangeKm, s.radarConeDeg, s.stealth, p.thrustVectoring], id).toEqual(row);
     }
     expect(getAircraft('shade').sensors.sensorFusion).toBe(true);
     expect(getAircraft('sapsan').sensors.twoSeat).toBe(true);
     expect(getAircraft('kobchik').sensors.helmetSight).toBe(true);
+  });
+
+  it("carries the real jet's gun, missiles, flares and chaff (§9.3, revision 30)", () => {
+    const loads = (id: string) => {
+      const st = getAircraft(id).stores;
+      const strike = st.strike ? `${st.strike.bombs} ${st.strike.bomb} + ${st.strike.missiles.map((m) => `${m.count} ${m.missile}`).join(', ')}` : null;
+      return [st.cannon, st.cannonRounds, st.missiles.map((m) => `${m.count} ${m.missile}`).join(', '), st.flares, st.chaff, strike];
+    };
+    expect(loads('shade')).toEqual(['GAU-22/A', 182, '4 AIM-120D', 32, 32, null]);
+    expect(loads('tempest')).toEqual(['M61A2', 480, '2 AIM-9X, 6 AIM-120D', 24, 24, null]);
+    expect(loads('kestrel')).toEqual(['M61A1', 511, '2 AIM-9X, 4 AIM-120D', 30, 60, null]);
+    expect(loads('condor')).toEqual(['M61A1', 940, '4 AIM-9X, 4 AIM-120D', 60, 120, null]);
+    expect(loads('prizrak')).toEqual(['GSh-30-1', 150, '2 R-74M2, 4 R-77M', 21, 21, '4 FAB-500M-62 + 2 R-74M2']);
+    expect(loads('yastreb')).toEqual(['GSh-30-1', 150, '2 R-73, 2 R-77-1, 2 R-37M', 48, 48, '6 FAB-500M-62 + 2 R-73, 2 R-77-1']);
+    expect(loads('sapsan')).toEqual(['GSh-30-1', 150, '4 R-73, 4 R-27R', 48, 48, '6 FAB-500M-62 + 2 R-73, 2 R-27R']);
+    expect(loads('kobchik')).toEqual(['GSh-30-1', 150, '4 R-73, 2 R-27R', 30, 30, '4 FAB-500M-62 + 2 R-73']);
+    // Russia attacks in Strike, so every Russian jet has a strike load.
+    for (const c of listAircraft('russia')) expect(c.stores.strike, c.id).toBeDefined();
   });
 
   it('knows the Sentinels (M5) by id but never offers them to pilots or bots', () => {

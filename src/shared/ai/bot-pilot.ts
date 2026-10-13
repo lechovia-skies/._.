@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { BOMB_ANVIL, CANNONS, COUNTERMEASURES } from '../data/weapons.ts';
+import { type BombSpec, CANNONS, COUNTERMEASURES, FAB_500M_62, MISSILES, type MissileSpec } from '../data/weapons.ts';
 import { timeToImpact } from '../map/ground-proximity.ts';
 import type { Terrain } from '../map/terrain.ts';
 import { Rng } from '../math/rng.ts';
@@ -46,21 +46,25 @@ const CLIMB_OUT_TO_M = 300;
 const GROUND_HORIZON_S = 5;
 const GROUND_MARGIN_M = 150;
 const RECOVERY_CLIMB_RAD = 30 * DEG;
+/** Sinking faster than this, a ground-avoidance pull goes with idle power and the airbrake. */
+const DIVE_RECOVERY_SINK_MS = -40;
 const BOUNDARY_FRACTION = 0.9;
 const CEILING_M = 14000;
 const PATROL_ALTITUDE_M = 4000;
 const MIN_ENGAGE_ALTITUDE_M = 2500;
-const SRM_MIN_RANGE_M = 500;
-const SRM_MAX_RANGE_M = 7000;
 /** Rough speed the missile gains over the launcher, for estimating time to intercept. */
 const SRM_SPEED_GAIN_MS = 450;
 const SRM_MAX_INTERCEPT_S = 12;
 const MISSILES_PER_TARGET_INTERVAL_S = 5;
-/** Lances are for targets beyond Dart range, out to where the missile still arrives with energy (spec §10.2). */
-const MRM_MIN_RANGE_M = 6000;
-const MRM_MAX_RANGE_M = 25000;
+/**
+ * Radar missiles are for targets beyond infrared-missile range, each between its own minimum and maximum range (spec
+ * §10.2): an R-37M from 15 km, the others from 6 km. A jet with no infrared missile left (a Shade carries none) fires
+ * them from this close.
+ */
+const RADAR_ONLY_MIN_RANGE_M = 2000;
 const MRM_SPEED_GAIN_MS = 450;
-const MRM_MAX_INTERCEPT_S = 40;
+/** A radar missile is fired only when it should arrive within this share of its flight time (40 s for an AIM-120C). */
+const MRM_INTERCEPT_SHARE = 2 / 3;
 const AIM_NOISE_HOLD_S = 0.5;
 const LEAD_PURSUIT_RANGE_M = 2500;
 const DEFEND_DIVE_ABOVE_M = 1500;
@@ -112,8 +116,8 @@ const ORBIT_RADIUS_M = 5000;
 const ORBIT_ALTITUDE_M = 4000;
 /** With a mode goal (M5) a bot fights only enemies this close and otherwise heads for its goal. */
 const GOAL_ENGAGE_RANGE_M = 12000;
-/** ...but takes on an enemy support aircraft (a Sentinel) out to Lance range. */
-const SUPPORT_ENGAGE_RANGE_M = MRM_MAX_RANGE_M;
+/** ...but takes on an enemy support aircraft (a Sentinel) out to this range, or its longest radar missile's reach. */
+const SUPPORT_ENGAGE_RANGE_M = 25000;
 /** Enemy fighters this far beyond the goal's radius are left alone, unless they sit on the bot's tail. */
 const GOAL_FIGHT_MARGIN_M = 4000;
 const TAIL_THREAT_RANGE_M = 2500;
@@ -201,7 +205,8 @@ export class BotPilot {
     out.countermeasures = false;
     out.dropBomb = false;
     out.cycleTarget = false;
-    out.weapon = 'srm';
+    out.weapon = this.firstSlot(self, 'ir');
+    if (out.weapon < 0) out.weapon = Math.max(0, this.firstSlot(self, 'radar'));
     out.helmetSight = false;
     out.lookYaw = 0;
     out.lookPitch = 0;
@@ -238,7 +243,7 @@ export class BotPilot {
       return;
     }
     if (hasStandingTarget(world)) {
-      if (self.bombLoad > 0) {
+      if (self.strike) {
         if (this.attack(world, self, reactionTicks, out)) return;
       } else {
         this.defendTargets(world, self, reactionTicks, out);
@@ -258,23 +263,24 @@ export class BotPilot {
   }
 
   /**
-   * With a mode goal (M5): an enemy Sentinel on our contacts within Lance range comes first; then the nearest enemy
-   * fighter that is near the goal (or right on our tail), so fights happen in the zone or round the escorted Sentinel
-   * instead of dragging the bot away. The bot steps its designation onto a chosen Sentinel, so its missiles lock the
-   * Sentinel rather than whatever is nearest the nose.
+   * With a mode goal (M5): an enemy Sentinel on our contacts within radar-missile range comes first; then the nearest
+   * enemy fighter that is near the goal (or right on our tail), so fights happen in the zone or round the escorted
+   * Sentinel instead of dragging the bot away. The bot steps its designation onto a chosen Sentinel, so its missiles
+   * lock the Sentinel rather than whatever is nearest the nose.
    */
   private goalTarget(world: BotWorld, self: AircraftEntity, goal: BotGoal, reactionTicks: number): AircraftEntity | null {
     const f = self.flight;
     this.track.copy(f.vel).normalize();
     let target: AircraftEntity | null = null;
     let best = Infinity;
+    const supportRange = Math.max(SUPPORT_ENGAGE_RANGE_M, this.longestRadarReach(self));
     for (const c of self.contacts) {
       const t = world.getAircraft(c.id);
       if (!t || !t.alive || t.team === self.team) continue;
       let score = Infinity;
       if (t.support) {
         // A Sentinel ranks ahead of every fighter: its range counts as a quarter.
-        if (c.rangeM <= SUPPORT_ENGAGE_RANGE_M) score = c.rangeM / 4;
+        if (c.rangeM <= supportRange) score = c.rangeM / 4;
       } else if (c.rangeM <= GOAL_ENGAGE_RANGE_M) {
         const p = t.flight.pos;
         const nearGoal = Math.hypot(p.x - goal.x, p.z - goal.z) <= goal.radiusM + GOAL_FIGHT_MARGIN_M;
@@ -325,7 +331,7 @@ export class BotPilot {
   }
 
   private decideFlares(world: BotWorld, self: AircraftEntity): boolean {
-    if (self.stores.countermeasures <= 0 || world.tick < this.nextFlareDecisionTick) return false;
+    if (self.stores.flares + self.stores.chaff <= 0 || world.tick < this.nextFlareDecisionTick) return false;
     this.nextFlareDecisionTick = world.tick + Math.ceil(COUNTERMEASURES.minIntervalS * world.tickRate);
     return this.rng.next() < this.profile.countermeasureDiscipline;
   }
@@ -364,7 +370,11 @@ export class BotPilot {
     this.desired.set(f.vel.x, 0, f.vel.z);
     if (this.desired.lengthSq() < 1) this.desired.set(0, 0, -1);
     this.desired.normalize().setY(Math.tan(RECOVERY_CLIMB_RAD)).normalize();
-    this.fly(f, this.desired, 1, 1, out);
+    // Pulling out of a dive, power off and the airbrake out: a slower jet turns tighter (revision 30). Climbing or
+    // level, full power keeps the energy to climb away.
+    const diving = f.vel.y < DIVE_RECOVERY_SINK_MS;
+    this.fly(f, this.desired, 1, diving ? 0 : 1, out);
+    out.airbrake = diving;
     return true;
   }
 
@@ -447,18 +457,21 @@ export class BotPilot {
     this.nose.set(0, 0, -1).applyQuaternion(f.quat);
     out.fireCannon = range <= p.gunRangeM && self.stores.cannonRounds > 0 && this.nose.angleTo(this.aim) <= p.fireThresholdDeg * DEG;
 
-    // Beyond Dart range a jet with Lances left fights with them (M3). Pursuit keeps the target in the radar cone,
-    // which the Lance needs until it goes active.
+    // Beyond infrared-missile range a jet with radar missiles left fights with them (M3). Pursuit keeps the target in
+    // the radar cone, which a radar missile needs until it goes active (a semi-active R-27R until it hits).
     const onRadar = self.contacts.some((c) => c.id === target.id && c.radar);
-    if (self.stores.mrm > 0 && onRadar && range > MRM_MIN_RANGE_M) {
-      out.weapon = 'mrm';
-      this.fireLance(world, self, target, range, closure, out);
+    const radarSlot = onRadar ? this.radarSlot(self, target, range) : -1;
+    if (radarSlot >= 0) {
+      out.weapon = radarSlot;
+      this.fireRadarMissile(world, self, target, range, closure, MISSILES[self.loadout.missiles[radarSlot].missile], out);
       return;
     }
 
     const s = self.seeker;
-    if (s.mode !== 'locked' || s.targetId !== target.id || self.stores.srm <= 0) return;
-    if (range < SRM_MIN_RANGE_M || range > SRM_MAX_RANGE_M) return;
+    const load = self.loadout.missiles[out.weapon];
+    const spec = load ? MISSILES[load.missile] : null;
+    if (!spec || spec.guidance !== 'ir' || s.mode !== 'locked' || s.targetId !== target.id || (self.stores.missiles[out.weapon] ?? 0) <= 0) return;
+    if (range < spec.minRangeM || range > spec.maxRangeM) return;
     if (range / Math.max(closure + SRM_SPEED_GAIN_MS, 1) > SRM_MAX_INTERCEPT_S) return;
     const last = this.lastLaunchTick.get(target.id);
     if (last !== undefined && world.tick - last < MISSILES_PER_TARGET_INTERVAL_S * world.tickRate) return;
@@ -466,13 +479,59 @@ export class BotPilot {
     this.lastLaunchTick.set(target.id, world.tick);
   }
 
-  /** Fires a Lance on a radar lock when it can reach the target, one at a time per target. */
-  private fireLance(world: BotWorld, self: AircraftEntity, target: AircraftEntity, range: number, closure: number, out: ControlInput): void {
+  /** How far the longest-reaching radar missile left on board reaches (an R-37M: 45 km, for Sentinels); 0 if none. */
+  private longestRadarReach(self: AircraftEntity): number {
+    let reach = 0;
+    self.loadout.missiles.forEach((l, i) => {
+      const spec = MISSILES[l.missile];
+      if ((self.stores.missiles[i] ?? 0) > 0 && spec.guidance === 'radar') reach = Math.max(reach, spec.maxRangeM);
+    });
+    return reach;
+  }
+
+  /** The first slot of a guidance with missiles left, or -1. */
+  private firstSlot(self: AircraftEntity, guidance: 'ir' | 'radar'): number {
+    const list = self.loadout.missiles;
+    for (let i = 0; i < list.length; i++) if ((self.stores.missiles[i] ?? 0) > 0 && MISSILES[list[i].missile].guidance === guidance) return i;
+    return -1;
+  }
+
+  /**
+   * The radar missile for a target this far away, or -1 when none is for this range. Of the types that reach it, the
+   * shortest-reaching (the long shots stay for far targets), but the longest against a radar plane; when none reaches
+   * it yet, the longest-reaching, so the lock builds while the range closes.
+   */
+  private radarSlot(self: AircraftEntity, target: AircraftEntity, range: number): number {
+    const noIr = this.firstSlot(self, 'ir') < 0;
+    const list = self.loadout.missiles;
+    let best = -1;
+    let bestKey = Infinity;
+    for (let i = 0; i < list.length; i++) {
+      const spec = MISSILES[list[i].missile];
+      if ((self.stores.missiles[i] ?? 0) <= 0 || spec.guidance !== 'radar') continue;
+      if (range < (noIr ? Math.min(spec.minRangeM, RADAR_ONLY_MIN_RANGE_M) : spec.minRangeM)) continue;
+      const reaches = range <= spec.maxRangeM;
+      const key = (reaches ? 0 : 1e9) + (reaches && !target.support ? spec.maxRangeM : -spec.maxRangeM);
+      if (key < bestKey) {
+        bestKey = key;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  /** Fires a radar missile on a radar lock when it can reach the target, one at a time per target. */
+  private fireRadarMissile(world: BotWorld, self: AircraftEntity, target: AircraftEntity, range: number, closure: number, spec: MissileSpec, out: ControlInput): void {
     const lock = self.radarLock;
     if (lock.mode !== 'locked' || lock.targetId !== target.id) return;
-    if (range > MRM_MAX_RANGE_M || range / Math.max(closure + MRM_SPEED_GAIN_MS, 1) > MRM_MAX_INTERCEPT_S) return;
+    if (range > spec.maxRangeM || range / Math.max(closure + MRM_SPEED_GAIN_MS, 1) > spec.maxFlightTimeS * MRM_INTERCEPT_SHARE) return;
     for (const m of world.missileList()) if (m.ownerId === self.id && m.targetId === target.id) return;
     out.fireMissile = true;
+  }
+
+  /** The bomb this jet carries (the FAB-500M-62 when it carries none, for the sums only). */
+  private bomb(self: AircraftEntity): BombSpec {
+    return self.loadout.bomb ?? FAB_500M_62;
   }
 
   /** Strike attacker: fight a defender on our tail, otherwise bomb (spec §14). False when there is nothing to bomb with. */
@@ -512,7 +571,7 @@ export class BotPilot {
     let bestDistance = Infinity;
     for (const t of world.groundTargetList()) {
       if (t.destroyed) continue;
-      const hits = hitsToDestroy(t, BOMB_ANVIL.damage);
+      const hits = hitsToDestroy(t, this.bomb(self).damage);
       const d = Math.hypot(t.pos.x - p.x, t.pos.z - p.z);
       if (hits < bestHits || (hits === bestHits && d < bestDistance)) {
         best = t;
@@ -538,16 +597,17 @@ export class BotPilot {
     this.track.set(f.vel.x, 0, f.vel.z);
     if (this.track.lengthSq() < 1) this.track.set(0, 0, -1).applyQuaternion(f.quat).setY(0);
     this.track.normalize();
-    const r = BOMB_ANVIL.fullDamageRadiusM;
-    if (world.tick >= this.throwRefreshTick) this.updateThrow(world, f, false);
-    const interval = Math.ceil(BOMB_ANVIL.minReleaseIntervalS * world.tickRate);
+    const bomb = this.bomb(self);
+    const r = bomb.fullDamageRadiusM;
+    if (world.tick >= this.throwRefreshTick) this.updateThrow(world, f, bomb, false);
+    const interval = Math.ceil(bomb.minReleaseIntervalS * world.tickRate);
     let along = this.aimAt(t, f);
     // How far apart the two bombs of a stick land: roughly the ground speed times the interval, or, close to the
     // release point, how fast the predicted impact point itself sweeps forward (a slight climb stretches the stick).
     let spacing = Math.hypot(f.vel.x, f.vel.z) * (interval / world.tickRate);
     const finalRun = along < FINE_THROW_ALONG_M && along > -r;
     if (finalRun) {
-      this.updateThrow(world, f, true);
+      this.updateThrow(world, f, bomb, true);
       along = this.aimAt(t, f);
       if (this.fineTick === world.tick - 1) spacing = (this.fineAlong - along) * interval;
       this.fineTick = world.tick;
@@ -588,10 +648,10 @@ export class BotPilot {
   }
 
   /** Re-predicts how far ahead along the track a bomb released now would land. */
-  private updateThrow(world: BotWorld, f: FlightState, fine: boolean): void {
+  private updateThrow(world: BotWorld, f: FlightState, bomb: BombSpec, fine: boolean): void {
     this.throwRefreshTick = world.tick + Math.round(THROW_REFRESH_S * world.tickRate);
     const dt = fine ? 1 / world.tickRate : THROW_PREDICT_DT_S;
-    const landing = predictImpact(f.pos, f.vel, BOMB_ANVIL, world.terrain, dt, this.impact, world.wind);
+    const landing = predictImpact(f.pos, f.vel, bomb, world.terrain, dt, this.impact, world.wind);
     this.throwAlong = landing ? this.rel.subVectors(landing, f.pos).setY(0).dot(this.track) : 0;
   }
 

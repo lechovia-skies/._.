@@ -1,6 +1,5 @@
 import type { TeamId } from '../data/aircraft/types.ts';
 import type { GroundTargetSpec, MapDefinition, SpawnSpec, StrikeLayout } from '../data/maps/map-definition.ts';
-import { BOMB_ANVIL } from '../data/weapons.ts';
 import type { AircraftEntity } from '../world/entities.ts';
 import type { GameMode, ModeContext, ModeStatus, StrikeEndReason } from './mode.ts';
 
@@ -10,7 +9,7 @@ export interface StrikeOptions {
   targetsToWin: number;
 }
 
-/** Nine minutes since M3 (8 before): defenders' Lances slow the attack, and 9 minutes keeps the match even (§13.1). */
+/** Nine minutes since M3 (8 before): defenders' radar missiles slow the attack; 9 minutes keeps it even (§13.1). */
 export const STRIKE_DEFAULTS: StrikeOptions = { timeLimitS: 540, aircraftPerTeam: 4, targetsToWin: 2 };
 /** Aircraft per pilot on each team when a side has several pilots (M5). */
 export const STRIKE_AIRCRAFT_PER_PILOT = 4;
@@ -55,8 +54,8 @@ export class StrikeMode implements GameMode {
     return layoutOf(map).targets;
   }
 
-  bombLoad(team: TeamId): number {
-    return team === STRIKE_ATTACKER ? BOMB_ANVIL.perAircraft : 0;
+  strikes(team: TeamId): boolean {
+    return team === STRIKE_ATTACKER;
   }
 
   canRespawn(team: TeamId): boolean {

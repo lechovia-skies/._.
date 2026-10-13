@@ -164,10 +164,8 @@ export interface GameMode {
   spawnPoint(map: MapDefinition, team: TeamId): SpawnSpec;
   /** Ground targets the World places at the start (Strike); none elsewhere. */
   groundTargets(map: MapDefinition): readonly GroundTargetSpec[];
-  /** Bombs on each new aircraft of a team (Strike attackers); 0 elsewhere. */
-  bombLoad(team: TeamId): number;
-  /** Lances on every new fighter when the mode sets one load for all (Team Objective); each jet's own when left out. */
-  lanceLoad?(): number;
+  /** A team's jets fly Strike sorties: each new one carries its jet's strike load of bombs (Strike attackers). */
+  strikes(team: TeamId): boolean;
   /** False once a team has no aircraft left (Strike). */
   canRespawn(team: TeamId): boolean;
   onAircraftDestroyed(ctx: ModeContext, victim: AircraftEntity, killer: AircraftEntity | null, cause: DeathCause): void;

@@ -1,5 +1,7 @@
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
+import { getAircraft } from '../../shared/data/aircraft/registry.ts';
+import { type Loadout, loadoutFor } from '../../shared/data/loadout.ts';
 import { createFlightState } from '../../shared/physics/flight-model.ts';
 import { DEFAULT_BINDINGS, rebind } from './bindings.ts';
 import { ControlMapper, emptySnapshot, type InputSnapshot } from './control-mapper.ts';
@@ -114,12 +116,32 @@ describe('ControlMapper', () => {
 
   it('reports weapon edges and holds', () => {
     const m = new ControlMapper();
-    const out = m.map(snap({ keys: new Set(['Space', 'KeyB', 'KeyF']), pressed: new Set(['KeyF', 'KeyG', 'KeyR', 'KeyX', 'Digit2']) }), northbound(), 1 / 60);
+    const kestrel = loadoutFor(getAircraft('kestrel'), false);
+    const out = m.map(snap({ keys: new Set(['Space', 'KeyB', 'KeyF']), pressed: new Set(['KeyF', 'KeyG', 'KeyR', 'KeyX', 'Digit2']) }), northbound(), 1 / 60, null, kestrel);
     expect(out.fireCannon && out.airbrake && out.fireMissile && out.dropBomb && out.cycleTarget && out.countermeasures).toBe(true);
-    expect(out.weapon).toBe('mrm');
-    const next = m.map(snap({ keys: new Set(['KeyF']) }), northbound(), 1 / 60);
+    // The Kestrel's AIM-120D is its slot 1.
+    expect(out.weapon).toBe(1);
+    const next = m.map(snap({ keys: new Set(['KeyF']) }), northbound(), 1 / 60, null, kestrel);
     expect(next.cycleTarget || next.countermeasures || next.fireMissile || next.dropBomb).toBe(false);
-    expect(next.weapon).toBe('mrm');
+    expect(next.weapon).toBe(1);
+  });
+
+  it('steps through the missile types with 1 and 2, and starts a new jet on its first heat-seeker (revision 30)', () => {
+    const m = new ControlMapper();
+    const press = (code: string | null, loadout: Loadout) => m.map(snap({ pressed: new Set(code ? [code] : []) }), northbound(), 1 / 60, null, loadout).weapon;
+    // Su-35-like Yastreb: R-73 (0), R-77-1 (1), R-37M (2).
+    const yastreb = loadoutFor(getAircraft('yastreb'), false);
+    expect(press(null, yastreb)).toBe(0);
+    expect(press('Digit2', yastreb)).toBe(1);
+    expect(press('Digit2', yastreb)).toBe(2);
+    expect(press('Digit2', yastreb)).toBe(1);
+    expect(press('Digit1', yastreb)).toBe(0);
+    expect(press('Digit1', yastreb)).toBe(0);
+    // F-35A-like Shade: only AIM-120D, so 1 does nothing and the jet starts on its radar missile.
+    const shade = loadoutFor(getAircraft('shade'), false);
+    expect(press(null, shade)).toBe(0);
+    expect(press('Digit1', shade)).toBe(0);
+    expect(press('Digit2', shade)).toBe(0);
   });
 });
 

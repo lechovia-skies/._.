@@ -131,7 +131,7 @@ export class WorldViews {
           deaths: 0,
           firingCannon: false,
           stores: a.stores,
-          bombLoad: a.bombLoad,
+          loadout: a.loadout,
           targetId: null,
           contacts: a.contacts,
           datalink: a.datalink,
@@ -151,6 +151,7 @@ export class WorldViews {
         view.quaternion.copy(a.flight.quat);
       }
       view.config = a.config;
+      view.loadout = a.loadout;
       view.alive = a.alive;
       view.hp = a.hp;
       view.spawnGen = a.spawnGen;

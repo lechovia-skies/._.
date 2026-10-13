@@ -2,7 +2,7 @@ import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildTerrain, type StrikeLayout } from '../data/maps/map-definition.ts';
 import { createTestRange } from '../data/maps/test-range.ts';
-import { BOMB_ANVIL } from '../data/weapons.ts';
+import { FAB_500M_62 } from '../data/weapons.ts';
 import { StrikeMode } from '../modes/strike.ts';
 import { TeamDeathmatchMode } from '../modes/team-deathmatch.ts';
 import { type ControlInput, neutralInput } from '../physics/controls.ts';
@@ -21,6 +21,7 @@ const layout = (): StrikeLayout => {
   return map.strike;
 };
 const strikeWorld = (mode = new StrikeMode()) => new World({ map, terrain, mode, seed: 1 });
+/** A MiG-29-like Kobchik: its strike load is four FAB-500M-62 and two R-73 (revision 30). */
 const attacker = (w: World) => w.addAircraft({ callsign: 'R', team: 'russia', aircraftId: 'kobchik' });
 const press = (a: AircraftEntity) => new Map([[a.id, { ...neutralInput(0.9), dropBomb: true }]]);
 
@@ -37,7 +38,7 @@ function run(w: World, ticks: number): GameEvent[] {
 function lineUp(a: AircraftEntity, t: GroundTarget): void {
   a.flight = createFlightState({ position: new Vector3(t.pos.x - 10000, t.pos.y + 1500, t.pos.z), headingRad: Math.PI / 2, speed: 250, throttle: 0.9 });
   for (let i = 0; i < 2; i++) {
-    const impact = predictImpact(a.flight.pos, a.flight.vel, BOMB_ANVIL, terrain, DT, new Vector3());
+    const impact = predictImpact(a.flight.pos, a.flight.vel, FAB_500M_62, terrain, DT, new Vector3());
     if (!impact) throw new Error('the bomb would not land');
     a.flight.pos.x += t.pos.x - impact.x;
     a.flight.pos.z += t.pos.z - impact.z;
@@ -46,7 +47,7 @@ function lineUp(a: AircraftEntity, t: GroundTarget): void {
 }
 
 describe('Strike in the World', () => {
-  it('places the three targets and spawns each team at its Strike spawn with its bomb load', () => {
+  it("places the three targets and spawns each team at its Strike spawn, the attackers with their jet's strike load", () => {
     const w = strikeWorld();
     expect(w.groundTargetList().map((t) => t.id)).toEqual(['A', 'B', 'C']);
     for (const t of w.groundTargetList()) expect(t.pos.y).toBeCloseTo(terrain.surfaceAt(t.pos.x, t.pos.z), 6);
@@ -54,7 +55,8 @@ describe('Strike in the World', () => {
     const us = w.addAircraft({ callsign: 'U', team: 'usa', aircraftId: 'kestrel' });
     expect(ru.flight.pos.x).toBeCloseTo(layout().spawns.russia.x, 3);
     expect(us.flight.pos.x).toBeCloseTo(layout().spawns.usa.x, 3);
-    expect([ru.stores.bombs, ru.bombLoad, us.stores.bombs, us.bombLoad]).toEqual([8, 8, 0, 0]);
+    expect([ru.stores.bombs, ru.strike, us.stores.bombs, us.strike]).toEqual([4, true, 0, false]);
+    expect([ru.stores.missiles, us.stores.missiles]).toEqual([[2], [2, 4]]);
   });
 
   it('releases one bomb per press, no faster than one per 0.25 s', () => {
@@ -64,7 +66,7 @@ describe('Strike in the World', () => {
     w.step(press(ru));
     w.step(press(ru));
     expect(w.bombList()).toHaveLength(1);
-    expect(ru.stores.bombs).toBe(7);
+    expect(ru.stores.bombs).toBe(3);
     expect(w.drainEvents()).toContainEqual({ type: 'bombReleased', bombId: 1, aircraftId: ru.id });
     run(w, Math.round(0.25 * TICK_RATE));
     w.step(press(ru));
@@ -76,17 +78,18 @@ describe('Strike in the World', () => {
     const ru = attacker(w);
     const b = w.groundTargetList()[1];
     const events: GameEvent[] = [];
-    for (let i = 0; i < 3; i++) {
+    // Two FAB-500M-62 on target destroy it.
+    for (let i = 0; i < 2; i++) {
       lineUp(ru, b);
       w.step(press(ru));
       events.push(...run(w, 30 * TICK_RATE));
     }
     expect(b.destroyed).toBe(true);
-    expect(events.filter((e) => e.type === 'bombImpact')).toHaveLength(3);
+    expect(events.filter((e) => e.type === 'bombImpact')).toHaveLength(2);
     expect(events).toContainEqual({ type: 'targetDestroyed', targetId: 'B', attackerId: ru.id });
     const hits = events.filter((e) => e.type === 'targetHit');
-    expect(hits.length).toBe(3);
-    expect(hits[0]).toMatchObject({ targetId: 'B', attackerId: ru.id, damage: 40 });
+    expect(hits.length).toBe(2);
+    expect(hits[0]).toMatchObject({ targetId: 'B', attackerId: ru.id, damage: 62 });
   });
 
   it('lets a falling bomb count after its aircraft is shot down', () => {
@@ -98,7 +101,7 @@ describe('Strike in the World', () => {
     w.applyDamage(ru, 1000, null, 'cannon');
     expect(ru.alive).toBe(false);
     run(w, 30 * TICK_RATE);
-    expect(b.hp).toBe(b.maxHp - 40);
+    expect(b.hp).toBe(b.maxHp - 62);
   });
 
   it('ignores bombs that land after the match has ended', () => {
@@ -118,10 +121,10 @@ describe('Strike in the World', () => {
     const w = strikeWorld();
     const ru = attacker(w);
     w.step(press(ru));
-    expect(ru.stores.bombs).toBe(7);
+    expect(ru.stores.bombs).toBe(3);
     w.applyDamage(ru, 1000, null, 'cannon');
     run(w, 6 * TICK_RATE);
-    expect([ru.alive, ru.stores.bombs]).toEqual([true, 8]);
+    expect([ru.alive, ru.stores.bombs]).toEqual([true, 4]);
   });
 
   it('does not respawn a team that has no aircraft left', () => {

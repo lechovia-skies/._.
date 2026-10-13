@@ -1,5 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
 import { kestrel } from '../../shared/data/aircraft/kestrel.ts';
+import { loadoutFor } from '../../shared/data/loadout.ts';
 import { createFlightState } from '../../shared/physics/flight-model.ts';
 import { createSeeker } from '../../shared/targeting/ir-seeker.ts';
 import { createRadarLock } from '../../shared/targeting/radar-lock.ts';
@@ -10,6 +11,7 @@ export function testView(id: number, over: Partial<AircraftView> = {}): Aircraft
   const config = over.config ?? kestrel;
   const flight = createFlightState({ position: new Vector3(id * 100, 1000, 0), headingRad: 0, speed: 200, throttle: 0.5 });
   const s = config.stores;
+  const loadout = over.loadout ?? loadoutFor(config, false);
   return {
     id,
     callsign: `P${id}`,
@@ -31,8 +33,8 @@ export function testView(id: number, over: Partial<AircraftView> = {}): Aircraft
     kills: 0,
     deaths: 0,
     firingCannon: false,
-    stores: { cannonRounds: s.cannonRounds, srm: s.srm, mrm: s.mrm, countermeasures: s.countermeasures, bombs: 0, fuelKg: config.physics.fuelKg },
-    bombLoad: 0,
+    stores: { cannonRounds: s.cannonRounds, missiles: loadout.missiles.map((m) => m.count), flares: s.flares, chaff: s.chaff, bombs: loadout.bombs, fuelKg: config.physics.fuelKg },
+    loadout,
     targetId: null,
     contacts: [],
     datalink: [],

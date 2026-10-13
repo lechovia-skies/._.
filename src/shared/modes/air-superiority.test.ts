@@ -20,7 +20,6 @@ const jet = (team: TeamId, x: number, y: number, z: number): AircraftEntity =>
     isBot: false,
     flight: createFlightState({ position: new Vector3(x, y, z), headingRad: 0, speed: 200 }),
     spawnSlot: 0,
-    bombLoad: 0,
   });
 
 function context(aircraft: AircraftEntity[], events: GameEvent[] = []) {

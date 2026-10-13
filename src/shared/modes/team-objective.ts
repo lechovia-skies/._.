@@ -19,18 +19,13 @@ export const SENTINEL_RETURN_S = 120;
 export const SENTINEL_ALTITUDE_M = 7000;
 export const SENTINEL_SPEED_MS = 150;
 /**
- * Every fighter carries this many Lances here (revision 19). Lances wear the big, slow Sentinels down, so the jets'
- * own loads (Russia's average 4.5 against the USA's 3.5) won about 70% of 3 v 3 bot matches for Russia; with one load
- * the sides are even.
+ * Extra hit points for the USA's Sentinels per Russian fighter. Revision 19 gave them 50 (450 in 1 v 1 to 600 in
+ * 4 v 4): Russia's fighters, tougher and with more flares, guns of 30 mm and more Lances, shot Sentinels down faster.
+ * With the real loads of revision 30 the USA carries more radar missiles (AIM-120D on every jet) and the bonus tipped
+ * the mode the other way: Veteran bot play gave the USA 66%, 35%, 70% and 78% of 1 v 1 to 4 v 4 (40 matches each),
+ * and 58%, 38%, 58% and 65% without it. So it is 0 now, the lever kept for a later balance pass.
  */
-export const TEAM_OBJECTIVE_LANCES = 4;
-/**
- * Russia's fighters, tougher, with more flares and 30 mm guns, shoot Sentinels down faster than the USA's, and the
- * more of them hunt, the more it tells: with 400 HP on both sides Russia won about 75% of 3 v 3 bot matches. So the
- * USA's Sentinels get this many extra hit points per Russian fighter (revision 19): 450 in 1 v 1, 550 in 3 v 3, 600 in
- * 4 v 4. Bot play then gave the USA 40–48% of the decided matches at every size from 1 v 1 to 4 v 4.
- */
-export const USA_SENTINEL_HP_PER_ENEMY = 50;
+export const USA_SENTINEL_HP_PER_ENEMY = 0;
 
 /** A Sentinel's hit points in a match with `russianFighters` fighters on the Russian side. */
 export function sentinelHitPoints(team: TeamId, russianFighters: number): number {
@@ -102,12 +97,8 @@ export class TeamObjectiveMode implements GameMode {
     return [];
   }
 
-  bombLoad(): number {
-    return 0;
-  }
-
-  lanceLoad(): number {
-    return TEAM_OBJECTIVE_LANCES;
+  strikes(): boolean {
+    return false;
   }
 
   canRespawn(): boolean {

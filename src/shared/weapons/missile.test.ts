@@ -2,7 +2,7 @@ import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { steerToward } from '../ai/steering.ts';
 import { kestrel } from '../data/aircraft/kestrel.ts';
-import { SRM_DART } from '../data/weapons.ts';
+import { MISSILES } from '../data/weapons.ts';
 import { closestApproach } from '../math/closest-approach.ts';
 import { DEG, G0 } from '../math/units.ts';
 import { atmosphere } from '../physics/atmosphere.ts';
@@ -10,12 +10,14 @@ import { neutralInput } from '../physics/controls.ts';
 import { createFlightState, stepFlight } from '../physics/flight-model.ts';
 import { isArmed, isSpent, launchMissile, stepMissile, withinGimbal } from './missile.ts';
 
+const R_73 = MISSILES['R-73'];
+
 const DT = 1 / 60;
 
 /** Launches from a jet heading north at 250 m/s, 3 km up, against a constant-velocity target. */
 function engage(targetPos: Vector3, targetVel: Vector3) {
   const launcher = { id: 1, team: 'usa' as const, flight: createFlightState({ position: new Vector3(0, 3000, 0), headingRad: 0, speed: 250 }) };
-  const m = launchMissile(7, launcher, 2, SRM_DART);
+  const m = launchMissile(7, launcher, 2, R_73);
   const tPrev = targetPos.clone();
   const tPos = targetPos.clone();
   let miss = Infinity;
@@ -28,7 +30,7 @@ function engage(targetPos: Vector3, targetVel: Vector3) {
     maxLateral = Math.max(maxLateral, m.lateralAccel);
     miss = Math.min(miss, closestApproach(m.prevPos, m.pos, tPrev, tPos).distance);
     steps++;
-    if (miss < SRM_DART.fuzeRadiusM) break;
+    if (miss < R_73.fuzeRadiusM) break;
   }
   return { m, miss, maxLateral, timeS: steps * DT };
 }
@@ -36,7 +38,7 @@ function engage(targetPos: Vector3, targetVel: Vector3) {
 describe('missile', () => {
   it('launches along the nose at the launcher speed', () => {
     const launcher = { id: 1, team: 'usa' as const, flight: createFlightState({ position: new Vector3(0, 3000, 0), headingRad: Math.PI / 2, speed: 240 }) };
-    const m = launchMissile(3, launcher, 9, SRM_DART);
+    const m = launchMissile(3, launcher, 9, R_73);
     expect(m.vel.x).toBeCloseTo(240, 6);
     expect(m.targetId).toBe(9);
     expect(isArmed(m)).toBe(false);
@@ -44,13 +46,13 @@ describe('missile', () => {
 
   it('proportional navigation hits a target crossing at 4 km', () => {
     const r = engage(new Vector3(-1500, 3000, -4000), new Vector3(250, 0, 0));
-    expect(r.miss).toBeLessThan(SRM_DART.fuzeRadiusM);
+    expect(r.miss).toBeLessThan(R_73.fuzeRadiusM);
     expect(r.timeS).toBeLessThan(10);
   });
 
   it('hits a head-on target at 7 km', () => {
     const r = engage(new Vector3(300, 3500, -7000), new Vector3(0, 0, 250));
-    expect(r.miss).toBeLessThan(SRM_DART.fuzeRadiusM);
+    expect(r.miss).toBeLessThan(R_73.fuzeRadiusM);
   });
 
   it('runs out of energy chasing a fleeing target from 10 km', () => {
@@ -61,23 +63,23 @@ describe('missile', () => {
 
   it('never turns harder than its acceleration limit', () => {
     const r = engage(new Vector3(1500, 3000, -300), new Vector3(0, 0, 250));
-    expect(r.maxLateral).toBeLessThanOrEqual(SRM_DART.maxAccelG * G0 + 1e-6);
-    expect(r.maxLateral).toBeGreaterThan(0.9 * SRM_DART.maxAccelG * G0);
+    expect(r.maxLateral).toBeLessThanOrEqual(R_73.maxAccelG * G0 + 1e-6);
+    expect(r.maxLateral).toBeGreaterThan(0.9 * R_73.maxAccelG * G0);
   });
 
   it('loses sight of a target outside its gimbal limit', () => {
     const launcher = { id: 1, team: 'usa' as const, flight: createFlightState({ position: new Vector3(0, 3000, 0), headingRad: 0, speed: 250 }) };
-    const m = launchMissile(3, launcher, 9, SRM_DART);
+    const m = launchMissile(3, launcher, 9, R_73);
     expect(withinGimbal(m, new Vector3(0, 3000, -1000))).toBe(true);
-    const off = Math.tan((SRM_DART.gimbalLimitDeg + 5) * DEG) * 1000;
+    const off = Math.tan((R_73.gimbalLimitDeg + 5) * DEG) * 1000;
     expect(withinGimbal(m, new Vector3(off, 3000, -1000))).toBe(false);
   });
 
   it('self-destructs when slow after burnout', () => {
     const launcher = { id: 1, team: 'usa' as const, flight: createFlightState({ position: new Vector3(0, 3000, 0), headingRad: 0, speed: 250 }) };
-    const m = launchMissile(3, launcher, 9, SRM_DART);
-    m.ageS = SRM_DART.burnTimeS + 1;
-    m.vel.setLength(SRM_DART.selfDestructSpeedMs - 1);
+    const m = launchMissile(3, launcher, 9, R_73);
+    m.ageS = R_73.burnTimeS + 1;
+    m.vel.setLength(R_73.selfDestructSpeedMs - 1);
     expect(isSpent(m)).toBe(true);
   });
 });
@@ -95,7 +97,7 @@ function evade(aspect: 'head-on' | 'tail', rangeM: number, breakAtM: number | nu
     team: 'russia' as const,
     flight: createFlightState({ position: from, headingRad: aspect === 'head-on' ? Math.PI : 0, speed: 250 }),
   };
-  const m = launchMissile(7, launcher, 2, SRM_DART);
+  const m = launchMissile(7, launcher, 2, R_73);
   const jetPrev = new Vector3();
   const side = new Vector3();
   const up = new Vector3(0, 1, 0);
@@ -117,7 +119,7 @@ function evade(aspect: 'head-on' | 'tail', rangeM: number, breakAtM: number | nu
     stepMissile(m, tracking ? jet : null, atmosphere(m.pos.y).density, DT);
     if (!isArmed(m)) continue;
     miss = Math.min(miss, closestApproach(m.prevPos, m.pos, jetPrev, jet.pos).distance);
-    if (miss <= SRM_DART.fuzeRadiusM) return 0;
+    if (miss <= R_73.fuzeRadiusM) return 0;
   }
   return miss;
 }
@@ -128,7 +130,7 @@ describe('beating a missile by maneuvering', () => {
   });
 
   it('misses a jet that breaks hard shortly before impact', () => {
-    expect(evade('head-on', 2500, 1500)).toBeGreaterThan(SRM_DART.fuzeRadiusM);
+    expect(evade('head-on', 2500, 1500)).toBeGreaterThan(R_73.fuzeRadiusM);
   });
 
   it('still hits a jet that breaks at launch: the missile has time to correct', () => {
@@ -140,6 +142,6 @@ describe('beating a missile by maneuvering', () => {
   });
 
   it('misses a jet that breaks late in a tail chase', () => {
-    expect(evade('tail', 3000, 700)).toBeGreaterThan(SRM_DART.fuzeRadiusM);
+    expect(evade('tail', 3000, 700)).toBeGreaterThan(R_73.fuzeRadiusM);
   });
 });

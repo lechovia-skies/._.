@@ -43,10 +43,11 @@ function over(field: Airfield, u: number, heightM: number, speed: number): Fligh
 /** A Kestrel that has used its weapons and taken damage. */
 function spent(w: World): AircraftEntity {
   const a = w.addAircraft({ callsign: 'P', team: 'usa', aircraftId: 'kestrel' });
-  a.stores.srm = 0;
-  a.stores.mrm = 1;
+  a.stores.missiles[0] = 0;
+  a.stores.missiles[1] = 1;
   a.stores.cannonRounds = 0;
-  a.stores.countermeasures = 3;
+  a.stores.flares = 3;
+  a.stores.chaff = 3;
   a.stores.fuelKg = 0.3 * a.config.physics.fuelKg;
   a.hp = a.config.damage.hitPoints / 2;
   return a;
@@ -78,17 +79,20 @@ describe('supplies at an airfield (revision 22)', () => {
     expect(onApproach(map.features, 'usa', approach)).toBe(false);
   });
 
-  it('reloads missiles, rounds, flares and fuel, repairs only after a stop, and leaves the bombs', () => {
+  it('reloads missiles, rounds, flares, chaff and fuel, repairs only after a stop, and leaves the bombs', () => {
     const config = listAircraft().find((c) => c.id === 'yastreb')!;
-    const a = createAircraftEntity({ id: 1, callsign: 'R', team: 'russia', config, isBot: false, flight: runwayFlightState(enemy, 0), spawnSlot: 0, bombLoad: 2 });
-    expect(a.stores.bombs).toBe(2);
+    const a = createAircraftEntity({ id: 1, callsign: 'R', team: 'russia', config, isBot: false, flight: runwayFlightState(enemy, 0), spawnSlot: 0, strike: true });
+    expect(a.stores.bombs).toBe(6);
     expect(needsSupply(a, true)).toBe(false);
-    a.stores.srm = 0;
+    a.stores.missiles[0] = 0;
+    a.stores.chaff = 0;
     a.stores.bombs = 0;
     a.hp = 10;
     expect(needsSupply(a, false)).toBe(true);
     resupply(a, false);
-    expect(a.stores.srm).toBe(a.config.stores.srm);
+    // A Strike sortie reloads its strike load's missiles (R-73 and R-77-1), not the R-37M it does not carry.
+    expect(a.stores.missiles).toEqual([2, 2]);
+    expect(a.stores.chaff).toBe(a.config.stores.chaff);
     expect(a.hp).toBe(10);
     expect(needsSupply(a, false)).toBe(false);
     expect(needsSupply(a, true)).toBe(true);
@@ -111,7 +115,7 @@ describe('supplies at an airfield (revision 22)', () => {
       if (t === TICK_RATE) expect(w.supplyProgress(a)).toMatchObject({ kind: 'pass' });
     }
     expect(events.filter((e) => e.type === 'resupplied')).toEqual([{ type: 'resupplied', aircraftId: a.id, repaired: false }]);
-    expect(a.stores.srm).toBe(a.config.stores.srm);
+    expect(a.stores.missiles).toEqual(a.loadout.missiles.map((m) => m.count));
     expect(a.stores.cannonRounds).toBe(a.config.stores.cannonRounds);
     expect(a.stores.fuelKg).toBeGreaterThan(0.95 * a.config.physics.fuelKg);
     expect(a.hp).toBe(a.config.damage.hitPoints / 2);
@@ -126,7 +130,7 @@ describe('supplies at an airfield (revision 22)', () => {
     const b = w.addAircraft({ callsign: 'Q', team: 'usa', aircraftId: 'kestrel', start: 'runway' });
     for (let t = 0; t < (SUPPLY_LANDED_S + 2) * TICK_RATE; t++) w.step(new Map([[a.id, neutralInput(0.5)], [b.id, neutralInput(0)]]));
     expect(w.drainEvents().some((e) => e.type === 'resupplied')).toBe(false);
-    expect(a.stores.srm).toBe(0);
+    expect(a.stores.missiles[0]).toBe(0);
     expect(b.flight.onGround).toBe(true);
   });
 
@@ -135,7 +139,7 @@ describe('supplies at an airfield (revision 22)', () => {
     const w = new World({ map, terrain, mode: new FreeFlightMode(), seed: 1 });
     const field = map.features!.airfields.find((f) => f.team === config.team)!;
     const a = w.addAircraft({ callsign: 'P', team: config.team, aircraftId: id });
-    a.stores.srm = 0;
+    a.stores.missiles[0] = 0;
     a.stores.cannonRounds = 0;
     a.hp = a.config.damage.hitPoints / 2;
     // 5 km short of the threshold on the centre line, on a 3° slope at 95 m/s, gear up.
@@ -170,7 +174,7 @@ describe('supplies at an airfield (revision 22)', () => {
       { type: 'resupplied', aircraftId: a.id, repaired: false },
       { type: 'resupplied', aircraftId: a.id, repaired: true },
     ]);
-    expect(a.stores.srm).toBe(a.config.stores.srm);
+    expect(a.stores.missiles).toEqual(a.loadout.missiles.map((m) => m.count));
     expect(a.hp).toBe(a.config.damage.hitPoints);
   });
 });

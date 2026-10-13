@@ -14,7 +14,6 @@ import {
   SENTINEL_RETURN_S,
   sentinelHitPoints,
   sentinelOrbits,
-  TEAM_OBJECTIVE_LANCES,
   TeamObjectiveMode,
 } from './team-objective.ts';
 
@@ -48,8 +47,8 @@ describe('Sentinels in the World', () => {
     const w = newWorld();
     const list = sentinels(w);
     expect(list.map((s) => s.team).sort()).toEqual(['russia', 'russia', 'usa', 'usa']);
-    // Three fighters a side by default: the USA's Sentinels are sturdier (revision 19).
-    expect(list.every((s) => s.isBot && s.config.support && s.hp === (s.team === 'usa' ? 550 : 400))).toBe(true);
+    // 400 HP on both sides since revision 30 (the USA's had 550 in 3 v 3 from revision 19).
+    expect(list.every((s) => s.isBot && s.config.support && s.hp === 400)).toBe(true);
     run(w, 120 * TICK_RATE);
     for (const s of list) {
       const o = s.support!.orbit;
@@ -135,25 +134,24 @@ describe('Sentinels in the World', () => {
     expect(guards(4)).toEqual({ usa: 1, russia: 1, hunters: 6 });
   });
 
-  it('makes the USA Sentinels sturdier the more Russian fighters there are', () => {
-    expect([1, 2, 3, 4].map((n) => sentinelHitPoints('usa', n))).toEqual([450, 500, 550, 600]);
+  it('gives both sides 400 HP Sentinels, whatever the numbers (revision 30: the USA bonus per Russian fighter is 0)', () => {
+    expect([1, 2, 3, 4].map((n) => sentinelHitPoints('usa', n))).toEqual([400, 400, 400, 400]);
     expect(sentinelHitPoints('russia', 4)).toBe(400);
     const w = new World({ map, terrain, mode: createMode('team-objective', { teamObjective: { fighters: { usa: 1, russia: 4 } } }), seed: 3 });
     for (const s of sentinels(w)) {
-      expect(s.hp).toBe(s.team === 'usa' ? 600 : 400);
+      expect(s.hp).toBe(400);
       expect(s.config.damage.hitPoints).toBe(s.hp);
     }
   });
 
-  it('arms every fighter with the same Lances, whatever its own load', () => {
+  it("arms every fighter with its real jet's load, as in the other modes (revision 30)", () => {
     const w = newWorld();
     const sapsan = w.addAircraft({ callsign: 'S', team: 'russia', aircraftId: 'sapsan' });
     const kestrel = w.addAircraft({ callsign: 'K', team: 'usa', aircraftId: 'kestrel' });
-    expect([sapsan.stores.mrm, kestrel.stores.mrm]).toEqual([TEAM_OBJECTIVE_LANCES, TEAM_OBJECTIVE_LANCES]);
-    expect(sapsan.config.stores.mrm).toBe(6);
-    // Other modes keep each jet's own load.
-    const tdm = new World({ map, terrain, mode: createMode('team-deathmatch'), seed: 3 });
-    expect(tdm.addAircraft({ callsign: 'S', team: 'russia', aircraftId: 'sapsan' }).stores.mrm).toBe(6);
+    expect([sapsan.stores.missiles, kestrel.stores.missiles]).toEqual([
+      [4, 4],
+      [2, 4],
+    ]);
   });
 
   it('starts every Sentinel on the far side of its orbit from the middle, so both teams start alike', () => {

@@ -37,8 +37,8 @@ const PAD_ACTION_LABELS: Readonly<Record<PadAction, string>> = {
   rudderRight: 'Rudder right',
   throttleUp: 'Throttle up',
   throttleDown: 'Throttle down',
-  weaponSrm: 'Select SRM',
-  weaponMrm: 'Select MRM',
+  weaponSrm: 'Select IR missile',
+  weaponMrm: 'Select radar missile',
 };
 const AXIS_LABELS: Readonly<Record<AxisRole, string>> = { roll: 'Roll', pitch: 'Pitch', yaw: 'Rudder', throttle: 'Throttle' };
 const GRAPHICS_LABELS: Readonly<Record<GraphicsSetting, string>> = { auto: 'Auto', low: 'Low', medium: 'Medium', high: 'High' };
@@ -180,7 +180,7 @@ export function openSettings(root: HTMLElement, store: SettingsStore, tab: Setti
           slider('Volume', 0, 1, 0.05, s.volume, percent, (v) => store.update({ volume: v })),
           checkbox('Music', s.music, (v) => store.update({ music: v })),
           slider('Music volume', 0, 1, 0.05, s.musicVolume, percent, (v) => store.update({ musicVolume: v })),
-          el('p', 'sheet-note', 'Every warning sound is also shown as text on the HUD: MISSILE, SRM TRK, SRM LOCK and HIT.'),
+          el('p', 'sheet-note', 'Every warning sound is also shown as text on the HUD: MISSILE, IR TRK, IR LOCK, RDR TRK, RDR LOCK, RADAR LOCK and HIT.'),
         ];
     }
   }

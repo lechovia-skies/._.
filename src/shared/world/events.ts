@@ -1,5 +1,5 @@
 import type { TeamId } from '../data/aircraft/types.ts';
-import type { MissileKind } from '../data/weapons.ts';
+import type { MissileId } from '../data/weapons.ts';
 
 /** 'blackout': the jet hit the ground with its pilot blacked out by G (G-LOC, revision 21). */
 export type DeathCause = 'crash' | 'blackout' | 'collision' | 'boundary' | 'cannon' | 'missile';
@@ -13,10 +13,11 @@ export type GameEvent =
   /** missiles, gun rounds, flares and fuel taken on at a friendly airfield; `repaired` after a landing (revision 22) */
   | { type: 'resupplied'; aircraftId: number; repaired: boolean }
   | { type: 'hit'; aircraftId: number; attackerId: number | null; weapon: WeaponKind; damage: number }
-  | { type: 'missileLaunched'; missileId: number; shooterId: number; targetId: number; kind: MissileKind }
+  | { type: 'missileLaunched'; missileId: number; shooterId: number; targetId: number; kind: MissileId }
   | { type: 'missileDetonated'; missileId: number; x: number; y: number; z: number; nearAircraft: boolean }
   | { type: 'missileDecoyed'; missileId: number; targetId: number }
-  | { type: 'countermeasures'; aircraftId: number }
+  /** one press of the countermeasures key: whether a flare and a chaff cartridge came out (revision 30) */
+  | { type: 'countermeasures'; aircraftId: number; flare: boolean; chaff: boolean }
   | { type: 'bombReleased'; bombId: number; aircraftId: number }
   | { type: 'bombImpact'; bombId: number; x: number; y: number; z: number }
   | { type: 'targetHit'; targetId: string; attackerId: number | null; damage: number }

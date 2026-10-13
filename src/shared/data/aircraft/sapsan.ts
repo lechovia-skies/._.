@@ -7,7 +7,7 @@ export const sapsan: AircraftConfig = {
   team: 'russia',
   role: 'Two-seat multirole fighter',
   description:
-    'Two-seat multirole fighter: the back-seater runs the radar for the fastest locks, and it carries four short- and six medium-range missiles. Slow to accelerate and easy to see.',
+    'Two-seat multirole fighter: the back-seater runs the radar for the fastest locks, and it carries eight missiles, four of them semi-active R-27R that need the radar to the end. Slow to accelerate and easy to see.',
   physics: {
     massKg: 26500,
     wingAreaM2: 62,
@@ -36,7 +36,26 @@ export const sapsan: AircraftConfig = {
     twoSeat: true,
     sensorFusion: false,
   },
-  stores: { cannon: 'HC-30', cannonRounds: 150, srm: 4, mrm: 6, countermeasures: 60 },
+  // Su-30SM as photographed over Syria: four R-73 and four R-27R; GSh-30-1 with 150 rounds; 96 cartridges, half flares
+  // and half chaff. Strike: six FAB-500M-62, two R-27R under the intakes and R-73 on the wingtips.
+  stores: {
+    cannon: 'GSh-30-1',
+    cannonRounds: 150,
+    missiles: [
+      { missile: 'R-73', count: 4 },
+      { missile: 'R-27R', count: 4 },
+    ],
+    flares: 48,
+    chaff: 48,
+    strike: {
+      bomb: 'FAB-500M-62',
+      bombs: 6,
+      missiles: [
+        { missile: 'R-73', count: 2 },
+        { missile: 'R-27R', count: 2 },
+      ],
+    },
+  },
   damage: { hitPoints: 100, hitRadiusM: 7.5 },
   visual: {
     lengthM: 21.9,

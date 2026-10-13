@@ -1,9 +1,9 @@
 /**
  * The balance tournament (spec §9.4): every USA jet against every Russian jet, Ace bots from a neutral head-on start,
- * 100 seeds per pairing, spread over worker threads. Prints the table and exits non-zero when a pairing's win rate is
- * outside 35–65%.
+ * 300 seeds per pairing (revision 30), spread over worker threads. Prints the table and exits non-zero when a
+ * pairing's win rate is outside 35–65%.
  *
- *   node tools/tournament.ts [--seeds=100] [--first=1] [--only=condor,yastreb]
+ *   node tools/tournament.ts [--seeds=300] [--first=1] [--only=condor,yastreb]
  */
 import { availableParallelism } from 'node:os';
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';

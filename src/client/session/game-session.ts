@@ -5,7 +5,8 @@ import type { Terrain } from '../../shared/map/terrain.ts';
 import type { ModeStatus } from '../../shared/modes/mode.ts';
 import type { ControlInput } from '../../shared/physics/controls.ts';
 import type { FlightState } from '../../shared/physics/flight-model.ts';
-import type { MissileKind } from '../../shared/data/weapons.ts';
+import type { Loadout } from '../../shared/data/loadout.ts';
+import type { MissileId } from '../../shared/data/weapons.ts';
 import type { SeekerState } from '../../shared/targeting/ir-seeker.ts';
 import type { RadarLockState } from '../../shared/targeting/radar-lock.ts';
 import type { Contact } from '../../shared/targeting/sensors.ts';
@@ -48,17 +49,17 @@ export interface AircraftView {
   deaths: number;
   firingCannon: boolean;
   stores: Readonly<StoresState>;
-  /** bombs each new aircraft of this one carries in this mode; 0 = none */
-  readonly bombLoad: number;
+  /** what the jet carries this life (revision 30): its missiles by type, and its bombs in a Strike attack */
+  loadout: Loadout;
   /** designated target */
   targetId: number | null;
   contacts: readonly Contact[];
   /** enemies on teammates' radar (datalink, M5); filled for the local aircraft */
   datalink: readonly number[];
   seeker: Readonly<SeekerState>;
-  /** the Lance's radar lock */
+  /** the radar lock for the selected radar missile */
   radarLock: Readonly<RadarLockState>;
-  /** RWR: an enemy radar lock, or a Lance its launcher still guides, is on this aircraft */
+  /** RWR: an enemy radar lock, or a radar missile its launcher still guides, is on this aircraft */
   lockedByRadar: boolean;
   /** nearest missile guiding on this aircraft inside warning range */
   incoming: MissileWarning | null;
@@ -66,7 +67,7 @@ export interface AircraftView {
 
 export interface MissileView {
   readonly id: number;
-  readonly kind: MissileKind;
+  readonly kind: MissileId;
   readonly team: TeamId;
   readonly ownerId: number;
   targetId: number | null;

@@ -1,5 +1,6 @@
 import { Vector3 } from 'three';
-import { PLAYER_MISSILES } from '../../shared/data/weapons.ts';
+import { MISSILES, PLAYER_MISSILES } from '../../shared/data/weapons.ts';
+import { slotMissile } from '../../shared/data/loadout.ts';
 import { DEG } from '../../shared/math/units.ts';
 import type { SeekerMode } from '../../shared/targeting/ir-seeker.ts';
 import { radarLockProgress } from '../../shared/targeting/radar-lock.ts';
@@ -18,7 +19,7 @@ const EDGE_MARGIN_PX = 60;
 const WARNING_RING_PX = 95;
 const SEEKER_LABEL: Record<SeekerMode, string> = { off: '', search: 'SRCH', track: 'TRK', locked: 'LOCK' };
 
-/** The seeker state as the weapons status shows it after "SRM". */
+/** The seeker state as the weapons status shows it after the missile's name. */
 export function seekerLabel(mode: SeekerMode): string {
   return SEEKER_LABEL[mode];
 }
@@ -126,7 +127,7 @@ function drawTargetBox(ctx: CanvasRenderingContext2D, f: HudFrame, v: AircraftVi
   ctx.fillStyle = FOE;
   ctx.lineWidth = 2;
   ctx.strokeRect(pt.x - h, pt.y - h, TARGET_BOX_PX, TARGET_BOX_PX);
-  // The Lance's radar lock: a diamond that closes onto the box as the lock builds, red once it holds.
+  // The radar lock: a diamond that closes onto the box as the lock builds, red once it holds.
   const lock = me.radarLock;
   if (lock.targetId === v.id && (lock.mode === 'tracking' || lock.mode === 'locked')) {
     ctx.save();
@@ -134,7 +135,7 @@ function drawTargetBox(ctx: CanvasRenderingContext2D, f: HudFrame, v: AircraftVi
     ctx.strokeStyle = locked ? RED : AMBER;
     ctx.globalAlpha = locked || clock % 0.3 < 0.18 ? 1 : 0.5;
     ctx.lineWidth = locked ? 2.4 : 1.6;
-    diamond(ctx, lockDiamondPx(h, radarLockProgress(lock, PLAYER_MISSILES.lance, me.config)));
+    diamond(ctx, lockDiamondPx(h, radarLockProgress(lock, slotMissile(me.loadout, f.weapon, PLAYER_MISSILES) ?? PLAYER_MISSILES['AIM-120C'], me.config)));
     ctx.stroke();
     ctx.restore();
   }
@@ -194,7 +195,8 @@ function drawPipper(ctx: CanvasRenderingContext2D, assist: number): void {
 function drawSeeker(ctx: CanvasRenderingContext2D, p: Projector, f: HudFrame, clock: number): void {
   const s = f.view.seeker;
   if (s.mode === 'off' || !p.direction(f.camera, s.axis, pt)) return;
-  const r = Math.max(10, PLAYER_MISSILES.dart.acquisitionConeDeg * DEG * p.pixelsPerRadian(f.camera) * 0.35);
+  const spec = slotMissile(f.view.loadout, f.weapon, PLAYER_MISSILES) ?? PLAYER_MISSILES['R-73'];
+  const r = Math.max(10, spec.acquisitionConeDeg * DEG * p.pixelsPerRadian(f.camera) * 0.35);
   ctx.save();
   ctx.lineWidth = 1.6;
   if (s.mode === 'search') {
@@ -232,7 +234,10 @@ function drawSeeker(ctx: CanvasRenderingContext2D, p: Projector, f: HudFrame, cl
 const TONE_COLOR: Record<Tone, string | null> = { normal: null, amber: AMBER, red: RED };
 const CELL_GAP_PX = 14;
 
-/** GUN · SRM · MRM · CM (· BMB) along the bottom right, the selected missile boxed, its lock state underneath. */
+/**
+ * The gun, each missile type, flares and chaff (and bombs) along the bottom right, the selected missile boxed, its
+ * lock state underneath.
+ */
 function drawWeaponsStatus(ctx: CanvasRenderingContext2D, p: Projector, f: HudFrame): void {
   const line = weaponsLine(f.view, f.weapon);
   const y = p.height - 64;
@@ -257,7 +262,7 @@ function drawWeaponsStatus(ctx: CanvasRenderingContext2D, p: Projector, f: HudFr
   ctx.restore();
 }
 
-/** RWR (spec §10.3): an enemy radar lock, or a Lance its launcher still guides, is on you. */
+/** RWR (spec §10.3): an enemy radar lock, or a radar missile its launcher still guides, is on you. */
 function drawRadarWarning(ctx: CanvasRenderingContext2D, p: Projector, f: HudFrame, clock: number): void {
   if (!f.view.lockedByRadar || clock % 0.6 >= 0.4) return;
   ctx.save();
@@ -281,7 +286,8 @@ function drawMissileWarning(ctx: CanvasRenderingContext2D, p: Projector, f: HudF
     const text = `${WARNING_CAPTIONS['missile-warning']}  ${formatRange(w.rangeM, f.view.config.hudUnits)}`;
     ctx.fillText(text, cx - ctx.measureText(text).width / 2, cy - 120);
   }
-  const advice = missileAdvice(w.timeToImpactS);
+  const kind = f.missiles.find((m) => m.id === w.missileId)?.kind;
+  const advice = missileAdvice(w.timeToImpactS, kind ? MISSILES[kind].guidance : 'ir');
   if (advice.urgent) {
     // The moment a hard break beats the missile: make it impossible to miss.
     if (clock % 0.3 < 0.2) {

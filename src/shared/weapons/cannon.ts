@@ -41,7 +41,8 @@ export function pullTrigger(trigger: Trigger, spec: CannonSpec, dt: number, roun
   trigger.cannonAccumulator += spec.projectilesPerS * dt;
   const due = Math.floor(trigger.cannonAccumulator);
   trigger.cannonAccumulator -= due;
-  return Math.min(due, Math.floor(roundsLeft / spec.roundsPerProjectile));
+  // The last projectile of a magazine may stand for fewer rounds than the others.
+  return Math.min(due, Math.ceil(roundsLeft / spec.roundsPerProjectile));
 }
 
 export interface Shooter {

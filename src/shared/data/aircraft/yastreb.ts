@@ -7,7 +7,7 @@ export const yastreb: AircraftConfig = {
   team: 'russia',
   role: 'Supermaneuverable heavy fighter',
   description:
-    'Heavy fighter with 3-D thrust vectoring: the best agility at low speed and the biggest missile load. It has no stealth and bleeds energy in long turns.',
+    'Heavy fighter with 3-D thrust vectoring: the best agility at low speed, and the long-range R-37M for far-off and big targets. It has no stealth and bleeds energy in long turns.',
   physics: {
     massKg: 25000,
     wingAreaM2: 62,
@@ -36,7 +36,28 @@ export const yastreb: AircraftConfig = {
     twoSeat: false,
     sensorFusion: false,
   },
-  stores: { cannon: 'HC-30', cannonRounds: 150, srm: 4, mrm: 6, countermeasures: 60 },
+  // Su-35S air-combat load as shown by Russian television: two R-73 on the wing pylons, two R-77-1 under the intakes
+  // and two R-37M between the engines, Khibiny jamming pods on the wingtips; GSh-30-1 with 150 rounds; 96 cartridges,
+  // half flares and half chaff. Strike: six FAB-500M-62 under the wings, R-77-1 under the intakes, R-73 on the tips.
+  stores: {
+    cannon: 'GSh-30-1',
+    cannonRounds: 150,
+    missiles: [
+      { missile: 'R-73', count: 2 },
+      { missile: 'R-77-1', count: 2 },
+      { missile: 'R-37M', count: 2 },
+    ],
+    flares: 48,
+    chaff: 48,
+    strike: {
+      bomb: 'FAB-500M-62',
+      bombs: 6,
+      missiles: [
+        { missile: 'R-73', count: 2 },
+        { missile: 'R-77-1', count: 2 },
+      ],
+    },
+  },
   damage: { hitPoints: 100, hitRadiusM: 7.5 },
   visual: {
     lengthM: 21.9,

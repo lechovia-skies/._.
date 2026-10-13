@@ -35,8 +35,19 @@ export const kestrel: AircraftConfig = {
     twoSeat: false,
     sensorFusion: false,
   },
-  stores: { cannon: 'RC-20', cannonRounds: 510, srm: 4, mrm: 2, countermeasures: 40 },
-  damage: { hitPoints: 80, hitRadiusM: 6 },
+  // F-16C Block 50 air-to-air: AIM-9X on stations 2 and 8, AIM-120D on the wingtips and stations 3 and 7; M61A1 with
+  // 511 rounds. Four ALE-47 magazines: two of 15 flares, two of 30 chaff.
+  stores: {
+    cannon: 'M61A1',
+    cannonRounds: 511,
+    missiles: [
+      { missile: 'AIM-9X', count: 2 },
+      { missile: 'AIM-120D', count: 4 },
+    ],
+    flares: 30,
+    chaff: 60,
+  },
+  damage: { hitPoints: 90, hitRadiusM: 6 },
   visual: {
     lengthM: 15,
     spanM: 9.8,

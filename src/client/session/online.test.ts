@@ -219,12 +219,12 @@ describe('online play between browsers (revision 28)', () => {
     expect(worst).toBeLessThan(1.5);
   });
 
-  it("shows the host's radar lock on the own jet once the Lance is selected", async () => {
+  it("shows the host's radar lock on the own jet once the AIM-120D is selected", async () => {
     const h = new Harness(50);
     const s = await join(h, 'a');
     fly(h, s, 1, () => neutralInput(0.8));
     expect(s.localView()?.radarLock.mode).toBe('off');
-    fly(h, s, 3, () => ({ ...neutralInput(0.8), weapon: 'mrm' }));
+    fly(h, s, 3, () => ({ ...neutralInput(0.8), weapon: 1 }));
     expect(h.host.room.world.getAircraft(s.localId)?.radarLock.mode).not.toBe('off');
     expect(s.localView()?.radarLock.mode).not.toBe('off');
   });

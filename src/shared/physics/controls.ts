@@ -1,6 +1,5 @@
+import { MAX_MISSILE_SLOTS } from '../data/loadout.ts';
 import { clamp } from '../math/units.ts';
-
-export type WeaponSelect = 'srm' | 'mrm';
 
 /** Everything a pilot (human or bot) can command in one simulation tick. */
 export interface ControlInput {
@@ -19,7 +18,8 @@ export interface ControlInput {
   /** one bomb per press (Strike attackers) */
   dropBomb: boolean;
   cycleTarget: boolean;
-  weapon: WeaponSelect;
+  /** the selected missile: a slot of the aircraft's loadout (revision 30; keys 1 and 2 step through them) */
+  weapon: number;
   /** true while the pilot is looking around (padlock/free look): the IR seeker follows the head */
   helmetSight: boolean;
   /** head yaw relative to the nose, radians (-PI..PI), + = right */
@@ -40,7 +40,7 @@ export function neutralInput(throttle = 0.7): ControlInput {
     countermeasures: false,
     dropBomb: false,
     cycleTarget: false,
-    weapon: 'srm',
+    weapon: 0,
     helmetSight: false,
     lookYaw: 0,
     lookPitch: 0,
@@ -61,7 +61,7 @@ export function sanitizeInput(input: ControlInput, out: ControlInput = neutralIn
   out.countermeasures = input.countermeasures === true;
   out.dropBomb = input.dropBomb === true;
   out.cycleTarget = input.cycleTarget === true;
-  out.weapon = input.weapon === 'mrm' ? 'mrm' : 'srm';
+  out.weapon = Number.isInteger(input.weapon) ? clamp(input.weapon, 0, MAX_MISSILE_SLOTS - 1) : 0;
   out.helmetSight = input.helmetSight === true;
   out.lookYaw = clamp(finite(input.lookYaw), -Math.PI, Math.PI);
   out.lookPitch = clamp(finite(input.lookPitch), -Math.PI / 2, Math.PI / 2);

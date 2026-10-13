@@ -5,7 +5,7 @@ import { Rng } from '../math/rng.ts';
 import { createFlightState } from '../physics/flight-model.ts';
 import { advanceProjectile, createProjectile, projectileVelocity, pullTrigger, TRIGGER_AT_REST } from './cannon.ts';
 
-const rc20 = CANNONS['RC-20'];
+const rc20 = CANNONS['M61A1'];
 const shooter = () => ({
   id: 1,
   team: 'usa' as const,

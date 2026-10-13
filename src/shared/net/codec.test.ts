@@ -4,6 +4,7 @@ import { neutralInput } from '../physics/controls.ts';
 import { createFlightState } from '../physics/flight-model.ts';
 import { applyFlightNumbers, decodeInput, decodeSnapshot, encodeInput, encodeSnapshot, FLIGHT_SCALARS, FLIGHT_VECTORS, flightNumbers, INPUT_BYTES, type OwnState, quantizeInput, type Snapshot, snapshotBytes } from './codec.ts';
 import { ProtocolError } from './protocol.ts';
+import { MISSILE_IDS } from '../data/weapons.ts';
 
 function ownState(): OwnState {
   const f = createFlightState({ position: new Vector3(41234.567891, 3210.25, -71234.125), headingRad: 1.1, speed: 231.5, throttle: 0.83 });
@@ -18,9 +19,9 @@ function ownState(): OwnState {
     gStrain: 0.4321,
     blackoutTick: -1,
     cannonRounds: 412,
-    srm: 3,
-    mrm: 2,
-    countermeasures: 30,
+    missiles: [1, 2, 0],
+    flares: 47,
+    chaff: 120,
     bombs: 0,
     seekerMode: 'locked',
     seekerTargetId: 7,
@@ -44,7 +45,7 @@ function snapshot(): Snapshot {
     ackSeq: 987,
     queueDepth: 3,
     aircraft: [{ id: 1, alive: true, firingCannon: true, onGround: false, spawnGen: 300, hp: 87.5, throttle: 1, gear: 0.5, gLoad: 7.3, pos: [1000.5, 2000.25, -3000.125], quat: [0, 0.6, 0, 0.8], vel: [250.5, -10.2, 3.3] }],
-    missiles: [{ id: 4, kind: 'lance', ownerId: 1, targetId: 2, motorBurning: true, team: 'russia', pos: [1, 2, 3], vel: [800, 0, -100] }],
+    missiles: [{ id: 4, kind: 'R-37M', ownerId: 1, targetId: 2, motorBurning: true, team: 'russia', pos: [1, 2, 3], vel: [800, 0, -100] }],
     bombs: [{ id: 5, team: 'usa', pos: [4, 5, 6], vel: [200, -50, 0] }],
     targets: [{ hpFraction: 0.5, destroyed: false }],
     own: ownState(),
@@ -53,7 +54,7 @@ function snapshot(): Snapshot {
 
 describe('input codec', () => {
   it('round-trips an input in 17 bytes, quantized', () => {
-    const input = { ...neutralInput(0.9), pitch: 0.5, roll: -1, yaw: 0.25, fireCannon: true, weapon: 'mrm' as const, helmetSight: true, lookYaw: 1, lookPitch: -0.5 };
+    const input = { ...neutralInput(0.9), pitch: 0.5, roll: -1, yaw: 0.25, fireCannon: true, weapon: 2, helmetSight: true, lookYaw: 1, lookPitch: -0.5 };
     const buf = encodeInput(42, input, 11);
     expect(buf.byteLength).toBe(INPUT_BYTES);
     const d = decodeInput(buf);
@@ -63,10 +64,14 @@ describe('input codec', () => {
     expect(d.input.roll).toBe(-1);
     expect(d.input.throttle).toBeCloseTo(0.9, 2);
     expect(d.input.fireCannon).toBe(true);
-    expect(d.input.weapon).toBe('mrm');
+    expect(d.input.weapon).toBe(2);
     expect(d.input.helmetSight).toBe(true);
     expect(d.input.lookYaw).toBeCloseTo(1, 3);
     expect(quantizeInput(input)).toEqual(d.input);
+  });
+
+  it('carries every missile slot a jet can have (revision 30)', () => {
+    for (let weapon = 0; weapon < 8; weapon++) expect(decodeInput(encodeInput(1, { ...neutralInput(), weapon }, 0)).input.weapon).toBe(weapon);
   });
 
   it('refuses a message of the wrong size or kind', () => {
@@ -94,14 +99,14 @@ describe('snapshot codec (revision 28)', () => {
     expect(a.pos[2]).toBeCloseTo(-3000.125, 3);
     expect(a.quat[1]).toBeCloseTo(0.6, 3);
     expect(a.vel[0]).toBeCloseTo(250.5, 1);
-    expect(d.missiles[0]).toMatchObject({ id: 4, kind: 'lance', ownerId: 1, targetId: 2, motorBurning: true, team: 'russia' });
+    expect(d.missiles[0]).toMatchObject({ id: 4, kind: 'R-37M', ownerId: 1, targetId: 2, motorBurning: true, team: 'russia' });
     expect(d.bombs[0]).toMatchObject({ id: 5, team: 'usa' });
     expect(d.targets[0].hpFraction).toBeCloseTo(0.5, 2);
     // The own jet exactly as sent: every number of the flight state, the fuel and the strain at 64 bits.
     expect(d.own?.flight).toEqual(s.own?.flight);
     expect(d.own?.fuelKg).toBe(s.own?.fuelKg);
     expect(d.own?.gStrain).toBe(s.own?.gStrain);
-    expect(d.own).toMatchObject({ blackoutTick: -1, cannonRounds: 412, srm: 3, mrm: 2, seekerMode: 'locked', seekerTargetId: 7, radarLockMode: 'tracking', lockedByRadar: true, targetId: 9, outOfBoundsTicks: 120, respawnInTicks: null, datalink: [11, 12] });
+    expect(d.own).toMatchObject({ blackoutTick: -1, cannonRounds: 412, missiles: [1, 2, 0], flares: 47, chaff: 120, seekerMode: 'locked', seekerTargetId: 7, radarLockMode: 'tracking', lockedByRadar: true, targetId: 9, outOfBoundsTicks: 120, respawnInTicks: null, datalink: [11, 12] });
     expect(d.own?.supply?.kind).toBe('pass');
     expect(d.own?.supply?.progress).toBeCloseTo(0.4, 2);
     expect(d.own?.contacts[0]).toMatchObject({ id: 9, visual: true, radar: true });
@@ -123,6 +128,14 @@ describe('snapshot codec (revision 28)', () => {
     const n = flightNumbers(f);
     const g = applyFlightNumbers(n, createFlightState({ position: new Vector3(9, 9, 9), headingRad: 2, speed: 5 }));
     expect(flightNumbers(g)).toEqual(n);
+  });
+
+  it('names every real missile in flight (revision 30)', () => {
+    for (const kind of MISSILE_IDS) {
+      const s = snapshot();
+      s.missiles = [{ ...s.missiles[0], kind }];
+      expect(decodeSnapshot(encodeSnapshot(s)).missiles[0].kind).toBe(kind);
+    }
   });
 
   it('refuses a truncated snapshot', () => {

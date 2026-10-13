@@ -26,7 +26,7 @@ describe('StrikeMode', () => {
       winner: null,
       strike: { attacker: 'russia', defender: 'usa', aircraftLeft: { usa: 4, russia: 4 }, targetsDestroyed: 0, targetsToWin: 2, reason: null },
     });
-    expect([m.bombLoad('russia'), m.bombLoad('usa')]).toEqual([8, 0]);
+    expect([m.strikes('russia'), m.strikes('usa')]).toEqual([true, false]);
     expect([m.combatEnabled, m.respawnDelayS]).toEqual([true, 5]);
   });
 

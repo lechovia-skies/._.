@@ -23,7 +23,7 @@ describe('LocalSession', () => {
     expect(me).not.toBeNull();
     expect(me?.isLocal).toBe(true);
     expect(me?.callsign).toBe('Pilot');
-    expect(me?.stores.srm).toBe(me?.config.stores.srm);
+    expect(me?.stores.missiles).toEqual([2, 4]);
     expect(s.drainEvents()).toContainEqual({ type: 'spawned', aircraftId: s.localId, spawnGen: 1 });
   });
 
@@ -71,7 +71,7 @@ describe('LocalSession', () => {
     s.update(1 / 60, neutralInput(0.8));
     s.update(1 / 30, neutralInput(0.8));
     const me = s.localView();
-    expect(me?.stores.countermeasures).toBe((me?.config.stores.countermeasures ?? 0) - 1);
+    expect([me?.stores.flares, me?.stores.chaff]).toEqual([(me?.config.stores.flares ?? 0) - 1, (me?.config.stores.chaff ?? 0) - 1]);
   });
 
   it('shows projectiles and missiles in flight', () => {
@@ -96,8 +96,8 @@ describe('LocalSession in Strike', () => {
       ['B', 100, false],
       ['C', 100, false],
     ]);
-    expect([s.localView()?.bombLoad, s.localView()?.stores.bombs]).toEqual([8, 8]);
-    expect([...s.views()].find((v) => v.isBot)?.bombLoad).toBe(0);
+    expect([s.localView()?.loadout.bombs, s.localView()?.stores.bombs]).toEqual([4, 4]);
+    expect([...s.views()].find((v) => v.isBot)?.loadout.bombs).toBe(0);
   });
 
   it('drops one bomb for a G press that arrives between simulation steps', () => {
@@ -106,12 +106,12 @@ describe('LocalSession in Strike', () => {
     s.update(1 / 60, neutralInput(0.8));
     s.update(1 / 60, neutralInput(0.8));
     expect([...s.bombs()]).toHaveLength(1);
-    expect(s.localView()?.stores.bombs).toBe(7);
+    expect(s.localView()?.stores.bombs).toBe(3);
   });
 
   it('has no targets or bombs outside Strike', () => {
     const s = dogfight();
     s.update(1 / 60, neutralInput(0.8));
-    expect([s.groundTargets().length, [...s.bombs()].length, s.localView()?.bombLoad]).toEqual([0, 0, 0]);
+    expect([s.groundTargets().length, [...s.bombs()].length, s.localView()?.loadout.bombs]).toEqual([0, 0, 0]);
   });
 });

@@ -2,7 +2,7 @@ import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildTerrain } from '../data/maps/map-definition.ts';
 import { createTestRange } from '../data/maps/test-range.ts';
-import { BOMB_ANVIL } from '../data/weapons.ts';
+import { FAB_500M_62 } from '../data/weapons.ts';
 import { DEG, G0 } from '../math/units.ts';
 import { SEA_LEVEL_DENSITY } from '../physics/atmosphere.ts';
 import { createFlightState } from '../physics/flight-model.ts';
@@ -19,7 +19,7 @@ function eastbound(x: number, z: number, aglM: number, speed: number, pitchDeg: 
 
 /** Releases a bomb and steps it the way the World does until it lands. */
 function dropAndFollow(x: number, z: number, aglM: number, speed: number, pitchDeg: number): Vector3 {
-  const b = releaseBomb(1, { id: 7, team: 'russia', flight: eastbound(x, z, aglM, speed, pitchDeg) }, BOMB_ANVIL);
+  const b = releaseBomb(1, { id: 7, team: 'russia', flight: eastbound(x, z, aglM, speed, pitchDeg) }, FAB_500M_62);
   for (let i = 0; i < 70 * 60 && !hasLanded(b, terrain); i++) stepBomb(b, DT);
   return surfaceCrossing(b.prevPos, b.pos, terrain, new Vector3());
 }
@@ -27,7 +27,7 @@ function dropAndFollow(x: number, z: number, aglM: number, speed: number, pitchD
 describe('bombs', () => {
   it('leave with copies of the aircraft position and velocity', () => {
     const flight = createFlightState({ position: new Vector3(1, 2000, 3), headingRad: 0, speed: 220 });
-    const b = releaseBomb(5, { id: 9, team: 'russia', flight }, BOMB_ANVIL);
+    const b = releaseBomb(5, { id: 9, team: 'russia', flight }, FAB_500M_62);
     expect(b.pos.equals(flight.pos) && b.vel.equals(flight.vel)).toBe(true);
     expect(b.pos).not.toBe(flight.pos);
     expect(b.vel).not.toBe(flight.vel);
@@ -37,8 +37,8 @@ describe('bombs', () => {
   it('fall under gravity and settle at the terminal speed set by their drag', () => {
     const pos = new Vector3(0, 30000, 0);
     const vel = new Vector3();
-    for (let i = 0; i < 120 * 60; i++) advanceBomb(pos, vel, BOMB_ANVIL, SEA_LEVEL_DENSITY, DT);
-    const terminal = Math.sqrt(G0 / BOMB_ANVIL.dragPerM);
+    for (let i = 0; i < 120 * 60; i++) advanceBomb(pos, vel, FAB_500M_62, SEA_LEVEL_DENSITY, DT);
+    const terminal = Math.sqrt(G0 / FAB_500M_62.dragPerM);
     expect(-vel.y).toBeGreaterThan(0.98 * terminal);
     expect(-vel.y).toBeLessThan(1.01 * terminal);
   });
@@ -62,7 +62,7 @@ describe('bombs', () => {
     ];
     for (const [agl, speed, pitch] of cases) {
       const flight = eastbound(-12000, 2000, agl, speed, pitch);
-      const predicted = predictImpact(flight.pos, flight.vel, BOMB_ANVIL, terrain, DT, new Vector3());
+      const predicted = predictImpact(flight.pos, flight.vel, FAB_500M_62, terrain, DT, new Vector3());
       expect(predicted).not.toBeNull();
       const real = dropAndFollow(-12000, 2000, agl, speed, pitch);
       expect(predicted?.distanceTo(real)).toBeLessThan(5);
@@ -70,14 +70,14 @@ describe('bombs', () => {
   });
 
   it('predict no impact when the fall would outlast the bomb', () => {
-    expect(predictImpact(new Vector3(0, 60000, 0), new Vector3(), BOMB_ANVIL, terrain, DT, new Vector3())).toBeNull();
+    expect(predictImpact(new Vector3(0, 60000, 0), new Vector3(), FAB_500M_62, terrain, DT, new Vector3())).toBeNull();
   });
 
-  it('do full damage within 30 m of a target and none from 90 m', () => {
-    expect(bombDamage(0, BOMB_ANVIL)).toBe(40);
-    expect(bombDamage(30, BOMB_ANVIL)).toBe(40);
-    expect(bombDamage(60, BOMB_ANVIL)).toBeCloseTo(20, 9);
-    expect(bombDamage(90, BOMB_ANVIL)).toBe(0);
-    expect(bombDamage(400, BOMB_ANVIL)).toBe(0);
+  it('do full damage within 35 m of a target and none from 100 m', () => {
+    expect(bombDamage(0, FAB_500M_62)).toBe(62);
+    expect(bombDamage(35, FAB_500M_62)).toBe(62);
+    expect(bombDamage(67.5, FAB_500M_62)).toBeCloseTo(31, 9);
+    expect(bombDamage(100, FAB_500M_62)).toBe(0);
+    expect(bombDamage(400, FAB_500M_62)).toBe(0);
   });
 });

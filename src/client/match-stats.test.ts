@@ -5,8 +5,8 @@ describe('match statistics (M5)', () => {
   it('adds up damage, hits, launches and Sentinels per pilot from the events', () => {
     const s = new MatchStats();
     const support = (id: number) => id === 50;
-    s.onEvent({ type: 'missileLaunched', missileId: 1, shooterId: 3, targetId: 7, kind: 'dart' }, support);
-    s.onEvent({ type: 'missileLaunched', missileId: 2, shooterId: 3, targetId: 7, kind: 'lance' }, support);
+    s.onEvent({ type: 'missileLaunched', missileId: 1, shooterId: 3, targetId: 7, kind: 'R-73' }, support);
+    s.onEvent({ type: 'missileLaunched', missileId: 2, shooterId: 3, targetId: 7, kind: 'AIM-120C' }, support);
     s.onEvent({ type: 'hit', aircraftId: 7, attackerId: 3, weapon: 'missile', damage: 85 }, support);
     s.onEvent({ type: 'hit', aircraftId: 7, attackerId: 3, weapon: 'cannon', damage: 10.4 }, support);
     s.onEvent({ type: 'hit', aircraftId: 3, attackerId: null, weapon: 'cannon', damage: 5 }, support);

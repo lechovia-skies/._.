@@ -36,7 +36,18 @@ export const tempest: AircraftConfig = {
     twoSeat: false,
     sensorFusion: false,
   },
-  stores: { cannon: 'RC-20', cannonRounds: 480, srm: 2, mrm: 4, countermeasures: 24 },
+  // F-22A: six AIM-120D in the main bay and an AIM-9X in each side bay (USAF fact sheet); M61A2 with 480 rounds.
+  // Flare and chaff loads are not published: the game's earlier 24 salvos, as 24 of each.
+  stores: {
+    cannon: 'M61A2',
+    cannonRounds: 480,
+    missiles: [
+      { missile: 'AIM-9X', count: 2 },
+      { missile: 'AIM-120D', count: 6 },
+    ],
+    flares: 24,
+    chaff: 24,
+  },
   damage: { hitPoints: 85, hitRadiusM: 7 },
   visual: {
     lengthM: 18.9,

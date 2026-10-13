@@ -1,7 +1,9 @@
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { SRM_DART } from '../data/weapons.ts';
+import { MISSILES } from '../data/weapons.ts';
 import { blastDamage, clearCredit, type CreditRecord, damageFlightEnv, damageState, maneuverKillCredit } from './damage.ts';
+
+const R_73 = MISSILES['R-73'];
 
 describe('damage', () => {
   it('maps hit points to damage states', () => {
@@ -21,11 +23,11 @@ describe('damage', () => {
   });
 
   it('applies full blast damage within 4 m, falling to 0 at 18 m', () => {
-    expect(blastDamage(0, SRM_DART)).toBe(130);
-    expect(blastDamage(4, SRM_DART)).toBe(130);
-    expect(blastDamage(11, SRM_DART)).toBeCloseTo(65, 9);
-    expect(blastDamage(18, SRM_DART)).toBe(0);
-    expect(blastDamage(40, SRM_DART)).toBe(0);
+    expect(blastDamage(0, R_73)).toBe(130);
+    expect(blastDamage(4, R_73)).toBe(130);
+    expect(blastDamage(11, R_73)).toBeCloseTo(65, 9);
+    expect(blastDamage(18, R_73)).toBe(0);
+    expect(blastDamage(40, R_73)).toBe(0);
   });
 
   describe('maneuverKillCredit', () => {

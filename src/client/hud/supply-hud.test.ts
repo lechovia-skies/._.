@@ -11,7 +11,8 @@ describe('the way home (revision 22)', () => {
   it('points home once the missiles or the rounds are gone, the fuel is low or the jet badly hit', () => {
     const v = testView(1);
     expect(rtbReason(v)).toBeNull();
-    expect(rtbReason({ ...v, stores: { ...v.stores, srm: 0, mrm: 0 } })).toBe('rearm');
+    expect(rtbReason({ ...v, stores: { ...v.stores, missiles: [0, 0] } })).toBe('rearm');
+    expect(rtbReason({ ...v, stores: { ...v.stores, missiles: [0, 1] } })).toBeNull();
     expect(rtbReason({ ...v, stores: { ...v.stores, cannonRounds: 0 } })).toBe('rearm');
     // Revision 26: down to 40 rounds is time to go home.
     expect(REARM_ROUNDS).toBe(40);
@@ -19,7 +20,7 @@ describe('the way home (revision 22)', () => {
     expect(rtbReason({ ...v, stores: { ...v.stores, cannonRounds: 41 } })).toBeNull();
     expect(rtbReason({ ...v, stores: { ...v.stores, fuelKg: 0.1 * v.config.physics.fuelKg } })).toBe('fuel');
     expect(rtbReason({ ...v, hp: 0.2 * v.config.damage.hitPoints })).toBe('repair');
-    expect(rtbReason({ ...v, alive: false, stores: { ...v.stores, srm: 0, mrm: 0 } })).toBeNull();
+    expect(rtbReason({ ...v, alive: false, stores: { ...v.stores, missiles: [0, 0] } })).toBeNull();
   });
 
   it('chooses the nearest friendly airfield, never the enemy\'s, and is near only close and low', () => {

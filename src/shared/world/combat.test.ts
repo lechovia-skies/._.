@@ -18,13 +18,19 @@ import { TICK_RATE, World } from './world.ts';
 const map = createTestRange(1);
 const terrain = buildTerrain(map);
 
-function duel(mode: GameMode = new TeamDeathmatchMode(), seed = 3) {
+/** A Kestrel (F-16C: 2 AIM-9X in slot 0, 4 AIM-120D in slot 1) against a Kobchik, or the other way round. */
+function duel(mode: GameMode = new TeamDeathmatchMode(), seed = 3, russianShooter = false) {
   const world = new World({ map, terrain, mode, seed });
-  const shooter = world.addAircraft({ callsign: 'Shooter', team: 'usa', aircraftId: 'kestrel' });
-  const target = world.addAircraft({ callsign: 'Target', team: 'russia', aircraftId: 'kobchik' });
+  const usa = { team: 'usa' as const, aircraftId: 'kestrel' };
+  const russia = { team: 'russia' as const, aircraftId: 'kobchik' };
+  const shooter = world.addAircraft({ callsign: 'Shooter', ...(russianShooter ? russia : usa) });
+  const target = world.addAircraft({ callsign: 'Target', ...(russianShooter ? usa : russia) });
   world.drainEvents();
   return { world, shooter, target };
 }
+
+const IR = 0;
+const RADAR = 1;
 
 /** Straight flight with the nose on the flight path (no angle of attack), so guns point where the jet goes. */
 function place(a: AircraftEntity, x: number, y: number, z: number, headingDeg = 0, speed = 250): void {
@@ -51,7 +57,7 @@ describe('World combat', () => {
     const events = run(world, 20, () => hold(shooter.id, { fireCannon: true }));
     expect(events).toContainEqual(expect.objectContaining({ type: 'hit', aircraftId: target.id, attackerId: shooter.id, weapon: 'cannon' }));
     expect(target.hp).toBeLessThan(target.config.damage.hitPoints);
-    const rc20 = CANNONS['RC-20'];
+    const rc20 = CANNONS['M61A1'];
     expect(shooter.stores.cannonRounds).toBeLessThanOrEqual(shooter.config.stores.cannonRounds - 5 * rc20.roundsPerProjectile);
     expect(shooter.firingCannon).toBe(true);
   });
@@ -95,7 +101,7 @@ describe('World combat', () => {
     expect(events).toContainEqual(expect.objectContaining({ type: 'missileDetonated', nearAircraft: true }));
     expect(events).toContainEqual({ type: 'destroyed', aircraftId: target.id, cause: 'missile', killerId: shooter.id });
     expect(shooter.kills).toBe(1);
-    expect(shooter.stores.srm).toBe(shooter.config.stores.srm - 1);
+    expect(shooter.stores.missiles).toEqual([1, 4]);
   });
 
   it('does not launch without a lock', () => {
@@ -104,13 +110,13 @@ describe('World combat', () => {
     place(target, 3000, 3000, 0);
     const events = run(world, 5, () => hold(shooter.id, { fireMissile: true }));
     expect(events.some((e) => e.type === 'missileLaunched')).toBe(false);
-    expect(shooter.stores.srm).toBe(shooter.config.stores.srm);
+    expect(shooter.stores.missiles).toEqual([2, 4]);
   });
 
-  it("lets flares decoy the player's missiles now and then", () => {
+  it("lets flares decoy the player's R-73s now and then", () => {
     let decoyed = 0;
     for (let seed = 1; seed <= 30; seed++) {
-      const { world, shooter, target } = duel(new TeamDeathmatchMode(), seed);
+      const { world, shooter, target } = duel(new TeamDeathmatchMode(), seed, true);
       place(shooter, 0, 3000, 2500);
       place(target, 0, 3000, 0);
       run(world, 55);
@@ -127,11 +133,11 @@ describe('World combat', () => {
     expect(decoyed).toBeLessThan(10);
   });
 
-  it('locks on radar with the Lance selected, warns the target, and kills it from 15 km', () => {
+  it('locks on radar with the AIM-120D selected, warns the target, and kills it from 15 km', () => {
     const { world, shooter, target } = duel();
     place(shooter, 0, 3000, 15000);
     place(target, 0, 3000, 0, 180);
-    const mrm = (over: Partial<ControlInput> = {}) => hold(shooter.id, { weapon: 'mrm', ...over });
+    const mrm = (over: Partial<ControlInput> = {}) => hold(shooter.id, { weapon: RADAR, ...over });
     run(world, 30, () => mrm());
     expect(shooter.targetId).toBe(target.id);
     expect(shooter.radarLock.mode).toBe('tracking');
@@ -142,12 +148,12 @@ describe('World combat', () => {
     expect(target.lockedByRadar).toBe(true);
 
     const events = run(world, 1, () => mrm({ fireMissile: true }));
-    expect(events).toContainEqual(expect.objectContaining({ type: 'missileLaunched', shooterId: shooter.id, targetId: target.id, kind: 'lance' }));
-    expect(shooter.stores.mrm).toBe(shooter.config.stores.mrm - 1);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'missileLaunched', shooterId: shooter.id, targetId: target.id, kind: 'AIM-120D' }));
+    expect(shooter.stores.missiles).toEqual([2, 3]);
     const lance = world.missileList()[0];
     expect(lance.active).toBe(false);
-    // Back on the Dart: the radar lock drops, but the launcher still guides its Lance, so the RWR stays on.
-    run(world, 30, () => hold(shooter.id, { weapon: 'srm' }));
+    // Back on the AIM-9X: the radar lock drops, but the launcher still guides its AIM-120D, so the RWR stays on.
+    run(world, 30, () => hold(shooter.id, { weapon: IR }));
     expect(shooter.radarLock.mode).toBe('off');
     expect(target.lockedByRadar).toBe(true);
 
@@ -164,13 +170,13 @@ describe('World combat', () => {
     expect(later).toContainEqual({ type: 'destroyed', aircraftId: target.id, cause: 'missile', killerId: shooter.id });
   });
 
-  it('loses a Lance whose launcher turns the target out of its radar cone before it goes active', () => {
+  it('loses a radar missile whose launcher turns the target out of its radar cone before it goes active', () => {
     const { world, shooter, target } = duel();
     place(shooter, 0, 3000, 25000);
     place(target, 0, 3000, 0, 180);
-    run(world, 120, () => hold(shooter.id, { weapon: 'mrm' }));
+    run(world, 120, () => hold(shooter.id, { weapon: RADAR }));
     expect(shooter.radarLock.mode).toBe('locked');
-    run(world, 1, () => hold(shooter.id, { weapon: 'mrm', fireMissile: true }));
+    run(world, 1, () => hold(shooter.id, { weapon: RADAR, fireMissile: true }));
     const lance = world.missileList()[0];
     expect(lance.targetId).toBe(target.id);
     place(shooter, 0, 3000, 25000, 180);
@@ -180,27 +186,27 @@ describe('World combat', () => {
     expect(target.lockedByRadar).toBe(false);
   });
 
-  it('needs a radar lock for a Lance, and keeps 2 s between launches', () => {
+  it('needs a radar lock for a radar missile, and keeps 2 s between launches', () => {
     const { world, shooter, target } = duel();
     place(shooter, 0, 3000, 15000);
     place(target, 0, 3000, 0, 180);
-    let events = run(world, 30, () => hold(shooter.id, { weapon: 'mrm', fireMissile: true }));
+    let events = run(world, 30, () => hold(shooter.id, { weapon: RADAR, fireMissile: true }));
     expect(events.some((e) => e.type === 'missileLaunched')).toBe(false);
-    events = run(world, 3 * TICK_RATE, () => hold(shooter.id, { weapon: 'mrm', fireMissile: true }));
+    events = run(world, 3 * TICK_RATE, () => hold(shooter.id, { weapon: RADAR, fireMissile: true }));
     const launches = events.filter((e) => e.type === 'missileLaunched');
     expect(launches).toHaveLength(2);
   });
 
-  it("lets chaff break the player's Lances now and then", () => {
+  it("lets chaff break the player's AIM-120Ds now and then", () => {
     let decoyed = 0;
     for (let seed = 1; seed <= 30; seed++) {
       const { world, shooter, target } = duel(new TeamDeathmatchMode(), seed);
       place(shooter, 0, 3000, 15000);
       place(target, 0, 3000, 0, 180);
-      run(world, 120, () => hold(shooter.id, { weapon: 'mrm' }));
+      run(world, 120, () => hold(shooter.id, { weapon: RADAR }));
       const events = run(world, 4 * TICK_RATE, (t) =>
         new Map([
-          [shooter.id, { ...neutralInput(0.8), weapon: 'mrm' as const, fireMissile: t === 0 }],
+          [shooter.id, { ...neutralInput(0.8), weapon: RADAR, fireMissile: t === 0 }],
           [target.id, { ...neutralInput(0.8), countermeasures: t === 60 }],
         ]),
       );
@@ -214,7 +220,7 @@ describe('World combat', () => {
   it('acts on a button press once, even when no new input follows', () => {
     const { world, target } = duel();
     run(world, 60, (t) => (t === 0 ? hold(target.id, { countermeasures: true }) : new Map()));
-    expect(target.stores.countermeasures).toBe(target.config.stores.countermeasures - 1);
+    expect([target.stores.flares, target.stores.chaff]).toEqual([target.config.stores.flares - 1, target.config.stores.chaff - 1]);
   });
 
   it('destroys both aircraft in a mid-air collision', () => {
@@ -246,7 +252,7 @@ describe('World combat', () => {
     expect(shooter.alive).toBe(true);
     expect(shooter.hp).toBe(shooter.config.damage.hitPoints);
     const full = shooter.config.stores;
-    expect(shooter.stores).toEqual({ cannonRounds: full.cannonRounds, srm: full.srm, mrm: full.mrm, countermeasures: full.countermeasures, bombs: 0, fuelKg: shooter.config.physics.fuelKg });
+    expect(shooter.stores).toEqual({ cannonRounds: full.cannonRounds, missiles: [2, 4], flares: full.flares, chaff: full.chaff, bombs: 0, fuelKg: shooter.config.physics.fuelKg });
     expect(shooter.targetId).toBeNull();
   });
 
@@ -301,6 +307,107 @@ describe('World combat', () => {
     run(healthy.world, 120, () => full);
     run(damaged.world, 120, () => hold(damaged.target.id, { throttle: 1 }));
     expect(damaged.target.flight.vel.length()).toBeLessThan(healthy.target.flight.vel.length() - 1);
+  });
+});
+
+describe('real weapons (revision 30)', () => {
+  it('fires the last rounds of a magazine that is not a multiple of a projectile, down to zero', () => {
+    const { world, shooter, target } = duel();
+    place(shooter, 0, 3000, 300);
+    place(target, 3000, 3000, 0);
+    shooter.stores.cannonRounds = 6;
+    run(world, 10, () => hold(shooter.id, { fireCannon: true }));
+    expect(shooter.stores.cannonRounds).toBe(0);
+    // Four rounds, then the last two as half a projectile.
+    const shots = world.projectileList();
+    expect(shots).toHaveLength(2);
+    expect(shots[1].damage).toBeCloseTo(shots[0].damage / 2);
+  });
+
+  it('releases a flare and a chaff cartridge per press, and keeps going on the one left', () => {
+    const { world, target } = duel();
+    target.stores.flares = 1;
+    target.stores.chaff = 2;
+    const presses = (n: number) => run(world, n * 30, (t) => hold(target.id, { countermeasures: t % 30 === 0 })).filter((e) => e.type === 'countermeasures');
+    expect(presses(1)).toEqual([{ type: 'countermeasures', aircraftId: target.id, flare: true, chaff: true }]);
+    expect(presses(1)).toEqual([{ type: 'countermeasures', aircraftId: target.id, flare: false, chaff: true }]);
+    expect(presses(1)).toEqual([]);
+    expect([target.stores.flares, target.stores.chaff]).toEqual([0, 0]);
+  });
+
+  it('decoys an infrared missile with flares only: chaff alone does nothing to it', () => {
+    let decoyed = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const { world, shooter, target } = duel(new TeamDeathmatchMode(), seed, true);
+      place(shooter, 0, 3000, 2500);
+      place(target, 0, 3000, 0);
+      target.stores.flares = 0;
+      run(world, 55);
+      const events = run(world, 8 * TICK_RATE, (t) =>
+        new Map([
+          [shooter.id, { ...neutralInput(0.8), fireMissile: t === 0 }],
+          [target.id, { ...neutralInput(0.8), countermeasures: t % 30 === 15 }],
+        ]),
+      );
+      if (events.some((e) => e.type === 'missileDecoyed')) decoyed++;
+    }
+    expect(decoyed).toBe(0);
+  });
+
+  it("guides a semi-active R-27R on the launcher's radar all the way: it never goes active and the RWR stays on", () => {
+    const { world, shooter, target } = duel(new TeamDeathmatchMode(), 3, true);
+    place(shooter, 0, 3000, 12000);
+    place(target, 0, 3000, 0, 180);
+    run(world, 120, () => hold(shooter.id, { weapon: RADAR }));
+    expect(shooter.radarLock.mode).toBe('locked');
+    const launched = run(world, 1, () => hold(shooter.id, { weapon: RADAR, fireMissile: true }));
+    expect(launched).toContainEqual(expect.objectContaining({ type: 'missileLaunched', kind: 'R-27R' }));
+    const r27 = world.missileList()[0];
+    let warned = true;
+    let events: GameEvent[] = [];
+    for (let i = 0; i < 30 * TICK_RATE && target.alive; i++) {
+      events = events.concat(run(world, 1, () => hold(shooter.id, { weapon: IR })));
+      expect(r27.active).toBe(false);
+      if (world.missileList().includes(r27)) warned &&= target.lockedByRadar;
+    }
+    expect(warned).toBe(true);
+    expect(events).toContainEqual({ type: 'destroyed', aircraftId: target.id, cause: 'missile', killerId: shooter.id });
+  });
+
+  it('loses a semi-active R-27R when its launcher turns away, however close it is', () => {
+    const { world, shooter, target } = duel(new TeamDeathmatchMode(), 3, true);
+    place(shooter, 0, 3000, 12000);
+    place(target, 0, 3000, 0, 180);
+    run(world, 120, () => hold(shooter.id, { weapon: RADAR }));
+    run(world, 1, () => hold(shooter.id, { weapon: RADAR, fireMissile: true }));
+    const r27 = world.missileList()[0];
+    // Let it fly well inside the range where an R-77-1 would have gone active.
+    run(world, 9 * TICK_RATE);
+    expect(r27.pos.distanceTo(target.flight.pos)).toBeLessThan(5000);
+    expect(r27.targetId).toBe(target.id);
+    place(shooter, 0, 3000, 12000, 180);
+    run(world, 30);
+    expect(r27.targetId).toBeNull();
+  });
+
+  it('fires nothing from an empty or unknown slot', () => {
+    const { world, shooter, target } = duel();
+    place(shooter, 0, 3000, 2500);
+    place(target, 0, 3000, 0);
+    shooter.stores.missiles[IR] = 0;
+    const events = run(world, 2 * TICK_RATE, (t) => hold(shooter.id, { weapon: t < TICK_RATE ? IR : 7, fireMissile: true }));
+    expect(events.some((e) => e.type === 'missileLaunched')).toBe(false);
+    expect(shooter.seeker.mode).toBe('off');
+  });
+
+  it('carries the strike load in a Strike attack: bombs and fewer missiles, and refills only the missiles at an airfield', () => {
+    const world = new World({ map, terrain, mode: new StrikeMode(), seed: 3 });
+    const attacker = world.addAircraft({ callsign: 'A', team: 'russia', aircraftId: 'yastreb' });
+    const defender = world.addAircraft({ callsign: 'D', team: 'usa', aircraftId: 'kestrel' });
+    expect(attacker.loadout.missiles.map((m) => m.missile)).toEqual(['R-73', 'R-77-1']);
+    expect([attacker.stores.bombs, attacker.stores.missiles]).toEqual([6, [2, 2]]);
+    expect(attacker.loadout.bomb?.id).toBe('FAB-500M-62');
+    expect([defender.stores.bombs, defender.stores.missiles]).toEqual([0, [2, 4]]);
   });
 });
 

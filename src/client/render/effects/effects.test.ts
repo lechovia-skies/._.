@@ -40,7 +40,7 @@ describe('Effects', () => {
     fx.dispose();
   });
 
-  it('drops a chaff cloud with the flares, and draws a Lance with its own model', () => {
+  it('drops a chaff cloud with the flares, and draws each missile type with its own model', () => {
     const scene = new Scene();
     const fx = new Effects(scene);
     const session = new LocalSession({ map, terrain, mode: new TeamDeathmatchMode(), aircraftId: 'kestrel', callsign: 'P' });
@@ -48,14 +48,18 @@ describe('Effects', () => {
     const me = session.localView();
     if (!me) throw new Error('no local view');
     const before = fx.particleCount;
-    fx.onEvent({ type: 'countermeasures', aircraftId: me.id }, session);
+    fx.onEvent({ type: 'countermeasures', aircraftId: me.id, flare: true, chaff: true }, session);
     // 36 chaff bits as grey haze plus every third as a glint; the flares only start burning on update.
     expect(fx.particleCount - before).toBe(36 + 12);
-    const lance = { id: 1, kind: 'lance' as const, team: 'usa' as const, ownerId: me.id, targetId: null, position: new Vector3(0, 3000, 0), velocity: new Vector3(0, 0, -800), motorBurning: true };
-    const fake = { ...session, missiles: () => [lance], views: () => session.views(), projectiles: () => [], bombs: () => [], groundTargets: () => [] };
+    // Out of chaff: flares only, no cloud.
+    const flaresOnly = fx.particleCount;
+    fx.onEvent({ type: 'countermeasures', aircraftId: me.id, flare: true, chaff: false }, session);
+    expect(fx.particleCount).toBe(flaresOnly);
+    const amraam = { id: 1, kind: 'AIM-120C' as const, team: 'usa' as const, ownerId: me.id, targetId: null, position: new Vector3(0, 3000, 0), velocity: new Vector3(0, 0, -800), motorBurning: true };
+    const fake = { ...session, missiles: () => [amraam], views: () => session.views(), projectiles: () => [], bombs: () => [], groundTargets: () => [] };
     fx.update(1 / 60, fake as unknown as LocalSession, frame, new Vector3(0, 3000, 100));
-    expect(scene.getObjectByName('lance')).toBeDefined();
-    expect(scene.getObjectByName('missile')).toBeUndefined();
+    expect(scene.getObjectByName('AIM-120C')).toBeDefined();
+    expect(scene.getObjectByName('AIM-9X')).toBeUndefined();
     fx.dispose();
   });
 

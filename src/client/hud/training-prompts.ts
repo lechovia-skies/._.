@@ -43,13 +43,13 @@ export function trainingPrompt(s: TrainingStatus, bindings: Bindings, mode: Cont
     case 'missile':
       return {
         title,
-        lines: ['Keep the drone in front of you until the tone turns steady: SRM LOCK.', `Then press ${missile} to fire a missile.`],
+        lines: ['Keep the drone in front of you until the lock tone turns steady and the HUD reads LOCK.', `Then press ${missile} to fire a missile.`],
         progress: null,
       };
     case 'defend':
       return {
         title,
-        lines: [`A missile is coming at you. Press ${flares} for flares,`, 'then turn hard when TURN HARD NOW flashes.'],
+        lines: [`A missile is coming at you. Press ${flares} for flares and chaff,`, 'then turn hard when TURN HARD NOW flashes.'],
         progress: null,
       };
     case 'done':

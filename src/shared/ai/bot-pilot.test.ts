@@ -2,7 +2,7 @@ import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildTerrain } from '../data/maps/map-definition.ts';
 import { createTestRange } from '../data/maps/test-range.ts';
-import { CANNONS, SRM_DART } from '../data/weapons.ts';
+import { CANNONS, MISSILES } from '../data/weapons.ts';
 import { DEG } from '../math/units.ts';
 import { TeamDeathmatchMode } from '../modes/team-deathmatch.ts';
 import { atmosphere } from '../physics/atmosphere.ts';
@@ -15,6 +15,8 @@ import type { AircraftEntity } from '../world/entities.ts';
 import { World } from '../world/world.ts';
 import { DIFFICULTIES, type DifficultyProfile } from './difficulty.ts';
 import { runDuel } from './duel.ts';
+
+const R_73 = MISSILES['R-73'];
 
 const map = createTestRange(1);
 const terrain = buildTerrain(map);
@@ -38,9 +40,10 @@ function headOnMissile(profile: DifficultyProfile): boolean {
   const enemy = w.addAircraft({ callsign: 'E', team: 'usa', aircraftId: 'kestrel' });
   place(bot, 0, 4000, 0, 0);
   place(enemy, 0, 4000, -2500, 180);
-  bot.stores.countermeasures = 0;
-  bot.stores.srm = 0;
-  w.combat.missiles.push(launchMissile(99, enemy, bot.id, SRM_DART));
+  bot.stores.flares = 0;
+  bot.stores.chaff = 0;
+  bot.stores.missiles[0] = 0;
+  w.combat.missiles.push(launchMissile(99, enemy, bot.id, R_73));
   const full = bot.hp;
   for (let i = 0; i < 8 * 60 && bot.alive; i++) w.step(NO_INPUTS);
   return !bot.alive || bot.hp < full;
@@ -62,7 +65,7 @@ describe('BotPilot', () => {
     const target = w.addAircraft({ callsign: 'T', team: 'russia', aircraftId: 'kobchik' });
     place(bot, 0, 3000, 600, 0);
     place(target, 0, 3000, 0, 0);
-    bot.stores.srm = 0;
+    bot.stores.missiles[0] = 0;
     const cannon = CANNONS[bot.config.stores.cannon];
     const lead = new Vector3();
     const nose = new Vector3();
@@ -88,7 +91,7 @@ describe('BotPilot', () => {
     place(target, 0, 4000, 0, 0);
     // Target banked 70 degrees right, holding a steady pull: a hard, predictable turn.
     target.flight.quat.multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, -1), 70 * DEG));
-    bot.stores.srm = 0;
+    bot.stores.missiles[0] = 0;
     const turning = new Map([[target.id, { ...neutralInput(0.9), pitch: 0.5 }]]);
     for (let i = 0; i < 30 * 60 && target.alive; i++) w.step(turning);
     expect(target.alive).toBe(false);
@@ -100,17 +103,17 @@ describe('BotPilot', () => {
     const enemy = w.addAircraft({ callsign: 'E', team: 'usa', aircraftId: 'kestrel' });
     place(bot, 0, 4000, 0, 0);
     place(enemy, 0, 4000, 3000, 0);
-    w.combat.missiles.push(launchMissile(99, enemy, bot.id, SRM_DART));
-    const full = bot.config.stores.countermeasures;
+    w.combat.missiles.push(launchMissile(99, enemy, bot.id, R_73));
+    const full = bot.config.stores.flares;
     let flaresWhileFar = 0;
     for (let i = 0; i < 12 * 60 && bot.alive; i++) {
       const warning = incomingMissileWarning(bot, w.combat.missiles);
-      const before = bot.stores.countermeasures;
+      const before = bot.stores.flares;
       w.step(NO_INPUTS);
-      if (warning && warning.timeToImpactS > 4) flaresWhileFar += before - bot.stores.countermeasures;
+      if (warning && warning.timeToImpactS > 4) flaresWhileFar += before - bot.stores.flares;
     }
     expect(flaresWhileFar).toBe(0);
-    expect(bot.stores.countermeasures).toBeLessThan(full);
+    expect(bot.stores.flares).toBeLessThan(full);
   });
 
   it('an ace dodges a head-on missile by breaking at the right moment, even without flares', () => {
@@ -121,7 +124,7 @@ describe('BotPilot', () => {
     expect(headOnMissile(DIFFICULTIES.rookie)).toBe(true);
   });
 
-  it('fights a distant enemy with a Lance: selects it, locks on radar and fires one at a time', () => {
+  it('fights a distant enemy with an AIM-120D: selects it, locks on radar and fires one at a time', () => {
     const w = newWorld();
     const bot = w.addAircraft({ callsign: 'B', team: 'usa', aircraftId: 'condor', bot: DIFFICULTIES.ace });
     const enemy = w.addAircraft({ callsign: 'E', team: 'russia', aircraftId: 'yastreb' });
@@ -130,21 +133,53 @@ describe('BotPilot', () => {
     const launches: number[] = [];
     for (let i = 0; i < 6 * 60; i++) {
       w.step(NO_INPUTS);
-      for (const e of w.drainEvents()) if (e.type === 'missileLaunched' && e.kind === 'lance') launches.push(i);
+      for (const e of w.drainEvents()) if (e.type === 'missileLaunched' && e.kind === 'AIM-120D') launches.push(i);
     }
-    expect(bot.input.weapon).toBe('mrm');
+    // The F-15C carries its four AIM-9X in slot 0 and its four AIM-120D in slot 1.
+    expect(bot.input.weapon).toBe(1);
     expect(launches).toHaveLength(1);
-    expect(bot.stores.mrm).toBe(bot.config.stores.mrm - 1);
+    expect(bot.stores.missiles).toEqual([4, 3]);
   });
 
-  it('switches to the Dart inside its range', () => {
+  it('switches to the AIM-9X inside its range', () => {
     const w = newWorld();
     const bot = w.addAircraft({ callsign: 'B', team: 'usa', aircraftId: 'condor', bot: DIFFICULTIES.ace });
     const enemy = w.addAircraft({ callsign: 'E', team: 'russia', aircraftId: 'yastreb' });
     place(bot, 0, 5000, 0, 0);
     place(enemy, 0, 5000, -3000, 0);
     for (let i = 0; i < 30; i++) w.step(NO_INPUTS);
-    expect(bot.input.weapon).toBe('srm');
+    expect(bot.input.weapon).toBe(0);
+  });
+
+  it('keeps the R-37M for far targets: an R-77-1 at 20 km, the R-37M at 35 km (revision 30)', () => {
+    const fired = (rangeM: number) => {
+      const w = newWorld();
+      const bot = w.addAircraft({ callsign: 'B', team: 'russia', aircraftId: 'yastreb', bot: DIFFICULTIES.ace });
+      const enemy = w.addAircraft({ callsign: 'E', team: 'usa', aircraftId: 'condor' });
+      place(bot, 0, 6000, 0, 0);
+      place(enemy, 0, 6000, -rangeM, 180);
+      for (let i = 0; i < 6 * 60; i++) {
+        w.step(NO_INPUTS);
+        for (const e of w.drainEvents()) if (e.type === 'missileLaunched') return e.kind;
+      }
+      return null;
+    };
+    expect(fired(20000)).toBe('R-77-1');
+    expect(fired(35000)).toBe('R-37M');
+  });
+
+  it('fires the AIM-120D from close in when the jet carries no heat-seeker (the Shade)', () => {
+    const w = newWorld();
+    const bot = w.addAircraft({ callsign: 'B', team: 'usa', aircraftId: 'shade', bot: DIFFICULTIES.ace });
+    const enemy = w.addAircraft({ callsign: 'E', team: 'russia', aircraftId: 'kobchik' });
+    place(bot, 0, 5000, 0, 0);
+    place(enemy, 0, 5000, -4000, 0);
+    const kinds: string[] = [];
+    for (let i = 0; i < 6 * 60; i++) {
+      w.step(NO_INPUTS);
+      for (const e of w.drainEvents()) if (e.type === 'missileLaunched') kinds.push(e.kind);
+    }
+    expect(kinds[0]).toBe('AIM-120D');
   });
 
   it('heads for an enemy it cannot see yet', () => {

@@ -36,7 +36,20 @@ export const kobchik: AircraftConfig = {
     twoSeat: false,
     sensorFusion: false,
   },
-  stores: { cannon: 'HC-30', cannonRounds: 150, srm: 4, mrm: 2, countermeasures: 40 },
+  // MiG-29 (9.12): two R-27R on the inner pylons and four R-73 outboard; GSh-30-1 with 150 rounds in the left wing
+  // root; two BVP-30-26M dispensers of 30 cartridges, 30 flares and 30 chaff. Strike: four FAB-500M-62 on the inner
+  // and middle pylons, R-73 outboard.
+  stores: {
+    cannon: 'GSh-30-1',
+    cannonRounds: 150,
+    missiles: [
+      { missile: 'R-73', count: 4 },
+      { missile: 'R-27R', count: 2 },
+    ],
+    flares: 30,
+    chaff: 30,
+    strike: { bomb: 'FAB-500M-62', bombs: 4, missiles: [{ missile: 'R-73', count: 2 }] },
+  },
   damage: { hitPoints: 90, hitRadiusM: 6.5 },
   visual: {
     lengthM: 17.3,

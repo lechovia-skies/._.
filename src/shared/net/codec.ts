@@ -1,5 +1,6 @@
 import type { TeamId } from '../data/aircraft/types.ts';
-import type { MissileKind } from '../data/weapons.ts';
+import { MAX_MISSILE_SLOTS } from '../data/loadout.ts';
+import { MISSILE_IDS, type MissileId } from '../data/weapons.ts';
 import { type ControlInput, neutralInput, sanitizeInput } from '../physics/controls.ts';
 import type { FlightState } from '../physics/flight-model.ts';
 import type { SeekerMode } from '../targeting/ir-seeker.ts';
@@ -24,8 +25,10 @@ export interface DecodedInput {
 }
 
 const BUTTONS = ['airbrake', 'fireCannon', 'fireMissile', 'countermeasures', 'dropBomb', 'cycleTarget'] as const;
-const BIT_MRM = 1 << 6;
 const BIT_HELMET = 1 << 7;
+/** The selected missile slot (revision 30) rides in bits 8–10. */
+const WEAPON_SHIFT = 8;
+const WEAPON_MASK = 0b111;
 const LOOK_YAW_SCALE = 32767 / Math.PI;
 const LOOK_PITCH_SCALE = 32767 / (Math.PI / 2);
 
@@ -46,8 +49,8 @@ export function encodeInput(seq: number, raw: ControlInput, viewDelay: number): 
   BUTTONS.forEach((b, i) => {
     if (input[b]) bits |= 1 << i;
   });
-  if (input.weapon === 'mrm') bits |= BIT_MRM;
   if (input.helmetSight) bits |= BIT_HELMET;
+  bits |= (input.weapon & WEAPON_MASK) << WEAPON_SHIFT;
   v.setUint16(9, bits, true);
   v.setInt16(11, clampInt(input.lookYaw * LOOK_YAW_SCALE, -32767, 32767), true);
   v.setInt16(13, clampInt(input.lookPitch * LOOK_PITCH_SCALE, -32767, 32767), true);
@@ -67,7 +70,7 @@ export function decodeInput(buf: ArrayBuffer, out: ControlInput = neutralInput()
   BUTTONS.forEach((b, i) => {
     out[b] = (bits & (1 << i)) !== 0;
   });
-  out.weapon = bits & BIT_MRM ? 'mrm' : 'srm';
+  out.weapon = (bits >> WEAPON_SHIFT) & WEAPON_MASK;
   out.helmetSight = (bits & BIT_HELMET) !== 0;
   out.lookYaw = v.getInt16(11, true) / LOOK_YAW_SCALE;
   out.lookPitch = v.getInt16(13, true) / LOOK_PITCH_SCALE;
@@ -100,7 +103,7 @@ export interface SnapshotAircraft {
 
 export interface SnapshotMissile {
   id: number;
-  kind: MissileKind;
+  kind: MissileId;
   ownerId: number;
   targetId: number | null;
   motorBurning: boolean;
@@ -148,9 +151,10 @@ export interface OwnState {
   /** the host tick at which the pilot blacked out, -1 while conscious */
   blackoutTick: number;
   cannonRounds: number;
-  srm: number;
-  mrm: number;
-  countermeasures: number;
+  /** missiles left of each type of the jet's loadout, in its order (revision 30) */
+  missiles: number[];
+  flares: number;
+  chaff: number;
   bombs: number;
   seekerMode: SeekerMode;
   seekerTargetId: number | null;
@@ -159,7 +163,7 @@ export interface OwnState {
   radarLockTargetId: number | null;
   /** 0..1, 1 = locked */
   radarLockProgress: number;
-  /** RWR: an enemy radar lock or a supported Lance is on this jet */
+  /** RWR: an enemy radar lock or a radar missile its launcher guides is on this jet */
   lockedByRadar: boolean;
   targetId: number | null;
   outOfBoundsTicks: number;
@@ -199,7 +203,7 @@ const CONTACT_BYTES = 2 + 1 + 4 + 4;
 const MAX_LIST = 255;
 
 export function snapshotBytes(s: Snapshot): number {
-  const own = s.own ? OWN_FIXED + 1 + CONTACT_BYTES * Math.min(s.own.contacts.length, MAX_LIST) + 1 + 2 * Math.min(s.own.datalink.length, MAX_LIST) : 0;
+  const own = s.own ? OWN_FIXED + Math.min(s.own.missiles.length, MAX_MISSILE_SLOTS) + 1 + CONTACT_BYTES * Math.min(s.own.contacts.length, MAX_LIST) + 1 + 2 * Math.min(s.own.datalink.length, MAX_LIST) : 0;
   return (
     HEADER +
     1 +
@@ -277,7 +281,7 @@ export function encodeSnapshot(s: Snapshot): ArrayBuffer {
     u16(m.id);
     u16(m.ownerId);
     id(m.targetId);
-    u8((m.motorBurning ? 1 : 0) | (teamByte(m.team) << 1) | (m.kind === 'lance' ? 4 : 0));
+    u8((m.motorBurning ? 1 : 0) | (teamByte(m.team) << 1) | (Math.max(0, MISSILE_IDS.indexOf(m.kind)) << 2));
     vec(m.pos);
     vel(m.vel);
   }
@@ -308,10 +312,12 @@ export function encodeSnapshot(s: Snapshot): ArrayBuffer {
     f64(w.gStrain);
     i32(w.blackoutTick);
     u16(w.cannonRounds);
-    u8(w.srm);
-    u8(w.mrm);
-    u8(w.countermeasures);
+    u8(w.flares);
+    u8(w.chaff);
     u8(w.bombs);
+    const loaded = w.missiles.slice(0, MAX_MISSILE_SLOTS);
+    u8(loaded.length);
+    loaded.forEach(u8);
     u8(Math.max(0, SEEKER_MODES.indexOf(w.seekerMode)));
     id(w.seekerTargetId);
     vec(w.seekerAxis);
@@ -431,7 +437,7 @@ export function decodeSnapshot(buf: ArrayBuffer): Snapshot {
     const ownerId = u16();
     const targetId = id();
     const flags = u8();
-    missiles.push({ id: idv, kind: flags & 4 ? 'lance' : 'dart', ownerId, targetId, motorBurning: (flags & 1) !== 0, team: byteTeam((flags >> 1) & 1), pos: vec(), vel: vel() });
+    missiles.push({ id: idv, kind: MISSILE_IDS[(flags >> 2) & 0b1111] ?? MISSILE_IDS[0], ownerId, targetId, motorBurning: (flags & 1) !== 0, team: byteTeam((flags >> 1) & 1), pos: vec(), vel: vel() });
   }
   const bombs: SnapshotBomb[] = [];
   for (let n = u8(); n > 0; n--) bombs.push({ id: u16(), team: byteTeam(u8()), pos: vec(), vel: vel() });
@@ -449,10 +455,11 @@ export function decodeSnapshot(buf: ArrayBuffer): Snapshot {
     const gStrain = f64();
     const blackoutTick = i32();
     const cannonRounds = u16();
-    const srm = u8();
-    const mrm = u8();
-    const countermeasures = u8();
+    const flares = u8();
+    const chaff = u8();
     const bombsLeft = u8();
+    const loaded: number[] = [];
+    for (let n = Math.min(u8(), MAX_MISSILE_SLOTS); n > 0; n--) loaded.push(u8());
     const seekerMode = SEEKER_MODES[u8()] ?? 'off';
     const seekerTargetId = id();
     const seekerAxis = vec();
@@ -480,9 +487,9 @@ export function decodeSnapshot(buf: ArrayBuffer): Snapshot {
       gStrain,
       blackoutTick,
       cannonRounds,
-      srm,
-      mrm,
-      countermeasures,
+      missiles: loaded,
+      flares,
+      chaff,
       bombs: bombsLeft,
       seekerMode,
       seekerTargetId,

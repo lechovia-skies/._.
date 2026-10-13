@@ -1,10 +1,27 @@
-import type { AircraftConfig, Range } from './types.ts';
+import { MAX_MISSILE_SLOTS } from '../loadout.ts';
+import { BOMBS, CANNONS, MISSILES } from '../weapons.ts';
+import type { AircraftConfig, MissileLoad, Range } from './types.ts';
 
 type Check = [ok: boolean, message: string];
 
 const inRange = (v: number, lo: number, hi: number) => Number.isFinite(v) && v >= lo && v <= hi;
 const isColor = (s: string) => /^#[0-9a-f]{6}$/i.test(s);
 const validRange = (r: Range) => Number.isFinite(r[0]) && Number.isFinite(r[1]) && r[0] < r[1];
+
+/** Known missile types, each listed once, with a sensible count; infrared before radar (the HUD's order). */
+function validMissiles(list: readonly MissileLoad[]): boolean {
+  if (list.length > MAX_MISSILE_SLOTS) return false;
+  const seen = new Set<string>();
+  let radarSeen = false;
+  for (const l of list) {
+    const spec = MISSILES[l.missile];
+    if (!spec || seen.has(l.missile) || !Number.isInteger(l.count) || !inRange(l.count, 1, 12)) return false;
+    if (spec.guidance === 'radar') radarSeen = true;
+    else if (radarSeen) return false;
+    seen.add(l.missile);
+  }
+  return true;
+}
 
 /** Returns human-readable problems; an empty array means the config is valid. */
 export function validateAircraftConfig(c: AircraftConfig): string[] {
@@ -41,9 +58,14 @@ export function validateAircraftConfig(c: AircraftConfig): string[] {
     [inRange(s.stealth, 0, 1), 'sensors.stealth must be 0..1'],
     [inRange(s.irSignature, 0.3, 2), 'sensors.irSignature must be 0.3..2'],
     [Number.isInteger(st.cannonRounds) && inRange(st.cannonRounds, 0, 2000), 'stores.cannonRounds must be an integer 0..2000'],
-    [Number.isInteger(st.srm) && inRange(st.srm, 0, 8), 'stores.srm must be an integer 0..8'],
-    [Number.isInteger(st.mrm) && inRange(st.mrm, 0, 8), 'stores.mrm must be an integer 0..8'],
-    [Number.isInteger(st.countermeasures) && inRange(st.countermeasures, 0, 100), 'stores.countermeasures must be an integer 0..100'],
+    [st.cannon in CANNONS, 'stores.cannon must be a known gun'],
+    [validMissiles(st.missiles), `stores.missiles must name known missiles once each, 1..12 of each, at most ${MAX_MISSILE_SLOTS} types`],
+    [Number.isInteger(st.flares) && inRange(st.flares, 0, 200), 'stores.flares must be an integer 0..200'],
+    [Number.isInteger(st.chaff) && inRange(st.chaff, 0, 200), 'stores.chaff must be an integer 0..200'],
+    [
+      !st.strike || (st.strike.bomb in BOMBS && Number.isInteger(st.strike.bombs) && inRange(st.strike.bombs, 1, 12) && validMissiles(st.strike.missiles)),
+      'stores.strike must name a known bomb, 1..12 bombs and valid missiles',
+    ],
     [big ? inRange(c.damage.hitPoints, 100, 1000) : inRange(c.damage.hitPoints, 40, 200), 'damage.hitPoints must be 40..200 (support 100..1000)'],
     [inRange(c.damage.hitRadiusM, 3, big ? 30 : 12), 'damage.hitRadiusM must be 3..12 (support 3..30)'],
     [v.lengthM > 0 && v.spanM > 0 && v.fuselageRadiusM > 0, 'visual dimensions must be > 0'],

@@ -31,8 +31,8 @@ export function seekerTone(mode: SeekerMode): SeekerTone {
 }
 
 /**
- * The selected missile's tone: the Dart's seeker, or for the Lance (radar lock on, M3) quick beeps while the lock
- * builds and a steady tone once it holds.
+ * The selected missile's tone: an infrared missile's seeker, or for a radar missile (radar lock on, M3) quick beeps
+ * while the lock builds and a steady tone once it holds.
  */
 export function missileTone(seeker: SeekerMode, radar: RadarLockMode): SeekerTone {
   if (radar === 'tracking') return 'radar-track';

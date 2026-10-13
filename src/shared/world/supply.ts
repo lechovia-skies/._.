@@ -1,7 +1,7 @@
 import type { TeamId } from '../data/aircraft/types.ts';
 import { AIRFIELD_GROUND_HALF_WIDTH_M, AIRFIELD_GROUND_OVERRUN_M, type Airfield, airfieldLocal, type MapFeatures } from '../map/features.ts';
 import type { FlightState } from '../physics/flight-model.ts';
-import type { AircraftEntity } from './entities.ts';
+import { type AircraftEntity, fillStores } from './entities.ts';
 
 /*
  * Rearming at an airfield (revision 22). The owner asked for a way to fly home and take on missiles and gun rounds
@@ -88,21 +88,16 @@ export function needsSupply(a: AircraftEntity, repair: boolean): boolean {
   const s = a.stores;
   return (
     s.cannonRounds < full.cannonRounds ||
-    s.srm < full.srm ||
-    s.mrm < (a.lanceLoad ?? full.mrm) ||
-    s.countermeasures < full.countermeasures ||
+    a.loadout.missiles.some((l, i) => (s.missiles[i] ?? 0) < l.count) ||
+    s.flares < full.flares ||
+    s.chaff < full.chaff ||
     s.fuelKg < REFUEL_BELOW_SHARE * a.config.physics.fuelKg ||
     (repair && a.hp < a.config.damage.hitPoints)
   );
 }
 
-/** Missiles, gun rounds, flares and fuel back to a fresh jet's; with `repair`, its hit points too. Bombs stay. */
+/** Missiles, gun rounds, flares, chaff and fuel back to a fresh jet's; with `repair`, its hit points. Bombs stay. */
 export function resupply(a: AircraftEntity, repair: boolean): void {
-  const full = a.config.stores;
-  a.stores.cannonRounds = full.cannonRounds;
-  a.stores.srm = full.srm;
-  a.stores.mrm = a.lanceLoad ?? full.mrm;
-  a.stores.countermeasures = full.countermeasures;
-  a.stores.fuelKg = a.config.physics.fuelKg;
+  fillStores(a, false);
   if (repair) a.hp = a.config.damage.hitPoints;
 }

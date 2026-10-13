@@ -1,6 +1,5 @@
 import type { PerspectiveCamera, Vector3 } from 'three';
 import type { ModeStatus } from '../../shared/modes/mode.ts';
-import type { WeaponSelect } from '../../shared/physics/controls.ts';
 import type { AircraftView, GroundTargetView, MissileView } from '../session/game-session.ts';
 import type { KillFeedLine } from './kill-feed.ts';
 import type { HomeCue } from './supply-hud.ts';
@@ -12,8 +11,8 @@ export interface HudFrame {
   view: AircraftView;
   views: readonly AircraftView[];
   missiles: readonly MissileView[];
-  /** the missile the player has selected */
-  weapon: WeaponSelect;
+  /** the missile slot the player has selected (of the local aircraft's loadout) */
+  weapon: number;
   /** the local aircraft's designated target */
   target: AircraftView | null;
   /** gun aim point for the designated target, when it is within gun range */

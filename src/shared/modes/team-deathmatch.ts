@@ -38,8 +38,8 @@ export class TeamDeathmatchMode implements GameMode {
     return [];
   }
 
-  bombLoad(): number {
-    return 0;
+  strikes(): boolean {
+    return false;
   }
 
   canRespawn(): boolean {

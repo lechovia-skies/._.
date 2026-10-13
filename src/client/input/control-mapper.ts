@@ -1,7 +1,8 @@
 import { Vector3 } from 'three';
 import { steerToward, type SteerOutput } from '../../shared/ai/steering.ts';
+import { defaultMissileSlot, type Loadout, nextMissileSlot } from '../../shared/data/loadout.ts';
 import { approach, clamp, DEG, moveToward } from '../../shared/math/units.ts';
-import { type ControlInput, neutralInput, type WeaponSelect } from '../../shared/physics/controls.ts';
+import { type ControlInput, neutralInput } from '../../shared/physics/controls.ts';
 import { type FlightState, headingRad } from '../../shared/physics/flight-model.ts';
 import { type Bindings, DEFAULT_BINDINGS, type KeyAction } from './bindings.ts';
 import type { PadAction, PadFrame } from './gamepad.ts';
@@ -61,7 +62,8 @@ export class ControlMapper {
   private aimPitch = 0;
   private throttle = 0.8;
   private lastPadRoll = 0;
-  private weapon: WeaponSelect = 'srm';
+  private weapon = 0;
+  private loadout: Loadout | null = null;
   private pitchAxis = 0;
   private rollAxis = 0;
   private yawAxis = 0;
@@ -74,19 +76,23 @@ export class ControlMapper {
     this.settings = { ...DEFAULT_SETTINGS, ...settings };
   }
 
-  /** Points the aim along the aircraft's nose (call on spawn). */
-  /** the missile the player has selected (1 / 2, D-pad left / right) */
-  get selectedWeapon(): WeaponSelect {
+  /** the missile slot the player has selected (1 / 2, D-pad left / right) */
+  get selectedWeapon(): number {
     return this.weapon;
   }
 
+  /** Points the aim along the aircraft's nose (call on spawn). */
   resetAim(flight: FlightState): void {
     this.aimAlongNose(flight);
     this.throttle = flight.throttle;
   }
 
-  /** Pilot commands for this frame from the keyboard and mouse snapshot, plus a gamepad or flight stick if any. */
-  map(snap: InputSnapshot, flight: FlightState | null, dt: number, pad: PadFrame | null = null): ControlInput {
+  /**
+   * Pilot commands for this frame from the keyboard and mouse snapshot, plus a gamepad or flight stick if any.
+   * `loadout` is what the pilot's jet carries: 1 steps through its infrared missiles, 2 through its radar missiles, and
+   * a new load (another jet, a Strike sortie) starts on its first infrared missile.
+   */
+  map(snap: InputSnapshot, flight: FlightState | null, dt: number, pad: PadFrame | null = null, loadout: Loadout | null = null): ControlInput {
     const keys = snap.keys;
     const out = this.out;
     const held = (a: KeyAction) => this.settings.bindings[a].some((c) => keys.has(c));
@@ -159,8 +165,16 @@ export class ControlMapper {
     // Buttons.
     const padDown = (a: PadAction) => pad !== null && pad.down.has(a);
     const padPressed = (a: PadAction) => pad !== null && pad.pressed.has(a);
-    if (tapped('weaponSrm') || padPressed('weaponSrm')) this.weapon = 'srm';
-    if (tapped('weaponMrm') || padPressed('weaponMrm')) this.weapon = 'mrm';
+    if (loadout && loadout !== this.loadout) {
+      this.loadout = loadout;
+      this.weapon = defaultMissileSlot(loadout);
+    }
+    const select = (guidance: 'ir' | 'radar') => {
+      const slot = loadout ? nextMissileSlot(loadout, this.weapon, guidance) : -1;
+      if (slot >= 0) this.weapon = slot;
+    };
+    if (tapped('weaponSrm') || padPressed('weaponSrm')) select('ir');
+    if (tapped('weaponMrm') || padPressed('weaponMrm')) select('radar');
     out.throttle = this.throttle;
     out.airbrake = held('airbrake') || padDown('airbrake');
     out.fireCannon = held('cannon') || snap.leftButton || padDown('cannon');

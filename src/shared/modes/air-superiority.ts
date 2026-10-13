@@ -100,8 +100,8 @@ export class AirSuperiorityMode implements GameMode {
     return [];
   }
 
-  bombLoad(): number {
-    return 0;
+  strikes(): boolean {
+    return false;
   }
 
   canRespawn(): boolean {

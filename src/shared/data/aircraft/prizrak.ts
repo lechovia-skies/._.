@@ -36,8 +36,20 @@ export const prizrak: AircraftConfig = {
     twoSeat: false,
     sensorFusion: false,
   },
-  stores: { cannon: 'HC-30', cannonRounds: 150, srm: 2, mrm: 4, countermeasures: 30 },
-  damage: { hitPoints: 110, hitRadiusM: 7.5 },
+  // Su-57: four R-77M in the two main bays and an R-74M2 in each side bay; GSh-30-1 (9A1-4071K) with 150 rounds;
+  // three dispensers of 14 cartridges, half flares and half chaff. Strike: four FAB-500M-62 in the main bays.
+  stores: {
+    cannon: 'GSh-30-1',
+    cannonRounds: 150,
+    missiles: [
+      { missile: 'R-74M2', count: 2 },
+      { missile: 'R-77M', count: 4 },
+    ],
+    flares: 21,
+    chaff: 21,
+    strike: { bomb: 'FAB-500M-62', bombs: 4, missiles: [{ missile: 'R-74M2', count: 2 }] },
+  },
+  damage: { hitPoints: 95, hitRadiusM: 7.5 },
   visual: {
     lengthM: 20.1,
     spanM: 14.1,

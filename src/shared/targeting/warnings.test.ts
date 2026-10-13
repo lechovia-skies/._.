@@ -1,15 +1,17 @@
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { SRM_DART } from '../data/weapons.ts';
+import { MISSILES } from '../data/weapons.ts';
 import { DEG } from '../math/units.ts';
 import { testAircraft } from '../testing/fixtures.ts';
 import type { Missile } from '../weapons/missile.ts';
 import { incomingMissileWarning } from './warnings.ts';
 
+const R_73 = MISSILES['R-73'];
+
 /** A missile at (x, 3000, z) flying with `vel`. */
 const missile = (id: number, targetId: number | null, x: number, z: number, vel = new Vector3()): Missile => ({
   id,
-  spec: SRM_DART,
+  spec: R_73,
   ownerId: 9,
   team: 'russia',
   targetId,

@@ -134,10 +134,11 @@ describe('TrainingMode', () => {
     const t = setup();
     t.step();
     t.player.stores.cannonRounds = 0;
-    t.player.stores.countermeasures = 0;
+    t.player.stores.flares = 0;
+    t.player.stores.chaff = 0;
     for (let i = 0; i < 3; i++) flyThroughRing(t);
     t.step();
     expect(t.player.stores.cannonRounds).toBe(t.player.config.stores.cannonRounds);
-    expect(t.player.stores.countermeasures).toBe(t.player.config.stores.countermeasures);
+    expect([t.player.stores.flares, t.player.stores.chaff]).toEqual([t.player.config.stores.flares, t.player.config.stores.chaff]);
   });
 });

@@ -1,5 +1,6 @@
+import type { BombId, CannonId, MissileId } from '../weapons.ts';
+
 export type TeamId = 'usa' | 'russia';
-export type CannonId = 'RC-20' | 'RC-25' | 'HC-30';
 export type TailType = 'single' | 'twin' | 'twin-canted';
 export type UnitSystem = 'imperial' | 'metric';
 export type Range = readonly [min: number, max: number];
@@ -45,12 +46,30 @@ export interface AircraftSensors {
   sensorFusion: boolean;
 }
 
+/** One type of missile on a jet, and how many. */
+export interface MissileLoad {
+  missile: MissileId;
+  count: number;
+}
+
+/**
+ * What the jet carries (revision 30): the real jet's gun and rounds, its air-to-air missiles, flares and chaff. The
+ * missiles are listed infrared first, then radar from the shortest-ranged; each type appears once.
+ */
 export interface AircraftStores {
   cannon: CannonId;
   cannonRounds: number;
-  srm: number;
-  mrm: number;
-  countermeasures: number;
+  missiles: readonly MissileLoad[];
+  flares: number;
+  chaff: number;
+  /** Strike attackers carry this instead: bombs, and missiles kept for self-defence; none if the jet never bombs */
+  strike?: StrikeLoad;
+}
+
+export interface StrikeLoad {
+  bomb: BombId;
+  bombs: number;
+  missiles: readonly MissileLoad[];
 }
 
 export interface AircraftDamage {

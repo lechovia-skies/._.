@@ -283,6 +283,15 @@ input:focus-visible + .option { color: var(--hud); }
   line-height: 1.45;
   color: var(--ghost);
 }
+/* What the selected jet carries (revision 30): its real gun, missiles, flares and chaff. */
+.pick-arms {
+  max-width: 64ch;
+  margin: 6px 0 0;
+  font: 500 11px/1.5 var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--canopy);
+  opacity: 0.85;
+}
 
 .launch { display: grid; gap: 18px; justify-items: start; }
 /* FLY and, beside it, the campaign (revision 18). */

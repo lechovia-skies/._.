@@ -7,10 +7,11 @@ import { runDuel } from './duel.ts';
 /** Every pairing must win 35–65% of its decided duels (spec §9.4). */
 export const BALANCE_RANGE: readonly [number, number] = [0.35, 0.65];
 /**
- * About 60% of Ace-vs-Ace duels end undecided after three minutes, so the tournament runs 100 seeds per pairing to
- * get some 40 decided duels each (spec §9.4 says 50; revision 10 doubles it).
+ * About 65% of Ace-vs-Ace duels end undecided after three minutes. 100 seeds (revision 10, up from 50) left some 35
+ * decided duels per pairing, a rate known to about ±9%: with the real weapons of revision 30 three pairings read
+ * 24–35% on seeds 1–100 but 38–45% on seeds 1–300 and 1001–1300. 300 seeds give about 100 decided duels, ±5%.
  */
-export const SEEDS_PER_PAIRING = 100;
+export const SEEDS_PER_PAIRING = 300;
 
 export interface PairingResult {
   usa: string;

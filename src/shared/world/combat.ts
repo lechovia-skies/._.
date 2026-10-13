@@ -1,7 +1,8 @@
 import { Vector3 } from 'three';
 import { blastDamage } from '../damage/damage.ts';
 import type { TeamId } from '../data/aircraft/types.ts';
-import { AFTERBURNER_THROTTLE, BOMB_ANVIL, type CannonSpec, CANNONS, COUNTERMEASURES, missilesFor, PLAYER_GUN_REACH, SRM_DART } from '../data/weapons.ts';
+import { slotMissile } from '../data/loadout.ts';
+import { AFTERBURNER_THROTTLE, type CannonSpec, CANNONS, COUNTERMEASURES, MISSILES, missilesFor, type MissileSpec, PLAYER_GUN_REACH } from '../data/weapons.ts';
 import type { Terrain } from '../map/terrain.ts';
 import { type Approach, closestApproach } from '../math/closest-approach.ts';
 import type { Rng } from '../math/rng.ts';
@@ -100,9 +101,14 @@ export class Combat {
     this.updateWarnings();
   }
 
-  /** A missile fired at `targetId` without a lock or launch checks (scripted training shots). */
+  /**
+   * The shooter's infrared missile (or, in a jet without one, its first missile) fired at `targetId` without a lock or
+   * launch checks (scripted training shots).
+   */
   launchAt(shooter: AircraftEntity, targetId: number): Missile {
-    const m = launchMissile(this.nextMissileId++, shooter, targetId, SRM_DART);
+    const list = shooter.config.stores.missiles;
+    const load = list.find((l) => MISSILES[l.missile].guidance === 'ir') ?? list[0];
+    const m = launchMissile(this.nextMissileId++, shooter, targetId, MISSILES[load?.missile ?? 'R-73']);
     this.missiles.push(m);
     this.host.emit({ type: 'missileLaunched', missileId: m.id, shooterId: shooter.id, targetId, kind: m.spec.id });
     return m;
@@ -143,17 +149,23 @@ export class Combat {
     }
   }
 
+  /** One press releases a flare and a chaff cartridge, of whichever are left (revision 30: counted apart). */
   private releaseCountermeasures(a: AircraftEntity): void {
     const host = this.host;
-    if (!a.input.countermeasures || a.stores.countermeasures <= 0) return;
+    const st = a.stores;
+    if (!a.input.countermeasures || st.flares + st.chaff <= 0) return;
     if (host.tick - a.lastCountermeasureTick < COUNTERMEASURES.minIntervalS * host.tickRate) return;
-    a.stores.countermeasures--;
+    const flare = st.flares > 0;
+    const chaff = st.chaff > 0;
+    if (flare) st.flares--;
+    if (chaff) st.chaff--;
     a.lastCountermeasureTick = host.tick;
-    host.emit({ type: 'countermeasures', aircraftId: a.id });
+    host.emit({ type: 'countermeasures', aircraftId: a.id, flare, chaff });
     const afterburner = a.flight.throttle > AFTERBURNER_THROTTLE;
     for (const m of this.missiles) {
-      // Each missile rolls against its own countermeasure: flares for a Dart, chaff for a Lance.
-      if (m.targetId !== a.id || !rollDecoy(host.rng, decoyChance(m.spec, afterburner, a.config.sensors.stealth))) continue;
+      // Each missile rolls against its own countermeasure: a flare for an infrared missile, chaff for a radar missile.
+      if (m.targetId !== a.id || !(m.spec.guidance === 'ir' ? flare : chaff)) continue;
+      if (!rollDecoy(host.rng, decoyChance(m.spec, afterburner, a.config.sensors.stealth))) continue;
       m.targetId = null;
       host.emit({ type: 'missileDecoyed', missileId: m.id, targetId: a.id });
     }
@@ -161,7 +173,7 @@ export class Combat {
 
   private fireCannon(a: AircraftEntity, dt: number): void {
     const spec = CANNONS[a.config.stores.cannon];
-    a.firingCannon = a.input.fireCannon && a.stores.cannonRounds >= spec.roundsPerProjectile;
+    a.firingCannon = a.input.fireCannon && a.stores.cannonRounds > 0;
     if (!a.firingCannon) {
       a.cannonAccumulator = TRIGGER_AT_REST;
       return;
@@ -176,8 +188,11 @@ export class Combat {
       const p = createProjectile(this.nextProjectileId++, a, spec, this.host.rng, density, aim);
       if (!a.isBot) p.reach = PLAYER_GUN_REACH;
       p.rewindTicks = rewind;
+      // The last projectile of a magazine may stand for fewer rounds (511 is not a multiple of 4).
+      const rounds = Math.min(spec.roundsPerProjectile, a.stores.cannonRounds);
+      p.damage *= rounds / spec.roundsPerProjectile;
       this.projectiles.push(p);
-      a.stores.cannonRounds -= spec.roundsPerProjectile;
+      a.stores.cannonRounds -= rounds;
     }
   }
 
@@ -208,15 +223,22 @@ export class Combat {
     return best > 0 ? assistedAim(this.nose, this.solution, best, this.aim) : null;
   }
 
+  /** The selected missile while one of its type is left; null otherwise. */
+  private selectedMissile(a: AircraftEntity): MissileSpec | null {
+    if ((a.stores.missiles[a.input.weapon] ?? 0) <= 0) return null;
+    return slotMissile(a.loadout, a.input.weapon, missilesFor(a));
+  }
+
   private updateSeeker(a: AircraftEntity, dt: number): void {
     const host = this.host;
-    // The infrared seeker only runs while the Dart is selected.
-    if (a.stores.srm <= 0 || a.input.weapon !== 'srm') {
+    // The infrared seeker only runs while an infrared missile is selected.
+    const spec = this.selectedMissile(a);
+    if (!spec || spec.guidance !== 'ir') {
       if (a.seeker.mode !== 'off') resetSeeker(a.seeker, 'off');
       return;
     }
     const designated = a.targetId === null ? null : (host.getAircraft(a.targetId) ?? null);
-    updateSeeker(a.seeker, a, host.aircraftList(), designated, missilesFor(a).dart, host.terrain, dt, host.clouds);
+    updateSeeker(a.seeker, a, host.aircraftList(), designated, spec, host.terrain, dt, host.clouds);
     if (a.seeker.mode !== 'locked' || a.seeker.targetId === null) return;
     const target = host.getAircraft(a.seeker.targetId);
     if (target) {
@@ -225,10 +247,12 @@ export class Combat {
     }
   }
 
-  /** The Lance's radar lock builds while it is selected (spec §10.3); a lock also counts toward kill credit. */
+  /** The radar lock builds while a radar missile is selected (spec §10.3); a lock also counts toward kill credit. */
   private updateRadarLock(a: AircraftEntity, dt: number): void {
     const host = this.host;
-    updateRadarLock(a.radarLock, a.config, a.input.weapon === 'mrm' && a.stores.mrm > 0, a.targetId, a.contacts, missilesFor(a).lance, dt);
+    const spec = this.selectedMissile(a);
+    const armed = spec !== null && spec.guidance === 'radar';
+    updateRadarLock(a.radarLock, a.config, armed, a.targetId, a.contacts, armed ? spec : MISSILES['AIM-120C'], dt);
     if (a.radarLock.mode !== 'locked' || a.radarLock.targetId === null) return;
     const target = host.getAircraft(a.radarLock.targetId);
     if (target) {
@@ -237,33 +261,28 @@ export class Combat {
     }
   }
 
-  /** One press fires the selected missile, and only with a lock: the seeker's for a Dart, the radar's for a Lance. */
+  /**
+   * One press fires the selected missile, and only with a lock: the seeker's for an infrared missile, the radar's for
+   * a radar missile.
+   */
   private launchMissile(a: AircraftEntity): void {
     const host = this.host;
     if (!a.input.fireMissile) return;
-    const { dart, lance } = missilesFor(a);
-    if (a.input.weapon === 'mrm') {
-      const lock = a.radarLock;
-      if (lock.mode !== 'locked' || lock.targetId === null || a.stores.mrm <= 0) return;
-      if (host.tick - a.lastMrmTick < lance.minLaunchIntervalS * host.tickRate) return;
-      const m = launchMissile(this.nextMissileId++, a, lock.targetId, lance);
-      this.missiles.push(m);
-      a.stores.mrm--;
-      a.lastMrmTick = host.tick;
-      host.emit({ type: 'missileLaunched', missileId: m.id, shooterId: a.id, targetId: lock.targetId, kind: 'lance' });
-      return;
-    }
-    const s = a.seeker;
-    if (s.mode !== 'locked' || s.targetId === null || a.stores.srm <= 0) return;
-    if (host.tick - a.lastMissileTick < dart.minLaunchIntervalS * host.tickRate) return;
-    const m = launchMissile(this.nextMissileId++, a, s.targetId, dart);
+    const spec = this.selectedMissile(a);
+    if (!spec) return;
+    const radar = spec.guidance === 'radar';
+    const lock = radar ? a.radarLock : a.seeker;
+    if (lock.mode !== 'locked' || lock.targetId === null) return;
+    if (host.tick - (radar ? a.lastMrmTick : a.lastMissileTick) < spec.minLaunchIntervalS * host.tickRate) return;
+    const m = launchMissile(this.nextMissileId++, a, lock.targetId, spec);
     this.missiles.push(m);
-    a.stores.srm--;
-    a.lastMissileTick = host.tick;
-    host.emit({ type: 'missileLaunched', missileId: m.id, shooterId: a.id, targetId: s.targetId, kind: 'dart' });
+    a.stores.missiles[a.input.weapon]--;
+    if (radar) a.lastMrmTick = host.tick;
+    else a.lastMissileTick = host.tick;
+    host.emit({ type: 'missileLaunched', missileId: m.id, shooterId: a.id, targetId: lock.targetId, kind: spec.id });
   }
 
-  /** RWR (spec §10.3): an enemy radar lock, or a Lance its launcher still guides, sets `lockedByRadar`. */
+  /** RWR (spec §10.3): an enemy radar lock, or a radar missile its launcher still guides, sets `lockedByRadar`. */
   private updateWarnings(): void {
     const host = this.host;
     for (const a of host.aircraftList()) a.lockedByRadar = false;
@@ -300,9 +319,10 @@ export class Combat {
 
   private dropBomb(a: AircraftEntity): void {
     const host = this.host;
-    if (!a.input.dropBomb || a.stores.bombs <= 0) return;
-    if (host.tick - a.lastBombTick < BOMB_ANVIL.minReleaseIntervalS * host.tickRate) return;
-    const b = releaseBomb(this.nextBombId++, a, BOMB_ANVIL);
+    const spec = a.loadout.bomb;
+    if (!a.input.dropBomb || !spec || a.stores.bombs <= 0) return;
+    if (host.tick - a.lastBombTick < spec.minReleaseIntervalS * host.tickRate) return;
+    const b = releaseBomb(this.nextBombId++, a, spec);
     this.bombs.push(b);
     a.stores.bombs--;
     a.lastBombTick = host.tick;

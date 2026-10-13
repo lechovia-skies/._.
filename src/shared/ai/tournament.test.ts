@@ -24,7 +24,7 @@ describe('balance tournament (spec §9.4)', () => {
     expect(seedRange(3, 101)).toEqual([101, 102, 103]);
   });
 
-  // The full run takes a minute or two on one core: `TOURNAMENT=1 npm test`, or `npm run tournament` in parallel.
+  // The full run takes about five minutes on one core: `TOURNAMENT=1 npm test`, or `npm run tournament` in parallel.
   it.runIf(process.env.TOURNAMENT === '1')(
     `keeps every pairing within 35–65% over ${SEEDS_PER_PAIRING} seeds`,
     () => {

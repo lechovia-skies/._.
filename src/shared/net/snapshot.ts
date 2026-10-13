@@ -1,4 +1,5 @@
-import { missilesFor } from '../data/weapons.ts';
+import { slotMissile } from '../data/loadout.ts';
+import { MISSILES, missilesFor } from '../data/weapons.ts';
 import { radarLockProgress } from '../targeting/radar-lock.ts';
 import type { AircraftEntity } from '../world/entities.ts';
 import type { World } from '../world/world.ts';
@@ -50,16 +51,16 @@ export function ownState(a: AircraftEntity, world: World): OwnState {
     gStrain: a.gStrain,
     blackoutTick: a.blackoutTick,
     cannonRounds: a.stores.cannonRounds,
-    srm: a.stores.srm,
-    mrm: a.stores.mrm,
-    countermeasures: a.stores.countermeasures,
+    missiles: [...a.stores.missiles],
+    flares: a.stores.flares,
+    chaff: a.stores.chaff,
     bombs: a.stores.bombs,
     seekerMode: a.seeker.mode,
     seekerTargetId: a.seeker.targetId,
     seekerAxis: v3(a.seeker.axis),
     radarLockMode: a.radarLock.mode,
     radarLockTargetId: a.radarLock.targetId,
-    radarLockProgress: radarLockProgress(a.radarLock, missilesFor(a).lance, a.config),
+    radarLockProgress: radarLockProgress(a.radarLock, slotMissile(a.loadout, a.input.weapon, missilesFor(a)) ?? MISSILES['AIM-120C'], a.config),
     lockedByRadar: a.lockedByRadar,
     targetId: a.targetId,
     outOfBoundsTicks: a.outOfBoundsTicks,

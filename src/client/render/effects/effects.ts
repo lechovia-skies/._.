@@ -2,9 +2,10 @@ import { Color, type Object3D, Quaternion, type Scene, Vector3 } from 'three';
 import type { Terrain } from '../../../shared/map/terrain.ts';
 import { smoothstep } from '../../../shared/math/units.ts';
 import { damageState } from '../../../shared/damage/damage.ts';
+import { type MissileId, MISSILES } from '../../../shared/data/weapons.ts';
 import type { GameEvent } from '../../../shared/world/events.ts';
 import type { AircraftView, GameSession, GroundTargetView, MissileView } from '../../session/game-session.ts';
-import { BOMB_LOOK, LANCE_LOOK, MISSILE_LOOK, OrdnanceModels } from './ordnance-models.ts';
+import { BOMB_LOOK, MISSILE_LOOKS, OrdnanceModels } from './ordnance-models.ts';
 import { type ParticleFrame, ParticleSystem } from './particles.ts';
 import { Tracers } from './tracers.ts';
 import { TrailRibbons, type TrailLook } from './trails.ts';
@@ -74,11 +75,9 @@ export class Effects {
   private readonly smoke = new ParticleSystem(SMOKE_CAPACITY, false);
   private readonly fire = new ParticleSystem(FIRE_CAPACITY, true);
   private readonly tracers = new Tracers();
-  private readonly missileModels: OrdnanceModels;
-  private readonly lanceModels: OrdnanceModels;
+  /** one set of models per missile type, made when the first of that type flies */
+  private readonly missileModels = new Map<MissileId, { models: OrdnanceModels; flying: MissileView[] }>();
   private readonly bombModels: OrdnanceModels;
-  private readonly darts: MissileView[] = [];
-  private readonly lances: MissileView[] = [];
   private readonly flares: Flare[] = [];
   private readonly targetTimers = new Map<string, number>();
   private readonly trailFrom = new Map<number, Vector3>();
@@ -104,8 +103,6 @@ export class Effects {
     this.scene = scene;
     this.options = options;
     scene.add(this.contrails.mesh, this.vapor.mesh);
-    this.missileModels = new OrdnanceModels(scene, MISSILE_LOOK);
-    this.lanceModels = new OrdnanceModels(scene, LANCE_LOOK);
     this.bombModels = new OrdnanceModels(scene, BOMB_LOOK);
     scene.add(this.smoke.points, this.fire.points, this.tracers.lines, this.tracers.heads);
   }
@@ -135,8 +132,8 @@ export class Effects {
     } else if (e.type === 'countermeasures') {
       const v = session.view(e.aircraftId);
       if (v) {
-        this.releaseFlares(v);
-        this.releaseChaff(v);
+        if (e.flare) this.releaseFlares(v);
+        if (e.chaff) this.releaseChaff(v);
       }
     } else if (e.type === 'hit' && e.weapon === 'cannon') {
       const v = session.view(e.aircraftId);
@@ -165,11 +162,16 @@ export class Effects {
       }
       this.targetSmoke(dt, session.groundTargets());
     }
-    this.darts.length = 0;
-    this.lances.length = 0;
-    for (const m of session.missiles()) (m.kind === 'lance' ? this.lances : this.darts).push(m);
-    this.missileModels.update(this.darts, cameraPos);
-    this.lanceModels.update(this.lances, cameraPos);
+    for (const set of this.missileModels.values()) set.flying.length = 0;
+    for (const m of session.missiles()) {
+      let set = this.missileModels.get(m.kind);
+      if (!set) {
+        set = { models: new OrdnanceModels(this.scene, MISSILE_LOOKS[m.kind]), flying: [] };
+        this.missileModels.set(m.kind, set);
+      }
+      set.flying.push(m);
+    }
+    for (const set of this.missileModels.values()) set.models.update(set.flying, cameraPos);
     this.bombModels.update(session.bombs(), cameraPos);
     this.tracers.update(session.projectiles(), frame);
     this.smoke.update(dt, frame);
@@ -273,8 +275,8 @@ export class Effects {
     this.smoke.dispose();
     this.fire.dispose();
     this.tracers.dispose();
-    this.missileModels.dispose();
-    this.lanceModels.dispose();
+    for (const set of this.missileModels.values()) set.models.dispose();
+    this.missileModels.clear();
     this.bombModels.dispose();
   }
 
@@ -420,8 +422,8 @@ export class Effects {
     this.fire.spawn({ x: this.tail.x, y: this.tail.y, z: this.tail.z, vx: 0, vy: 0, vz: 0, lifeS: 0.06, size0: 6, size1: 3, color: MOTOR, alpha: 1 });
     const gap = from.distanceTo(this.tail);
     const puffs = Math.floor(gap / TRAIL_SPACING_M);
-    // The Lance burns longer and leaves a whiter, longer-lasting trail.
-    const lance = m.kind === 'lance';
+    // A radar missile burns longer and leaves a whiter, longer-lasting trail.
+    const lance = MISSILES[m.kind].guidance === 'radar';
     for (let i = 1; i <= puffs; i++) {
       this.tmp.lerpVectors(from, this.tail, (i * TRAIL_SPACING_M) / gap);
       this.smoke.spawn({

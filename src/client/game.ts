@@ -3,7 +3,7 @@ import { DIFFICULTIES } from '../shared/ai/difficulty.ts';
 import { getAircraft, listAircraft, opposingTeam } from '../shared/data/aircraft/registry.ts';
 import type { TeamId } from '../shared/data/aircraft/types.ts';
 import type { MapId } from '../shared/data/maps/registry.ts';
-import { BOMB_ANVIL, CANNONS } from '../shared/data/weapons.ts';
+import { CANNONS } from '../shared/data/weapons.ts';
 import { timeToImpact } from '../shared/map/ground-proximity.ts';
 import { clamp, DEG } from '../shared/math/units.ts';
 import type { GameMode } from '../shared/modes/mode.ts';
@@ -14,6 +14,7 @@ import { atmosphere } from '../shared/physics/atmosphere.ts';
 import { predictImpact } from '../shared/weapons/bomb.ts';
 import { gunAssistPull } from '../shared/weapons/gun-assist.ts';
 import { leadDirection } from '../shared/weapons/lead.ts';
+import { missilesLeft } from '../shared/world/entities.ts';
 import type { GameEvent } from '../shared/world/events.ts';
 import { WEATHER } from '../shared/world/weather.ts';
 import { DT } from '../shared/world/world.ts';
@@ -90,8 +91,8 @@ const MISSION_BANNER_S = 4;
 const EXPLOSION_SHAKE_RANGE_M = 1500;
 
 const HINTS: Record<ControlMode, string> = {
-  'mouse-aim': 'MOUSE aim · SPACE gun · F missile · X flares · R target · SHIFT/Z throttle · C look · TAB scores · P pause',
-  direct: 'W/S pitch · A/D roll · Q/E rudder · SPACE gun · F missile · X flares · R target · SHIFT/Z throttle · C look · P pause',
+  'mouse-aim': 'MOUSE aim · SPACE gun · F missile · 1/2 select · X flares+chaff · R target · SHIFT/Z throttle · C look · TAB scores · P pause',
+  direct: 'W/S pitch · A/D roll · Q/E rudder · SPACE gun · F missile · 1/2 select · X flares+chaff · R target · SHIFT/Z throttle · C look · P pause',
 };
 
 export interface GameHandlers {
@@ -746,7 +747,7 @@ export async function startGame(
       if (me && me.alive && ((me.flight.gear < 1 && lastGear >= 1) || (me.flight.gear > 0 && lastGear <= 0))) audio?.gearMotor();
       lastGear = me?.flight.gear ?? 0;
       if (!active && me) idle.throttle = me.flight.throttle;
-      const controls = active ? mapper.map(snap, me && me.alive ? me.flight : null, dt, padFrame) : idle;
+      const controls = active ? mapper.map(snap, me && me.alive ? me.flight : null, dt, padFrame, me?.loadout ?? null) : idle;
       session.update(stepS, controls);
       for (const e of session.drainEvents()) handleEvent(e, nowS);
       if (me && active) stats.sampleFlight(me.alive, me.flight.onGround, me.flight.airspeed, me.flight.gLoad, dt);
@@ -767,7 +768,7 @@ export async function startGame(
       }
       // Out of missiles and rounds (revision 22): once, where there is an airfield to rearm at.
       if (me && me.alive && map.features) {
-        const empty = me.stores.srm + me.stores.mrm === 0 && me.stores.cannonRounds === 0;
+        const empty = missilesLeft(me.stores) === 0 && me.stores.cannonRounds === 0;
         if (empty && !weaponsEmpty) showBanner('WEAPONS EMPTY · RTB TO REARM', nowS, 3);
         // Revision 26: the way home shows from 40 rounds left.
         const low = !empty && me.stores.cannonRounds <= REARM_ROUNDS && me.config.stores.cannonRounds > REARM_ROUNDS;
@@ -914,7 +915,8 @@ export async function startGame(
       }
       const targets = session.groundTargets();
       const status = session.modeStatus();
-      const bombImpact = bombCue(local.alive && local.stores.bombs > 0 ? predictImpact(f.pos, f.vel, BOMB_ANVIL, terrain, DT, impactPoint, session.wind) : null, targets);
+      const bomb = local.loadout.bomb;
+      const bombImpact = bombCue(local.alive && bomb && local.stores.bombs > 0 ? predictImpact(f.pos, f.vel, bomb, terrain, DT, impactPoint, session.wind) : null, targets);
       // Not on the take-off run: the gear is down until the jet is well clear of the runway.
       const pullUp = local.alive && f.gear === 0 && timeToImpact(f, terrain) !== null;
       hud.draw({
@@ -939,7 +941,7 @@ export async function startGame(
               rollingOut
               ? landingHint(settings.current.keys, padFrame.active)
               : takeoffHint(mapper.settings.mode, local.config.hudUnits, settings.current.keys, padFrame.active)
-            : `${HINTS[mapper.settings.mode]}${local.bombLoad > 0 ? ' · G bomb' : ''}`,
+            : `${HINTS[mapper.settings.mode]}${local.loadout.bombs > 0 ? ' · G bomb' : ''}`,
         killFeed: killFeed.lines,
         hitMarker: nowS < hitMarkerUntil,
         hitTaken: nowS < hitTakenUntil,

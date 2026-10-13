@@ -31,6 +31,18 @@ describe('validateAircraftConfig', () => {
     expect(problems).toContain('id');
     expect(problems).toContain('performance.stallSpeedMs');
   });
+  it('rejects unknown or repeated missiles, radar before infrared, and bad flare, chaff and strike loads', () => {
+    const problems = (stores: AircraftConfig['stores']) => validateAircraftConfig({ ...kestrel, stores }).join('\n');
+    const s = kestrel.stores;
+    expect(problems({ ...s, missiles: [{ missile: 'AIM-9Z' as 'AIM-9X', count: 2 }] })).toContain('stores.missiles');
+    expect(problems({ ...s, missiles: [{ missile: 'AIM-9X', count: 2 }, { missile: 'AIM-9X', count: 2 }] })).toContain('stores.missiles');
+    expect(problems({ ...s, missiles: [{ missile: 'AIM-120C', count: 4 }, { missile: 'AIM-9X', count: 2 }] })).toContain('stores.missiles');
+    expect(problems({ ...s, missiles: [{ missile: 'AIM-9X', count: 0 }] })).toContain('stores.missiles');
+    expect(problems({ ...s, flares: -1 })).toContain('stores.flares');
+    expect(problems({ ...s, chaff: 1.5 })).toContain('stores.chaff');
+    expect(problems({ ...s, strike: { bomb: 'FAB-500M-62', bombs: 0, missiles: [] } })).toContain('stores.strike');
+    expect(problems({ ...s, strike: { bomb: 'FAB-500M-62', bombs: 4, missiles: [{ missile: 'R-73', count: 2 }] } })).toBe('');
+  });
   it('assert throws with the aircraft id', () => {
     const c = clone(kestrel);
     c.physics.massKg = -1;
