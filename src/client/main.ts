@@ -9,6 +9,7 @@ import { Renderer } from './render/renderer.ts';
 import { Showcase } from './render/showcase.ts';
 import { type LoadedMap, loadMap } from './render/terrain/map-loader.ts';
 import { showIntro } from './ui/intro-screen.ts';
+import { fullscreenCorner } from './ui/fullscreen.ts';
 import { showLoadBar } from './ui/load-bar.ts';
 import { type OnlineOpening, type StartOptions, showStartMenu } from './ui/menu.ts';
 import { parseRoomCode } from '../shared/net/protocol.ts';
@@ -85,6 +86,8 @@ if (Renderer.isWebGLAvailable()) {
   // and the match reuses them.
   const progress = new LoadProgress();
   showLoadBar(app, progress);
+  // Fullscreen at a click from the corner of every screen (revision 29).
+  fullscreenCorner(document.body);
   run(loadSceneryTextures(progress), loadMap('lechovia', progress), loadAircraftMeshes(IMPORTED_MODELS, progress), new SettingsStore(), progress);
   // The opening plays over the title screen, which is built underneath it meanwhile (revision 24).
   void showIntro(app, progress, prefersReducedMotion());

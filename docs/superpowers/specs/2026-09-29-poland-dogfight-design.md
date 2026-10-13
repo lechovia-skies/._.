@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 28)
+# Lechovia Skies — Design Spec (revision 29)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -102,6 +102,8 @@
     in their browser and up to seven others join it with a six-letter code or an invite link, over WebRTC (§7.1). The
     rules, protocol and prediction follow M2 (§7); the World's per-aircraft flight step is shared with the prediction,
     and cannon lag compensation returns.
+  - Revision 29 (2026-10-13): the owner found fullscreen hard to reach. A button in the bottom-right corner of every
+    screen does it at a click (§15.5).
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -1303,9 +1305,12 @@ The game is always third-person (revision 4). There is no first-person, cockpit 
   - The title screen is built underneath from the start, so the cut lands on it ready. A click, a tap or any key
     skips (0.4 s fade). Keys it takes never reach the title screen: a held Enter or Space does not press FLY.
   - With reduced motion: no jets, blast, shake or flashes; the sky, the HUD and the title fade in.
-- **Fullscreen (revision 26, `ui/fullscreen.ts`):** a Fullscreen link at the top of the title screen and a button in
-  the pause menu put the page in fullscreen and back (with the webkit names on older Safari; hidden where the browser
-  cannot, such as iPhone Safari). Esc leaves it as browsers do.
+- **Fullscreen (revision 26, `ui/fullscreen.ts`):** a button in the pause menu puts the page in fullscreen and back
+  (with the webkit names on older Safari; hidden where the browser cannot, such as iPhone Safari). Esc leaves it as
+  browsers do. Revision 29 (the owner found it hard to reach): a 44 px button with corner brackets in the bottom-right
+  corner of every screen (the opening, the title screen, the match, every overlay) does it at one click, and its
+  brackets turn inward while in fullscreen. It hides while the mouse steers the jet (pointer lock) and is back as soon
+  as the mouse is free (Esc, death, the map in Free Flight). It replaces the title screen's Fullscreen link.
 - **Pilot levels (revision 26, `progression.ts`):** experience comes from the career records, so earlier matches count:
   100 per finished match, +150 for a win, +50 for a draw, +50 per kill and +100 per Sentinel. Level n needs
   100 · (n² − 1) XP (300, 800, 1,500, 2,400, 3,500, 4,800 …). The jets open from level 1: Kestrel and Kobchik; then

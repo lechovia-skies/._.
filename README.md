@@ -27,7 +27,8 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
 - **Levels** (2026-10-07): every match earns experience (more for a win, each kill and Sentinel), and levels open the
   jets one at a time: Kestrel and Kobchik from the start, Shade at level 7. Matches already on record count.
 - **Take off together** (2026-10-07): with a runway start, the AI pilots start on their runways and take off with you.
-- **Fullscreen** (2026-10-07): a Fullscreen link on the title screen and in the pause menu. The map (M) shows N, E,
+- **Fullscreen** (2026-10-07; 2026-10-13: one click on the button in the bottom-right corner of every screen; also in
+  the pause menu). The map (M) shows N, E,
   S and W.
 - **Opening** (2026-10-06): the page opens on five seconds of gun-camera footage while the game loads: the HUD boots,
   a bandit overtakes overhead, the HUD locks it, FOX 2, and the title comes out of the fireball. Click or press any

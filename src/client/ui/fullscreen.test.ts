@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canFullscreen, type FullscreenDocument, fullscreenLabel, isFullscreen, toggleFullscreen } from './fullscreen.ts';
+import { canFullscreen, cornerButtonVisible, type FullscreenDocument, fullscreenLabel, isFullscreen, toggleFullscreen } from './fullscreen.ts';
 
 /** A stand-in document: fullscreen on the page element, or off. */
 function fakeDocument(enabled = true): FullscreenDocument & { fullscreenElement: Element | null } {
@@ -29,6 +29,12 @@ describe('fullscreen (revision 26)', () => {
     expect(isFullscreen(d)).toBe(true);
     await toggleFullscreen(d);
     expect(isFullscreen(d)).toBe(false);
+  });
+
+  it('shows the corner button wherever the mouse is free (revision 29)', () => {
+    expect(cornerButtonVisible(true, false)).toBe(true);
+    expect(cornerButtonVisible(true, true)).toBe(false);
+    expect(cornerButtonVisible(false, false)).toBe(false);
   });
 
   it('names what the button will do', () => {

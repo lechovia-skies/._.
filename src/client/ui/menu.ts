@@ -12,7 +12,6 @@ import { controlsHelp, GAMEPAD_HELP } from './controls-help.ts';
 import { loadCareer } from '../career.ts';
 import { careerXp, isUnlocked, levelProgress, nextUnlock, unlockLevel } from '../progression.ts';
 import { isTouchOnly } from './device.ts';
-import { fullscreenButton } from './fullscreen.ts';
 import { MISSION_LABELS } from './records-format.ts';
 import { campaignSheet } from './campaign-sheet.ts';
 import { type OnlineStart, onlineSheet } from './online-sheet.ts';
@@ -300,9 +299,8 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   callsign.spellcheck = false;
   callsign.value = sanitizeCallsign(String(loadSetting<unknown>('callsign', 'Pilot')));
   pilot.append(el('span', 'eyebrow', 'Pilot'), callsign);
-  // Fullscreen (revision 26).
-  const fullscreen = fullscreenButton('link fullscreen-toggle');
-  top.append(levelBadge(progress), fullscreen.button, pilot);
+  // Fullscreen: the corner button on every screen (revision 29; a link here since revision 26).
+  top.append(levelBadge(progress), pilot);
 
   const main = el('div', 'start-main');
   const brand = el('header', 'brand');
@@ -487,7 +485,6 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   fly.focus();
   if (online) onlineDialog.open(online.code, online.error);
   return () => {
-    fullscreen.dispose();
     screen.remove();
   };
 }
