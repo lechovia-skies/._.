@@ -5,6 +5,8 @@ import type { AircraftView } from '../session/game-session.ts';
 import { type AircraftModel, parametricModel } from './aircraft-model.ts';
 import { afterburnerLevel, setAfterburner } from './effects/afterburner.ts';
 import { navLights } from './environment/night-lights.ts';
+import { airframeGear } from './airframes/index.ts';
+import { showStores } from './airframes/stores.ts';
 import { landingGear, setGear } from './landing-gear.ts';
 import { ROTODOME_RAD_PER_S } from './sentinel-model.ts';
 import { visibilityScale } from './visibility.ts';
@@ -41,7 +43,7 @@ export class SceneSync {
       if (!entry || entry.configId !== v.config.id) {
         if (entry) this.scene.remove(entry.model.root);
         const model = this.build(v.config);
-        const gear = landingGear(v.config.visual);
+        const gear = landingGear(v.config.visual, airframeGear(v.config));
         model.root.add(navLights(v.config.visual), gear);
         entry = { model, configId: v.config.id, gear, dome: model.root.getObjectByName('rotodome') ?? null };
         this.entries.set(v.id, entry);
@@ -56,6 +58,7 @@ export class SceneSync {
         : visibilityScale(v.position.distanceTo(cameraPos), v.config.visual.lengthM, MIN_APPARENT_ANGLE, MAX_VISIBILITY_SCALE);
       root.scale.setScalar(scale);
       setGear(entry.gear, v.alive ? v.flight.gear : 0);
+      showStores(root, v);
       if (entry.dome) entry.dome.rotation.y = (timeS * ROTODOME_RAD_PER_S) % (Math.PI * 2);
 
       const level = afterburnerLevel(v.flight.throttle);

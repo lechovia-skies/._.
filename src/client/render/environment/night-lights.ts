@@ -56,8 +56,8 @@ const STROBE_ON_S = 0.07;
  * white strobes on both tips. Positions come from the jet's dimensions in its data file.
  */
 export function navLights(v: AircraftVisual): Group {
-  // Just outside the wingtips and the tail cone, so the airframe never hides them.
-  const tipZ = (v.wingPositionFraction - 0.5) * v.lengthM + 0.35 * v.wingRootChordM;
+  // Just outside the wingtips (at mid-chord of the tip) and the tail cone, so the airframe never hides them.
+  const tipZ = (v.wingPositionFraction - 0.5) * v.lengthM + Math.tan((v.wingSweepDeg * Math.PI) / 180) * (v.spanM / 2) + v.wingTipChordM / 2;
   const tipX = v.spanM * 0.5 + 0.25;
   const steady = new BufferGeometry();
   steady.setAttribute('position', new BufferAttribute(new Float32Array([-tipX, 0.05, tipZ, tipX, 0.05, tipZ, 0, v.tailHeightM * 0.15, v.lengthM * 0.5 + 0.3]), 3));

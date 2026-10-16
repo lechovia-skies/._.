@@ -16,6 +16,7 @@ import type { AircraftConfig, AircraftVisual, TeamId } from '../../shared/data/a
 import { DEG } from '../../shared/math/units.ts';
 import { createAfterburner, unshareAfterburner } from './effects/afterburner.ts';
 import { type LoftSection, loftGeometry, type PanelSpec, panelGeometry, projectUV } from './airframe-geometry.ts';
+import { unshareStores } from './airframes/stores.ts';
 import { liveryFor, liveryTextures, type Roundel } from './livery.ts';
 
 export interface AircraftModel {
@@ -357,7 +358,13 @@ export function parametricModel(config: AircraftConfig): AircraftModel {
     template = buildAircraftModel(config.visual, { id: config.id, team: config.team, twoSeat: config.sensors.twoSeat });
     templates.set(config.id, template);
   }
+  return cloneModel(template);
+}
+
+/** A copy of a model sharing its geometry and materials, with flames of its own. */
+export function cloneModel(template: AircraftModel): AircraftModel {
   const root = template.root.clone(true);
+  unshareStores(root);
   const nozzles: Object3D[] = [];
   const afterburners: Mesh[] = [];
   root.traverse((o) => {

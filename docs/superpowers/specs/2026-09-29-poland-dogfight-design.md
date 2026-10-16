@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 30)
+# Lechovia Skies — Design Spec (revision 31)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -113,6 +113,13 @@
     the title screen show the loads by name (§15.2, §15.5). Team Objective drops its one Lance load for all (§13.4),
     online play moves to protocol 6 (§7.1), AI pilots pull out of a dive with the power off (§14), and the balance
     tournament runs 300 seeds (§9.4).
+  - Revision 31 (2026-10-16): the owner sent pictures of the real types (F-22, F-15C, F-16C, Su-35S, Su-30SM,
+    MiG-29) and chose to have the six generated jets look like them (§15.4, §22). Each is drawn from its real three
+    views, in its real paint: the Su-35S and Su-30SM in their blue camouflage with white radomes, the MiG-29 in
+    hard-edged two-tone grey, the US jets in their greys; red stars and bort numbers ("07", "02", "29") on the Russian
+    jets, the subdued star-and-bar and real unit tail codes ("FF", "LN", "SW") on the US ones. The missiles and bombs
+    of each jet's load hang where the real type carries them and go as they are fired; each type has its own landing
+    gear. Flying missiles and bombs take the same shapes. The F-35A and Su-57 keep the owner's models.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -145,6 +152,7 @@ was built in M2 and removed again. Revision 28: online play is back, hosted in a
 | Aircraft | 8 fictional aircraft with fictional names and specifications, 4 per team, data-driven | Brief (supersedes real F-15C/F-16C/Su-27/MiG-29) |
 | Weapons | Cannon, short-range IR missile, medium-range radar missile, flares + chaff; behavior abstracted | Brief (supersedes guns + IR only) |
 | Real weapons | Each jet carries the real weapons of the type it is modelled on: real names, guns, missiles, rounds, flares and chaff; ranges scaled to the game's sky | Owner, 2026-10-13 (revision 30) |
+| Real looks | The six generated jets are drawn as the real types in their real paint and markings, with their stores on the pylons, after the owner's reference pictures | Owner, 2026-10-16 (revision 31) |
 | Map | Fictional, procedurally generated Poland-inspired landscape with fictional locations; no real-world data download | Brief (supersedes real elevation data) |
 | Modes | Team Deathmatch, Air Superiority, Team Objective, Free Flight | Brief |
 | Environment | Clouds, weather presets, day/night cycle | Brief |
@@ -1380,6 +1388,32 @@ The game is always third-person (revision 4). There is no first-person, cockpit 
   - Strike (M1d): each target is a small group of simple fictional structures (sheds, a dish, tanks) built from boxes
     and cylinders on a concrete pad. Damaged targets smoke; destroyed ones burn. Bomb impacts reuse the explosion
     effect with a dust burst.
+- **Revision 31, the real types' airframes** (`src/client/render/airframes/`): at the owner's request the six jets
+  without imported models are drawn as the F-22A (Tempest), F-15C (Condor), F-16C Block 50 (Kestrel), Su-35S
+  (Yastreb), Su-30SM (Sapsan) and MiG-29 9.12 (Kobchik), after the owner's reference pictures.
+  - Each type is a blueprint in the coordinates of its three-view drawing (fs aft from the nose, bl right, wl up from
+    the ground), at its real length, span and height: bodies lofted through key sections (superellipses with their
+    own upper and lower halves, joined by a monotone spline), wings and tails through span stations (any planform:
+    LERX curves, the F-22's diamond, the F-15's dogtooth, raked tips) with a rounded leading edge, open intakes with
+    raked lips and dark ducts, nozzles with petals (the F-22's are flat), the canopy with its frames, the cockpit and
+    the pilot's helmet, IRST balls, probes and tip rails. Each type is built once and copied; parts are merged by
+    material (about 15,000–32,000 triangles and at most ten draw calls a jet in flight, about as many triangles as
+    the imported models).
+  - Paint is worked out per pixel from the body-space position, so it runs on across the fuselage, wings and fins
+    with no seams: seeded camouflage patches (soft on the Flankers and the F-22, hard on the MiG-29), a lighter
+    underside, coloured areas (radomes, fin caps, the F-15's bare metal, the F-16's darker spine, the F-15's squadron
+    band), triplanar panel lines, light weathering, and the markings projected onto the skin like decals from one
+    canvas per jet: red stars and outlined bort numbers on the Russian jets, the subdued star-and-bar and the tail
+    codes and serials of real units (FF, LN, SW) on the US jets.
+  - Stores: each missile and bomb of the jet's load hangs on a hardpoint where the real type carries it (wingtip rails,
+    wing pylons, fuselage and nacelle stations), drawn at its real length and diameter with its own fins (the AIM-120's
+    mid wings, the R-73's canards, the R-27R's broad wings, the R-77's lattice tails). The rounds go as the jet fires
+    them; a Strike attacker shows its strike load. The F-16 flies with its two wing tanks. The F-22 carries everything
+    inside. Missiles and bombs in flight use the same shapes.
+  - Landing gear per type: struts with oleos and torque links, doors, real wheel sizes (twin nose wheels on the
+    Su-30SM and MiG-29), placed where the real gear is. The body origin sits at the wing's height, so the wheels meet
+    the runway with the gear a little longer or shorter than the real one.
+  - The generated model of M3 remains as the fallback for a jet with neither an imported model nor a blueprint.
 - **M4/M5 target (a modern military-sim look):**
   - Lighting: PBR aircraft materials; shadows near the camera; bloom for afterburners and explosions.
   - Atmosphere: haze and height fog with aerial perspective; cloud layers.
@@ -1633,6 +1667,9 @@ brief (§11 of the brief: steps 1–11).
   - Revision 7: at the owner's request two jets look like the F-35A and the Su-57, using the owner's own models (some
     textures carry markings); since revision 10 these are the Shade and the Prizrak, the jets inspired by those types.
     Their names and specifications stay fictional.
+  - Revision 31: at the owner's request, and after reference pictures the owner sent, the six generated jets look like
+    the real types in their real paint, with the national insignia (Russian red stars, the US star-and-bar), bort
+    numbers and the tail codes of real units. Names and specifications stay fictional.
   - No real-world military installations are reproduced.
   - Strike targets are fictional facilities in open country (a supply depot, a radar site, a fuel depot). Towns,
     villages and people are never targets, and no casualties are shown.

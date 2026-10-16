@@ -26,13 +26,13 @@ describe('imported aircraft models', () => {
     expect(model.afterburners.every((f) => !f.visible)).toBe(true);
   });
 
-  it('uses the loaded model for its aircraft and the generated model for the rest', () => {
+  it('uses the loaded model for its aircraft, the drawn airframe for the real types and the generated model otherwise', () => {
     const meshes = new Map([['prizrak', template()]]);
     const fits = { prizrak: twinFit };
     const imported = aircraftModelFor(prizrak, meshes, fits).root;
     expect(imported.getObjectByName('imported-body')).toBeDefined();
     expect(imported.getObjectByName('fuselage')).toBeUndefined();
-    expect(aircraftModelFor(kestrel, meshes, fits).root.getObjectByName('fuselage')).toBeDefined();
+    expect(aircraftModelFor(kestrel, meshes, fits).root.getObjectByName('airframe')).toBeDefined();
     expect(aircraftModelFor(prizrak, new Map(), fits).root.getObjectByName('fuselage')).toBeDefined();
   });
 

@@ -11,6 +11,14 @@ is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The
 **Current milestone: M5 "Modes & polish"** (after M1a "Fly", M1b "Fight", M1d "Strike", M1c "Website basics", M2
 "Multiplayer", M3 "Roster & weapons" and M4 "World"). Online play (M2) was taken out again on 2026-10-02 and came back
 on 2026-10-08 without any server: the game still runs entirely in the browser.
+- **Real looks** (2026-10-16): after reference pictures from the owner, the Tempest, Condor, Kestrel, Yastreb, Sapsan
+  and Kobchik are drawn as the F-22A, F-15C, F-16C, Su-35S, Su-30SM and MiG-29 they are modelled on, at their real
+  size and in their real paint: the Flankers' blue camouflage and white radomes, the MiG-29's two-tone grey, the US
+  greys; red stars and bort numbers (07, 02, 29) on the Russian jets, the subdued star-and-bar and real unit tail codes
+  (FF, LN, SW) on the US ones. Each jet's missiles and bombs hang on its rails and pylons where the real type carries
+  them and disappear as you fire them (the F-16 also carries its two wing tanks; the F-22 keeps everything inside).
+  Each type has its own landing gear, and missiles and bombs keep their shapes in flight. The Shade and Prizrak keep
+  the owner's F-35A and Su-57 models.
 - **Real weapons** (2026-10-13): every jet carries the real weapons of the type it is modelled on, by their real names
   and in the real numbers, shown on the title screen and the HUD (`M61A1 511  AIM-9X 2  AIM-120D 4  FLR 30  CHF 60`):
 
@@ -358,7 +366,9 @@ Lechovia itself is generated from a seed (`src/shared/data/maps/lechovia/`), the
 3. Run `npm run tournament` and tune the data file until every pairing is within 35–65%.
 
 The 3-D model is generated from the `visual` block (fuselage, wing and tail sizes, engines and their spacing, intake
-type, LERX, canards), painted in its team's scheme, so no rendering code changes are needed.
+type, LERX, canards), painted in its team's scheme, so no rendering code changes are needed. To draw it as a real type
+instead, add a blueprint in `src/client/render/airframes/` (see `kestrel.ts`: its shape in the coordinates of a
+three-view drawing, its paint and markings, its gear and hardpoints) and register it in `airframes/index.ts`.
 
 ### Using your own 3D model for an aircraft
 
@@ -373,4 +383,5 @@ type, LERX, canards), painted in its team's scheme, so no rendering code changes
 
 All aircraft, places and organizations are fictional. Aircraft are only *inspired by* real types and use invented names
 and flight figures. Since 2026-10-13 they carry the real weapons of those types under their real names, with published
-loads and public figures scaled to the game; how the weapons are built or used in service is not modelled.
+loads and public figures scaled to the game; how the weapons are built or used in service is not modelled. Since
+2026-10-16 six of them are drawn as those types, with their national insignia, bort numbers and unit tail codes.

@@ -2,9 +2,10 @@ import { Color, type Object3D, Quaternion, type Scene, Vector3 } from 'three';
 import type { Terrain } from '../../../shared/map/terrain.ts';
 import { smoothstep } from '../../../shared/math/units.ts';
 import { damageState } from '../../../shared/damage/damage.ts';
-import { type MissileId, MISSILES } from '../../../shared/data/weapons.ts';
+import { FAB_500M_62, type MissileId, MISSILES } from '../../../shared/data/weapons.ts';
 import type { GameEvent } from '../../../shared/world/events.ts';
 import type { AircraftView, GameSession, GroundTargetView, MissileView } from '../../session/game-session.ts';
+import { flyingShape } from '../airframes/stores.ts';
 import { BOMB_LOOK, MISSILE_LOOKS, OrdnanceModels } from './ordnance-models.ts';
 import { type ParticleFrame, ParticleSystem } from './particles.ts';
 import { Tracers } from './tracers.ts';
@@ -103,7 +104,7 @@ export class Effects {
     this.scene = scene;
     this.options = options;
     scene.add(this.contrails.mesh, this.vapor.mesh);
-    this.bombModels = new OrdnanceModels(scene, BOMB_LOOK);
+    this.bombModels = new OrdnanceModels(scene, BOMB_LOOK, flyingShape(FAB_500M_62.id));
     scene.add(this.smoke.points, this.fire.points, this.tracers.lines, this.tracers.heads);
   }
 
@@ -166,7 +167,7 @@ export class Effects {
     for (const m of session.missiles()) {
       let set = this.missileModels.get(m.kind);
       if (!set) {
-        set = { models: new OrdnanceModels(this.scene, MISSILE_LOOKS[m.kind]), flying: [] };
+        set = { models: new OrdnanceModels(this.scene, MISSILE_LOOKS[m.kind], flyingShape(m.kind)), flying: [] };
         this.missileModels.set(m.kind, set);
       }
       set.flying.push(m);

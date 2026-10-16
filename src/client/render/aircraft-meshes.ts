@@ -5,6 +5,7 @@ import type { AircraftConfig } from '../../shared/data/aircraft/types.ts';
 import prizrakUrl from '../assets/models/prizrak.glb?url';
 import shadeUrl from '../assets/models/shade.glb?url';
 import { addEngines, type AircraftModel, parametricModel } from './aircraft-model.ts';
+import { airframeModel } from './airframes/index.ts';
 import type { LoadProgress } from './load-progress.ts';
 import { sentinelModel } from './sentinel-model.ts';
 
@@ -69,7 +70,10 @@ export function buildImportedModel(template: Object3D, fit: ModelFit, lengthM: n
   return { root, ...addEngines(root, exits, fit.nozzleRadius * lengthM) };
 }
 
-/** The imported model when one is loaded for this aircraft, otherwise the model generated from its data. */
+/**
+ * The imported model when one is loaded for this aircraft, otherwise its real-type airframe (revision 31), otherwise
+ * the model generated from its data.
+ */
 export function aircraftModelFor(
   config: AircraftConfig,
   meshes: AircraftMeshes,
@@ -78,5 +82,6 @@ export function aircraftModelFor(
   if (config.support) return sentinelModel(config);
   const template = meshes.get(config.id);
   const fit = fits[config.id];
-  return template && fit ? buildImportedModel(template, fit, config.visual.lengthM) : parametricModel(config);
+  if (template && fit) return buildImportedModel(template, fit, config.visual.lengthM);
+  return airframeModel(config) ?? parametricModel(config);
 }

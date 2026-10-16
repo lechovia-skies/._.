@@ -1,4 +1,4 @@
-import { CylinderGeometry, Mesh, MeshStandardMaterial, Quaternion, type Scene, Vector3 } from 'three';
+import { type BufferGeometry, CylinderGeometry, Mesh, MeshStandardMaterial, Quaternion, type Scene, Vector3 } from 'three';
 import { FAB_500M_62, MISSILE_IDS, type MissileId, MISSILES } from '../../../shared/data/weapons.ts';
 import { DEG } from '../../../shared/math/units.ts';
 import { visibilityScale } from '../visibility.ts';
@@ -37,16 +37,19 @@ export interface OrdnanceItem {
 export class OrdnanceModels {
   private readonly scene: Scene;
   private readonly look: OrdnanceLook;
-  private readonly geometry: CylinderGeometry;
+  private readonly geometry: BufferGeometry;
+  private readonly ownsGeometry: boolean;
   private readonly material: MeshStandardMaterial;
   private readonly meshes = new Map<number, Mesh>();
   private readonly dir = new Vector3();
   private readonly q = new Quaternion();
 
-  constructor(scene: Scene, look: OrdnanceLook) {
+  /** `geometry`: the round's shape, nose toward -z and centred (a plain cylinder by default). */
+  constructor(scene: Scene, look: OrdnanceLook, geometry?: BufferGeometry) {
     this.scene = scene;
     this.look = look;
-    this.geometry = new CylinderGeometry(look.radiusM, look.radiusM, look.lengthM, 8).rotateX(Math.PI / 2);
+    this.ownsGeometry = !geometry;
+    this.geometry = geometry ?? new CylinderGeometry(look.radiusM, look.radiusM, look.lengthM, 8).rotateX(Math.PI / 2);
     this.material = new MeshStandardMaterial({ color: look.color, roughness: 0.5, metalness: 0.3 });
   }
 
@@ -80,7 +83,7 @@ export class OrdnanceModels {
   dispose(): void {
     for (const mesh of this.meshes.values()) this.scene.remove(mesh);
     this.meshes.clear();
-    this.geometry.dispose();
+    if (this.ownsGeometry) this.geometry.dispose();
     this.material.dispose();
   }
 }
