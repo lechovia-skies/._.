@@ -44,7 +44,7 @@ describe('pilot levels (revision 26)', () => {
     const after = career({ matches: 2, wins: 1, kills: 4 });
     expect(careerXp(before)).toBe(200);
     expect(careerXp(after)).toBe(550);
-    expect(progressionLines(before, after)).toEqual(['+350 XP · Level 2 (550 / 800 XP)', 'Level up · Level 2', 'New jet unlocked · Yastreb']);
+    expect(progressionLines(before, after)).toEqual(['+350 XP · Level 2 (550 / 800 XP)', 'Level up · Level 2', 'New jet to develop · Yastreb (CR 8,000)']);
     expect(progressionLines(after, career({ matches: 3, wins: 1, kills: 4 }))).toEqual(['+100 XP · Level 2 (650 / 800 XP)']);
   });
 });

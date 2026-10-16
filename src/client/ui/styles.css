@@ -106,6 +106,8 @@ body {
 .pilot-level-fill { position: absolute; inset: 0; background: var(--hud); transform-origin: left; }
 .pilot-level-xp { color: var(--ghost); }
 .pilot-level-next { color: var(--warn); }
+/* Credits (revision 32): beside the level, in the HUD's figures. */
+.pilot-funds { padding-bottom: 6px; font: 700 15px/1 var(--display); letter-spacing: 0.12em; color: var(--canopy); white-space: nowrap; }
 /* Fullscreen (revision 26): a link beside the callsign. */
 /* Fullscreen from the corner of every screen (revision 29), above the game and its overlays. */
 .fullscreen-corner {
@@ -292,6 +294,11 @@ input:focus-visible + .option { color: var(--hud); }
   color: var(--canopy);
   opacity: 0.85;
 }
+/* The chosen jet in the hangar (revision 32): its condition or price, and Develop / Repair. */
+.hangar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 8px; max-width: 64ch; }
+.hangar-text { margin: 0; font: 500 11px/1.5 var(--mono); letter-spacing: 0.06em; color: var(--ghost); }
+.hangar-action { padding: 6px 12px; font-size: 13px; }
+.option-badge.is-grounded { color: #ff6b5e; }
 
 .launch { display: grid; gap: 18px; justify-items: start; }
 /* FLY and, beside it, the campaign (revision 18). */
@@ -621,6 +628,44 @@ input:focus-visible + .option { color: var(--hud); }
 }
 .online-code-input::placeholder { color: rgb(159 176 189 / 0.5); letter-spacing: 0.12em; font-size: 16px; }
 .online-code-input:focus-visible { outline: 2px solid var(--hud); outline-offset: 2px; }
+/* Online without a pilot name (revision 32): the sheet asks for one first, in the middle of the screen. */
+.name-step {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin: 18px auto;
+  padding: 26px 22px;
+  max-width: 420px;
+  text-align: center;
+  border: 1px solid rgb(255 193 77 / 0.55);
+  background: rgb(255 193 77 / 0.07);
+}
+.name-step-warn { margin: 0; font: 700 12px/1 var(--mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--warn); }
+.name-step-title { margin: 0; font: 700 24px/1.1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
+.name-step-input { width: min(100%, 280px); text-align: center; font-size: 20px; }
+.name-step-hint { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ghost); }
+.name-step-hint.is-error { color: var(--warn); }
+.online-body { display: grid; gap: 16px; }
+.online-name { display: grid; gap: 6px; justify-items: start; }
+.online-name .eyebrow { margin: 0; }
+/* The host's Room and World pages. */
+.online-tabs { display: flex; gap: 4px; border-bottom: 1px solid rgb(255 255 255 / 0.12); }
+.online-tab {
+  padding: 8px 16px;
+  font: 700 13px/1 var(--display);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ghost);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.online-tab.is-active { color: var(--canopy); border-bottom-color: var(--hud); }
+.online-tab:focus-visible { outline: 2px solid var(--hud); outline-offset: 2px; }
+.online-page { display: grid; gap: 12px; }
+.online-select { display: grid; gap: 6px; }
+.online-select .eyebrow { margin: 0; }
 .online-error { margin: 0; }
 .online-panel { display: grid; gap: 4px; margin: 0 0 14px; }
 .online-panel .eyebrow { margin: 0; }

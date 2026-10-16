@@ -11,6 +11,15 @@ is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The
 **Current milestone: M5 "Modes & polish"** (after M1a "Fly", M1b "Fight", M1d "Strike", M1c "Website basics", M2
 "Multiplayer", M3 "Roster & weapons" and M4 "World"). Online play (M2) was taken out again on 2026-10-02 and came back
 on 2026-10-08 without any server: the game still runs entirely in the browser.
+- **Money and the hangar** (2026-10-16): matches pay credits (CR): 1,000 per kill, 2,500 per Sentinel, 2,000 for a
+  win, more against Aces and less against Rookies. Each time your jet is shot down it takes damage; after three times
+  it is grounded until you repair it (the line under the jet on the title screen: *Repair*). Levels now make jets
+  available to *develop*, which costs credits (Yastreb 8,000 up to Shade 32,000). You start with the Kestrel and the
+  Kobchik and the credits your earlier matches would have paid; the two starters can always be repaired, even with no
+  money.
+- **Online name and room world** (2026-10-16): online asks for your pilot name first (in the middle of the screen)
+  and remembers it; you can change it at the top of the Online sheet. Hosts set the room on two pages: *Room* (mode,
+  pilots per side, AI pilots) and *World* (map, start, time of day).
 - **Real looks** (2026-10-16): after reference pictures from the owner, the Tempest, Condor, Kestrel, Yastreb, Sapsan
   and Kobchik are drawn as the F-22A, F-15C, F-16C, Su-35S, Su-30SM and MiG-29 they are modelled on, at their real
   size and in their real paint: the Flankers' blue camouflage and white radomes, the MiG-29's two-tone grey, the US

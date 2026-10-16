@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 31)
+# Lechovia Skies — Design Spec (revision 32)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -120,6 +120,11 @@
     jets, the subdued star-and-bar and real unit tail codes ("FF", "LN", "SW") on the US ones. The missiles and bombs
     of each jet's load hang where the real type carries them and go as they are fired; each type has its own landing
     gear. Flying missiles and bombs take the same shapes. The F-35A and Su-57 keep the owner's models.
+  - Revision 32 (2026-10-16): three requests from the owner (§7.1, §15.5). Online, a pilot without a name is asked
+    for one in the middle of the screen, and the name is carried over from then on (it can still be changed). The
+    host sets the room on two pages, Room and World (map, start, time of day). And money: matches pay credits for
+    kills, Sentinels and wins; a jet shot down is damaged and, after three times, grounded until it is repaired;
+    levels make jets available to develop, and developing one costs credits (the hangar).
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -153,6 +158,8 @@ was built in M2 and removed again. Revision 28: online play is back, hosted in a
 | Weapons | Cannon, short-range IR missile, medium-range radar missile, flares + chaff; behavior abstracted | Brief (supersedes guns + IR only) |
 | Real weapons | Each jet carries the real weapons of the type it is modelled on: real names, guns, missiles, rounds, flares and chaff; ranges scaled to the game's sky | Owner, 2026-10-13 (revision 30) |
 | Real looks | The six generated jets are drawn as the real types in their real paint and markings, with their stores on the pylons, after the owner's reference pictures | Owner, 2026-10-16 (revision 31) |
+| Hangar | Credits from kills and wins; jets damaged when shot down and grounded until repaired; levels open jets for development, which costs credits | Owner, 2026-10-16 (revision 32) |
+| Online name | Online asks for a pilot name first and remembers it; the host sets the room's world on its own page | Owner, 2026-10-16 (revision 32) |
 | Map | Fictional, procedurally generated Poland-inspired landscape with fictional locations; no real-world data download | Brief (supersedes real elevation data) |
 | Modes | Team Deathmatch, Air Superiority, Team Objective, Free Flight | Brief |
 | Environment | Clouds, weather presets, day/night cycle | Brief |
@@ -414,7 +421,12 @@ browser hosts the room and runs the match, and the others connect to it directly
   - Matches online count in the career records and towards pilot levels like any other.
 - **Title screen:** *Online* beside *Campaign* opens the Online sheet: host a room (mode: Dogfight, Air Superiority,
   Team Objective, Free Flight or Strike; pilots per side; the AI pilots' skill; the map, start and time of day from the
-  title screen) or join one with its code. A failed join or host brings the title screen back with the reason in the
+  title screen) or join one with its code. Revision 32: a pilot still called "Pilot" (no name set) first sees a
+  warning box in the middle of the sheet asking for a name, and cannot host or join without one; the name then shows,
+  and can be changed, at the top of the sheet and on the title screen, and is kept for the next time. The host's
+  settings have two pages: *Room* (mode, pilots per side, AI pilots) and *World* (map, the host's own start, time of
+  day; first as on the title screen, then remembered; Strike keeps the Test Range and runway starts need Lechovia).
+  Hosting and joining also need a jet fit to fly (revision 32's hangar). A failed join or host brings the title screen back with the reason in the
   sheet. The sheet says that browsers in a room see each other's IP addresses, as in most peer-to-peer games.
 
 ## 8. Flight-model approach
@@ -1461,6 +1473,24 @@ The game is always third-person (revision 4). There is no first-person, cockpit 
   still locked falls back to an open one. The end screen lists the XP a match earned, a level up and any jet it
   opened. A campaign mission still lends its own jet, and the in-match jet change offers the open jets and the one
   the match started with.
+- **The hangar (revision 32, `hangar.ts`):** money, development and wear, kept in this browser like the records.
+  - Credits (CR) per finished match: 400, +2,000 for a win, +800 for a draw, +1,000 per kill, +2,500 per Sentinel;
+    ×0.75 against Rookies, ×1 against Veterans and online, ×1.4 against Aces. A new hangar starts with what the
+    career on record would have paid (matches before the hangar count) and the two light fighters.
+  - Levels (above) now make a jet available to develop: Yastreb 8,000, Condor 12,000, Sapsan 16,000, Tempest
+    26,000, Prizrak 28,000, Shade 32,000. A developed jet is the pilot's for good.
+  - Each time the pilot's jet is shot down (or lost any other way) it takes 34% damage, and the damage a jet still
+    carries at the end of a match adds up to 20% more; at 100% the jet is grounded and cannot fly until repaired. A
+    repair costs 25% of the jet's value for 100% (the starters count as 6,000), as far as the funds go; a starting jet
+    is always repaired in full for whatever the pilot can pay, even nothing. A campaign mission's lent jet takes no
+    damage; Training and Free Flight neither pay nor damage.
+  - Title screen: the funds beside the level; each jet's tag shows its level lock, its price, its condition or
+    *Grounded*; under the chosen jet a line says its state with *Develop* or *Repair*; FLY, Free Flight and Training
+    wait for a jet fit to fly. The end screen lists the pay, each jet's damage and a jet grounded; a level up names the
+    jets it makes available and their price. The in-match jet change and the campaign offer only jets fit to fly
+    (and the mission's lent one). After a match that grounds the jet, *Fly again* becomes *Repair on the title
+    screen*; in an online room the jet flies on to the room's next matches, and the rule applies once back on the
+    title screen.
 - **Map compass (revision 26):** the map screen draws a compass rose in its corner (a red north needle, N, E, S and
   W) and the four letters in the middle of its edges, north at the top.
 - **Start screen (revision 4):** a minimal title screen over a live 3D scene. The selected jet circles over the

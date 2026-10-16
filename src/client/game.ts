@@ -63,7 +63,8 @@ import { DebugOverlay } from './ui/debug-overlay.ts';
 import { matchResult, type ResultRow, showEndScreen } from './ui/end-screen.ts';
 import { MatchStats } from './match-stats.ts';
 import { loadCareer, recordMatch, saveCareer } from './career.ts';
-import { careerXp, isUnlocked, levelForXp, progressionLines } from './progression.ts';
+import { progressionLines } from './progression.ts';
+import { canFly, loadHangar, saveHangar, settleMatch } from './hangar.ts';
 import { deathText, respawnText } from './death-text.ts';
 import { campaignOutcome, campaignStart, missionHeading } from './campaign/flow.ts';
 import { missionById } from './campaign/missions.ts';
@@ -375,9 +376,9 @@ export async function startGame(
   const forward = new Vector3();
   const upward = new Vector3();
   const canChangeJet = mission !== 'training';
-  // The jets to change to: those open at the pilot's level (revision 26), and the one this match started with.
-  const pilotLevel = levelForXp(careerXp(loadCareer()));
-  const changeableJets = (team: TeamId) => listAircraft(team).filter((j) => j.id === options.aircraftId || isUnlocked(j.id, pilotLevel));
+  // The jets to change to: those developed and fit to fly (revision 32), and the one this match started with.
+  const hangarAtStart = loadHangar(loadCareer());
+  const changeableJets = (team: TeamId) => listAircraft(team).filter((j) => j.id === options.aircraftId || canFly(hangarAtStart, j.id));
 
   /** online: neutral stick and the throttle held while the menu or the results are up */
   const idle = neutralInput(0.8);
@@ -637,6 +638,20 @@ export async function startGame(
       bests.push(...progressionLines(before, career));
       if (career.matches === 1) bests.push('First match on record · see Records on the title screen');
       for (const id of newBests) bests.push(`New best · ${bestLine(id, career.bests[id]?.value ?? 0, me.config.id)}`);
+      // The hangar (revision 32): the match's pay, and the damage to each jet flown (a campaign's lent jet takes none).
+      if (mission !== 'free-flight') {
+        const settled = settleMatch(loadHangar(before), {
+          result: final.winner === me.team ? 'win' : final.winner === 'draw' ? 'draw' : 'loss',
+          kills: me.kills,
+          sentinels: mine.sentinels,
+          skill: onlineSession ? 'veteran' : options.difficulty,
+          jets: Object.fromEntries(stats.jets),
+          final: me.alive ? { aircraftId: me.config.id, damage: 1 - me.hp / me.config.damage.hitPoints } : null,
+          lent: campaignMission?.jet[me.team],
+        });
+        saveHangar(settled.hangar);
+        bests.push(...settled.lines);
+      }
     }
     // Campaign (revision 18): a win opens the next mission, anything else offers the same one again.
     let again: StartOptions = training ? { ...options, mission: 'team-deathmatch' } : options;
@@ -653,6 +668,11 @@ export async function startGame(
         again = campaignStart(outcome.next.mission, me.team, { aircraftId: outcome.next.aircraftId, callsign: options.callsign, controlMode: options.controlMode });
       }
     }
+    // The hangar (revision 32): a jet grounded by this match (or not developed) goes back to the title screen to be
+    // repaired instead of flying again; a campaign mission's lent jet always flies.
+    const againLent = again.campaign ? missionById(again.campaign.missionId)?.jet[me?.team ?? 'usa'] : undefined;
+    const againGrounded = !onlineSession && again.aircraftId !== againLent && !canFly(loadHangar(loadCareer()), again.aircraftId);
+    if (againGrounded) againLabel = 'Repair on the title screen';
     audio?.matchEnd(training || (me && final.winner === me.team) ? 'win' : final.winner === 'draw' ? 'draw' : 'loss');
     // Online (revision 28): the room goes on to its next match by itself.
     if (onlineSession) result.note = [result.note, 'The next match in this room starts in a few seconds.'].filter(Boolean).join(' ');
@@ -665,7 +685,8 @@ export async function startGame(
           return;
         }
         cleanup();
-        handlers.onRestart(again);
+        if (againGrounded) handlers.onQuit();
+        else handlers.onRestart(again);
       },
       onMenu: () => {
         cleanup();

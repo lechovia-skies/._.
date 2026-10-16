@@ -4,7 +4,8 @@ import { type CampaignPilot, campaignStart, missionFacts } from '../campaign/flo
 import { CAMPAIGN } from '../campaign/missions.ts';
 import { type CampaignProgress, clearedCount, isUnlocked, loadCampaign, missionProgress, nextMissionIndex } from '../campaign/progress.ts';
 import { loadCareer } from '../career.ts';
-import { careerXp, isUnlocked as jetUnlocked, levelForXp, unlockLevel } from '../progression.ts';
+import { canFly, loadHangar } from '../hangar.ts';
+import { careerXp, levelForXp, unlockLevel } from '../progression.ts';
 import { choiceGroup, el } from './choice-group.ts';
 import type { StartOptions } from './menu.ts';
 
@@ -106,16 +107,25 @@ export function campaignSheet(pilot: () => CampaignPilot, onFly: (options: Start
   const renderBrief = () => {
     const m = CAMPAIGN[index];
     const level = levelForXp(careerXp(loadCareer()));
+    const hangar = loadHangar(loadCareer());
     const facts = el('ul', 'briefing-facts');
     for (const f of missionFacts(m, side)) facts.appendChild(el('li', undefined, f));
     const jets = choiceGroup(
       'campaign-jet',
       'Jet',
-      // The mission lends its own jet; the others are the pilot's open ones (revision 26).
+      // The mission lends its own jet; the others are the pilot's developed ones fit to fly (revision 32).
       listAircraft(side).map((a) =>
-        a.id === m.jet[side] || jetUnlocked(a.id, level)
-          ? { value: a.id, label: a.name, kicker: a.id === m.jet[side] ? 'Suggested' : undefined }
-          : { value: a.id, label: a.name, badge: `🔒 Lv ${unlockLevel(a.id)}`, disabled: true, title: `Unlocks at pilot level ${unlockLevel(a.id)}` },
+        a.id === m.jet[side]
+          ? { value: a.id, label: a.name, kicker: 'Lent' }
+          : canFly(hangar, a.id)
+            ? { value: a.id, label: a.name }
+            : {
+                value: a.id,
+                label: a.name,
+                badge: hangar.owned.includes(a.id) ? 'Grounded' : unlockLevel(a.id) > level ? `🔒 Lv ${unlockLevel(a.id)}` : 'Not developed',
+                disabled: true,
+                title: hangar.owned.includes(a.id) ? 'Too badly damaged to fly: repair it on the title screen' : 'Develop it on the title screen first',
+              },
       ),
       jet,
       (id) => {

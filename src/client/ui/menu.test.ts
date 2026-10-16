@@ -4,7 +4,8 @@ import { kobchik } from '../../shared/data/aircraft/kobchik.ts';
 import { STRIKE_DEFAULTS } from '../../shared/modes/strike.ts';
 import { DEFAULT_BINDINGS, rebind } from '../input/bindings.ts';
 import { controlsHelp } from './controls-help.ts';
-import { aircraftSummary, effectiveWorld, environmentOf, loadWorldChoice, pickValid, sanitizeCallsign, strikeRole, type WorldChoice } from './menu.ts';
+import { aircraftSummary, effectiveWorld, environmentOf, hangarLine, jetBadge, loadWorldChoice, pickValid, sanitizeCallsign, strikeRole, type WorldChoice } from './menu.ts';
+import { nameIsSet, roomWorld } from './online-sheet.ts';
 
 describe('start menu helpers', () => {
   it('cleans callsigns', () => {
@@ -91,5 +92,36 @@ describe('world choice (revision 19)', () => {
     };
     vi.stubGlobal('localStorage', { getItem: (k: string) => stored[k] ?? null, setItem: () => undefined, removeItem: () => undefined });
     expect(loadWorldChoice()).toEqual({ map: 'lechovia', start: 'runway', time: 'dusk', clock: false, weather: 'scattered' });
+  });
+});
+
+describe('the hangar on the title screen (revision 32)', () => {
+  const h = { funds: 9000, owned: ['kestrel', 'kobchik'], wear: { kobchik: 100, kestrel: 34 } };
+  it('tags each jet with its state', () => {
+    expect(jetBadge(h, 'tempest', 1)).toMatchObject({ badge: '🔒 Lv 5', disabled: true });
+    expect(jetBadge(h, 'yastreb', 2)).toMatchObject({ badge: 'CR 8,000', disabled: false });
+    expect(jetBadge(h, 'kobchik', 1)).toMatchObject({ badge: 'Grounded', disabled: false });
+    expect(jetBadge(h, 'kestrel', 1)).toMatchObject({ badge: '66%', disabled: false });
+    expect(jetBadge({ ...h, wear: {} }, 'kestrel', 1)).toEqual({ disabled: false });
+  });
+  it('offers to develop or repair the chosen jet', () => {
+    expect(hangarLine(h, 'yastreb', 2).action).toEqual({ label: 'Develop · CR 8,000', enabled: true });
+    expect(hangarLine(h, 'condor', 3).action).toEqual({ label: 'Develop · CR 12,000', enabled: false });
+    expect(hangarLine(h, 'kobchik', 1).text).toMatch(/^Grounded/);
+    expect(hangarLine(h, 'kobchik', 1).action?.label).toMatch(/^Repair · CR /);
+    expect(hangarLine({ ...h, wear: {} }, 'kestrel', 1)).toEqual({ text: 'Condition 100% · ready to fly.' });
+  });
+});
+
+describe('the Online sheet (revision 32)', () => {
+  it('asks for a name until the pilot has one other than the default', () => {
+    expect(nameIsSet('Pilot')).toBe(false);
+    expect(nameIsSet('  ')).toBe(false);
+    expect(nameIsSet('Hiroto')).toBe(true);
+  });
+  it('keeps Strike on the Test Range and runway starts on Lechovia', () => {
+    expect(roomWorld({ map: 'lechovia', start: 'runway', time: 'dusk' }, 'strike')).toEqual({ map: 'test-range', start: 'air', time: 'dusk' });
+    expect(roomWorld({ map: 'test-range', start: 'runway', time: 'day' }, 'team-deathmatch')).toEqual({ map: 'test-range', start: 'air', time: 'day' });
+    expect(roomWorld({ map: 'lechovia', start: 'runway', time: 'night' }, 'air-superiority')).toEqual({ map: 'lechovia', start: 'runway', time: 'night' });
   });
 });

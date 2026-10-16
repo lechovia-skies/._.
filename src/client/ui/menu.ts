@@ -11,7 +11,8 @@ import { MISSION_RULES } from '../hud/objective-hud.ts';
 import type { ControlMode } from '../input/control-mapper.ts';
 import { controlsHelp, GAMEPAD_HELP } from './controls-help.ts';
 import { loadCareer } from '../career.ts';
-import { careerXp, isUnlocked, levelProgress, nextUnlock, unlockLevel } from '../progression.ts';
+import { careerXp, isUnlocked, levelProgress, nextUnlock } from '../progression.ts';
+import { canFly, develop, formatCredits, type Hangar, jetState, loadHangar, repair, saveHangar } from '../hangar.ts';
 import { isTouchOnly } from './device.ts';
 import { MISSION_LABELS } from './records-format.ts';
 import { campaignSheet } from './campaign-sheet.ts';
@@ -269,7 +270,7 @@ function controlsSheet(settings: SettingsStore): HTMLDialogElement {
 function levelBadge(p: ReturnType<typeof levelProgress>): HTMLElement {
   const box = el('div', 'pilot-level');
   const next = nextUnlock(p.level);
-  box.title = next ? `${(p.to - p.xp).toLocaleString('en-US')} XP to level ${p.level + 1}; the ${next.name} opens at level ${next.level}` : 'Every jet is open';
+  box.title = next ? `${(p.to - p.xp).toLocaleString('en-US')} XP to level ${p.level + 1}; the ${next.name} can be developed from level ${next.level}` : 'Every jet can be developed';
   const bar = el('span', 'pilot-level-bar');
   const fill = el('span', 'pilot-level-fill');
   fill.style.transform = `scaleX(${p.fraction.toFixed(3)})`;
@@ -280,6 +281,42 @@ function levelBadge(p: ReturnType<typeof levelProgress>): HTMLElement {
   if (next) xp.appendChild(el('span', 'pilot-level-next', ` · Next jet: ${next.name} (level ${next.level})`));
   box.append(head, xp);
   return box;
+}
+
+/** The corner tag on a jet's button (revision 32): locked until its level, its price, grounded or its condition. */
+export function jetBadge(h: Hangar, id: string, level: number): { badge?: string; disabled: boolean; title?: string } {
+  const s = jetState(h, id, level);
+  switch (s.kind) {
+    case 'locked':
+      return { badge: `🔒 Lv ${s.level}`, disabled: true, title: `Can be developed from pilot level ${s.level}` };
+    case 'develop':
+      return { badge: formatCredits(s.cost), disabled: false, title: `Not developed yet: ${formatCredits(s.cost)} to develop` };
+    case 'grounded':
+      return { badge: 'Grounded', disabled: false, title: `Too badly damaged to fly: repair for ${formatCredits(s.repair)}` };
+    case 'ready':
+      return s.wear > 0 ? { badge: `${100 - s.wear}%`, disabled: false, title: `Condition ${100 - s.wear}%` } : { disabled: false };
+  }
+}
+
+/** The line under the jet about its hangar state, and the action it offers (develop or repair), if any. */
+export function hangarLine(h: Hangar, id: string, level: number): { text: string; action?: { label: string; enabled: boolean } } {
+  const s = jetState(h, id, level);
+  const funds = formatCredits(h.funds);
+  switch (s.kind) {
+    case 'locked':
+      return { text: `Can be developed from pilot level ${s.level}.` };
+    case 'develop':
+      return {
+        text: s.affordable ? `Not developed yet. Development costs ${formatCredits(s.cost)}; you have ${funds}.` : `Not developed yet: ${formatCredits(s.cost)} to develop, you have ${funds}. Shoot down enemies to earn more.`,
+        action: { label: `Develop · ${formatCredits(s.cost)}`, enabled: s.affordable },
+      };
+    case 'grounded':
+      return { text: `Grounded: shot down too often to fly. Repair costs ${formatCredits(s.repair)}; you have ${funds}.`, action: { label: `Repair · ${formatCredits(s.repair)}`, enabled: true } };
+    case 'ready':
+      return s.wear > 0
+        ? { text: `Condition ${100 - s.wear}%: grounded at 0%. Repair costs ${formatCredits(s.repair)}.`, action: { label: `Repair · ${formatCredits(s.repair)}`, enabled: true } }
+        : { text: 'Condition 100% · ready to fly.' };
+  }
 }
 
 /** Opens the Online sheet as the title screen shows: with an invite link's code, or after a failed online start. */
@@ -293,6 +330,8 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   const aircraft = listAircraft();
   // Pilot level (revision 26): the jets open as it rises; a saved jet still locked falls back to an open one.
   const progress = levelProgress(careerXp(loadCareer()));
+  // The hangar (revision 32): developed jets, their damage and the funds.
+  let hangar = loadHangar(loadCareer());
   const ids = aircraft.filter((a) => isUnlocked(a.id, progress.level)).map((a) => a.id);
   let aircraftId = pickValid(loadSetting<unknown>('aircraft', ids[0]), ids, ids[0]);
   let difficulty = pickValid(loadSetting<unknown>('difficulty', 'rookie'), Object.keys(DIFFICULTIES) as DifficultyId[], 'rookie');
@@ -314,8 +353,10 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   callsign.spellcheck = false;
   callsign.value = sanitizeCallsign(String(loadSetting<unknown>('callsign', 'Pilot')));
   pilot.append(el('span', 'eyebrow', 'Pilot'), callsign);
+  const funds = el('div', 'pilot-funds');
+  funds.title = 'Credits: shoot down enemies and win to earn them; spend them developing and repairing jets';
   // Fullscreen: the corner button on every screen (revision 29; a link here since revision 26).
-  top.append(levelBadge(progress), pilot);
+  top.append(levelBadge(progress), funds, pilot);
 
   const main = el('div', 'start-main');
   const brand = el('header', 'brand');
@@ -329,6 +370,12 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   const summary = el('p', 'pick-note');
   summary.setAttribute('aria-live', 'polite');
   const arms = el('p', 'pick-arms');
+  const hangarRow = el('div', 'hangar-row');
+  const hangarText = el('p', 'hangar-text');
+  hangarText.setAttribute('aria-live', 'polite');
+  const hangarAction = el('button', 'button secondary hangar-action');
+  hangarAction.type = 'button';
+  hangarRow.append(hangarText, hangarAction);
   // In Strike the line under the jets says what the chosen jet must do; otherwise it describes the jet.
   const showSummary = () => {
     const a = aircraft.find((x) => x.id === aircraftId) ?? aircraft[0];
@@ -339,21 +386,18 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   const jets = choiceGroup(
     'aircraft',
     'Aircraft',
-    aircraft.map((a) =>
-      isUnlocked(a.id, progress.level)
-        ? { value: a.id, label: a.name }
-        : { value: a.id, label: a.name, badge: `🔒 Lv ${unlockLevel(a.id)}`, disabled: true, title: `Unlocks at pilot level ${unlockLevel(a.id)}` },
-    ),
+    aircraft.map((a) => ({ value: a.id, label: a.name, ...jetBadge(hangar, a.id, progress.level) })),
     aircraftId,
     (id) => {
       aircraftId = id;
       saveSetting('aircraft', id);
       showSummary();
+      refreshHangar();
       handlers.onPreview(id);
     },
     (c) => TEAM_NAMES[aircraft.find((a) => a.id === c.value)?.team ?? 'usa'],
   );
-  jets.append(summary, arms);
+  jets.append(summary, arms, hangarRow);
   showSummary();
 
   let world = loadWorldChoice();
@@ -426,6 +470,37 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   links.append(training, freeFlight, controlsLink, settingsLink, recordsLink);
   launch.append(launchRow, links);
 
+  // The hangar's state of the chosen jet: its badge on every jet button, the line and action under it, and whether
+  // it can fly (a jet not developed or grounded stays on the ground; the campaign lends its own).
+  const refreshHangar = () => {
+    funds.textContent = formatCredits(hangar.funds);
+    for (const a of aircraft) {
+      const label = jets.querySelector<HTMLLabelElement>(`label[for="pick-aircraft-${a.id}"]`);
+      if (!label) continue;
+      const b = jetBadge(hangar, a.id, progress.level);
+      label.querySelector('.option-badge')?.remove();
+      if (b.badge) label.appendChild(el('span', `option-badge${b.badge === 'Grounded' ? ' is-grounded' : ''}`, b.badge));
+      label.title = b.title ?? '';
+    }
+    const line = hangarLine(hangar, aircraftId, progress.level);
+    hangarText.textContent = line.text;
+    hangarAction.hidden = !line.action;
+    if (line.action) {
+      hangarAction.textContent = line.action.label;
+      hangarAction.disabled = !line.action.enabled;
+    }
+    const flyable = canFly(hangar, aircraftId);
+    for (const b of [fly, freeFlight, training]) b.disabled = !flyable;
+    fly.title = flyable ? '' : line.text;
+  };
+  hangarAction.addEventListener('click', () => {
+    const s = jetState(hangar, aircraftId, progress.level);
+    hangar = s.kind === 'develop' ? develop(hangar, aircraftId, progress.level) : repair(hangar, aircraftId);
+    saveHangar(hangar);
+    refreshHangar();
+  });
+  refreshHangar();
+
   const opponents = el('div', 'opponent-row');
   opponents.append(skill, size);
   main.append(brand, missions, jets, opponents, worldRow.set, launch);
@@ -441,9 +516,15 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
     },
   );
   const onlineDialog = onlineSheet(
-    () => {
-      const w = effectiveWorld(world, 'team-deathmatch');
-      return { map: w.map, environment: environmentOf(w) };
+    {
+      name: () => sanitizeCallsign(callsign.value),
+      setName: (name) => {
+        callsign.value = sanitizeCallsign(name);
+        saveSetting('callsign', callsign.value);
+      },
+      jetProblem: () => (canFly(hangar, aircraftId) ? null : `${aircraft.find((a) => a.id === aircraftId)?.name ?? 'This jet'}: ${hangarLine(hangar, aircraftId, progress.level).text} Choose another jet on the title screen.`),
+      world: () => ({ map: world.map, start: world.start, time: world.time }),
+      environment: (time) => environmentOf({ ...world, time }),
     },
     (choice) => {
       const w = effectiveWorld(world, choice.role === 'host' ? choice.settings.mode : 'team-deathmatch');
@@ -454,7 +535,7 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
         mission: choice.role === 'host' ? choice.settings.mode : 'team-deathmatch',
         difficulty,
         map: choice.role === 'host' ? choice.settings.map : w.map,
-        start: w.start,
+        start: choice.role === 'host' ? choice.start : w.start,
         environment: choice.role === 'host' ? choice.settings.environment : environmentOf(w),
         teamSize: choice.role === 'host' ? choice.settings.teamSize : 1,
         online: choice,
@@ -467,6 +548,7 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   screen.append(form, sheet, records.dialog, campaign.dialog, onlineDialog.dialog);
 
   const start = (mission: MissionId) => {
+    if (!canFly(hangar, aircraftId)) return;
     const w = effectiveWorld(world, mission);
     const options: StartOptions = {
       aircraftId,

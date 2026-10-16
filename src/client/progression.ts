@@ -1,12 +1,14 @@
 import { getAircraft, listAircraft } from '../shared/data/aircraft/registry.ts';
 import type { TeamId } from '../shared/data/aircraft/types.ts';
 import type { Career, MatchOutcome } from './career.ts';
+import { developmentCost, formatCredits } from './hangar.ts';
 
 /*
  * Pilot levels (revision 26, at the owner's request: "unlock fighters by levelling up"). Experience comes from the
  * career records, so matches flown before levels existed count too: every finished match, more for a win, and each
  * kill and Sentinel. Each level asks for more than the one before, and the jets open one level at a time, alternating
- * sides, from the light fighters to the stealth jets. Campaign missions still lend their own jet.
+ * sides, from the light fighters to the stealth jets. Campaign missions still lend their own jet. Since revision 32 a
+ * level makes a jet available to develop, for credits (hangar.ts).
  */
 
 /** Experience per finished match, per win or draw on top, per kill and per Sentinel. */
@@ -99,7 +101,7 @@ export function progressionLines(before: Career, after: Career): string[] {
     lines.push(`Level up · Level ${now.level}`);
     for (const a of listAircraft()) {
       const at = unlockLevel(a.id);
-      if (at > was.level && at <= now.level) lines.push(`New jet unlocked · ${getAircraft(a.id).name}`);
+      if (at > was.level && at <= now.level) lines.push(`New jet to develop · ${getAircraft(a.id).name} (${formatCredits(developmentCost(a.id))})`);
     }
   }
   return lines;
