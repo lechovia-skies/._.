@@ -219,7 +219,7 @@ function drawPanel(style: Style): PanelArt | null {
   ctx.fillStyle = style === 'russian' ? '#5b7a80' : '#50565c';
   ctx.fillRect(0, 0, PANEL_W, PANEL_H);
   // The panel's own floodlight: a faint glow over all of it, so it reads in shadow and at night.
-  glow.fillStyle = style === 'russian' ? '#121c1e' : '#141618';
+  glow.fillStyle = style === 'russian' ? '#2a3b3e' : '#26292c';
   glow.fillRect(0, 0, PANEL_W, PANEL_H);
   // Panel seams and screw heads.
   ctx.strokeStyle = 'rgba(0,0,0,0.45)';
@@ -291,11 +291,12 @@ let materials: ReturnType<typeof makeMaterials> | null = null;
 
 function makeMaterials() {
   return {
-    shell: new MeshStandardMaterial({ color: 0x585d62, roughness: 0.9, metalness: 0.05, side: DoubleSide }),
-    shield: new MeshStandardMaterial({ color: 0x25282c, roughness: 0.95, metalness: 0, side: DoubleSide }),
-    seat: new MeshStandardMaterial({ color: 0x3d433b, roughness: 0.85, metalness: 0.05 }),
+    // A faint glow of their own keeps the inside readable in the shade of the canopy rail and at night.
+    shell: new MeshStandardMaterial({ color: 0x585d62, emissive: 0x16181a, roughness: 0.9, metalness: 0.05, side: DoubleSide }),
+    shield: new MeshStandardMaterial({ color: 0x2a2d31, emissive: 0x0b0c0d, roughness: 0.95, metalness: 0, side: DoubleSide }),
+    seat: new MeshStandardMaterial({ color: 0x3d433b, emissive: 0x0f110f, roughness: 0.85, metalness: 0.05 }),
     grip: new MeshStandardMaterial({ color: 0x24272a, roughness: 0.7, metalness: 0.1 }),
-    hudFrame: new MeshStandardMaterial({ color: 0x34383d, roughness: 0.6, metalness: 0.3 }),
+    hudFrame: new MeshStandardMaterial({ color: 0x40454a, emissive: 0x101214, roughness: 0.6, metalness: 0.3 }),
     combiner: new MeshBasicMaterial({ color: 0x9fffc8, transparent: true, opacity: 0.12, side: DoubleSide, depthWrite: false }),
   };
 }
@@ -375,20 +376,22 @@ export function cockpitInterior(fit: CockpitFit, team: TeamId): Group {
   g.add(floorMesh, bulkhead);
 
   // The glare shield, from the panel toward the windscreen, and the panel under it.
+  // It slopes down toward the windscreen, and its padded lip overhangs the panel.
   const shieldFront = Math.max(front + 0.1, panelZ - SHIELD_DEPTH_M);
-  g.add(box(2 * inner - 0.06, 0.05, panelZ - shieldFront + 0.04, 0, shieldY, (panelZ + shieldFront) / 2 - 0.02, mats.shield));
-  g.add(box(2 * inner - 0.02, 0.03, 0.05, 0, shieldY - 0.01, panelZ + 0.01, mats.shield));
+  g.add(face(2 * inner - 0.06, [shieldY - 0.05, shieldFront], [shieldY, panelZ + 0.01], mats.shield));
+  g.add(box(2 * inner - 0.04, 0.025, 0.045, 0, shieldY - 0.012, panelZ + 0.012, mats.shield));
   // The panel leans back, square to the pilot's look down at it.
   const panel = face(2 * inner - 0.04, [shieldY - 0.03, panelZ], [floor + 0.18, panelZ + 0.15], panelMaterial(style));
   g.add(panel);
   // The front of the tub under the panel and under the front of the glare shield, so nothing shows through.
   g.add(face(2 * w, [floor + 0.18, panelZ + 0.15], [floor, panelZ + 0.15], mats.shell));
-  g.add(face(2 * inner, [shieldY - 0.02, shieldFront], [sill - 0.02, shieldFront - 0.08], mats.shield));
+  g.add(face(2 * inner, [shieldY - 0.05, shieldFront], [sill - 0.02, shieldFront - 0.08], mats.shield));
 
   // The HUD: its housing on the glare shield and the tilted glass above it.
   g.add(box(0.15, 0.05, 0.16, 0, shieldY + 0.045, panelZ - 0.1, mats.hudFrame));
   g.add(face(0.15, [shieldY + 0.2, panelZ - 0.04], [shieldY + 0.08, panelZ - 0.1], mats.combiner));
   for (const side of [-1, 1]) g.add(box(0.006, 0.12, 0.006, side * 0.078, shieldY + 0.14, panelZ - 0.07, mats.hudFrame));
+  g.add(box(0.162, 0.006, 0.006, 0, shieldY + 0.2, panelZ - 0.045, mats.hudFrame));
 
   // Side consoles, the throttle on the left and the stick.
   const consoleTop = sill - 0.1;
