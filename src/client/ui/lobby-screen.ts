@@ -2,7 +2,7 @@ import { DIFFICULTIES } from '../../shared/ai/difficulty.ts';
 import { TEAM_NAMES } from '../../shared/data/aircraft/registry.ts';
 import type { TeamId } from '../../shared/data/aircraft/types.ts';
 import { MAP_NAMES } from '../../shared/data/maps/registry.ts';
-import type { RoomSettings } from '../../shared/net/protocol.ts';
+import { roomCapacity, type RoomSettings } from '../../shared/net/protocol.ts';
 import { WEATHER } from '../../shared/world/weather.ts';
 import { formatTimeOfDay } from '../hud/format.ts';
 import { el } from './choice-group.ts';
@@ -45,7 +45,7 @@ export interface LobbyHandlers {
 /** The room's settings in a few lines. */
 export function roomSummary(s: RoomSettings): string[] {
   const lines = [MISSION_LABELS[s.mode] ?? s.mode];
-  if (s.mode !== 'free-flight') lines.push(`${s.teamSize} v ${s.teamSize} · empty seats flown by ${DIFFICULTIES[s.botSkill].label} AI pilots`);
+  if (s.mode !== 'free-flight') lines.push(`${2 * s.teamSize} pilots, ${s.teamSize} v ${s.teamSize} · empty seats flown by ${DIFFICULTIES[s.botSkill].label} AI pilots`);
   lines.push(`${MAP_NAMES[s.map]} · ${formatTimeOfDay(s.environment.startHour)} · ${WEATHER[s.environment.weather].label}`);
   return lines;
 }
@@ -141,7 +141,7 @@ export class LobbyScreen {
       this.code.textContent = state.code;
       this.line.textContent = lobbyLine(state);
       this.summary.replaceChildren(...roomSummary(state.settings).map((t) => el('li', undefined, t)));
-      this.count.textContent = `Pilots · ${state.pilots.length}`;
+      this.count.textContent = `Pilots · ${state.pilots.length} / ${roomCapacity(state.settings)}`;
       this.pilots.replaceChildren(
         ...sortPilots(state.pilots).map((p) => {
           const li = el('li', `lobby-pilot team-${p.team}${p.you ? ' is-you' : ''}`);

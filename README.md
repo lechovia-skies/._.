@@ -19,7 +19,7 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
   money.
 - **Play** (2026-10-19): the title screen is your jet and a big **PLAY**. PLAY asks *Solo* or *Multiplayer*, then
   sets the match up: the mission (Dogfight, Air Superiority, Team Objective, Strike or Free flight), the time of day,
-  the AI pilots' skill and the pilots per side, with the map and start below. Multiplayer creates a room with the same
+  the AI pilots' skill and the number of pilots (2 to 10, half on each side), with the map and start below. Multiplayer creates a room with the same
   settings or joins one with its code.
 - **Camera views** (2026-10-19): **V** steps through the cockpit (first person, inside a modelled cockpit: glare
   shield, HUD glass, displays and gauges, consoles, stick, seat; look round with C or the right mouse) and the chase
@@ -140,7 +140,8 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
   - **Free Flight**: no enemies. From the pause menu set the time of day, the clock and the weather, and call up
     target drones; on the map (M) click anywhere to fly from there, or on an airfield to start on its runway.
   - Strike and the Training flight are still there.
-- **Pilots per side** (1, 2 or 4): your AI wingmen against as many AI pilots.
+- **Pilots** (2, 4, 6, 8 or 10, half on each side: 1 v 1 to 5 v 5): your AI wingmen against as many AI pilots.
+  Online, a room holds as many pilots as its match has seats, 10 at most.
 - **Team datalink**: you also see the enemies your teammates have on radar, drawn hollow on the radar display and the
   map (they cannot be locked).
 - **While you wait to respawn**: a kill cam on whoever shot you down, then spectating (A / D to switch pilots), and

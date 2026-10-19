@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_PILOTS, newRoomCode, onlineName, parseClientJson, parseRoomCode, ProtocolError, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, sanitizeCallsign, sanitizeRoomSettings } from './protocol.ts';
+import { MAX_TEAM_SIZE, newRoomCode, onlineName, parseClientJson, parseRoomCode, ProtocolError, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, roomCapacity, sanitizeCallsign, sanitizeRoomSettings } from './protocol.ts';
 
 describe('online protocol (revision 28)', () => {
   it('parses what pilots send and folds bad values into safe ones', () => {
@@ -19,11 +19,18 @@ describe('online protocol (revision 28)', () => {
     expect(sanitizeRoomSettings({ mode: 'strike', map: 'lechovia', teamSize: 99, botSkill: 'god', environment: { weather: 'rain', startHour: 23 } })).toEqual({
       mode: 'strike',
       map: 'test-range',
-      teamSize: MAX_PILOTS,
+      teamSize: MAX_TEAM_SIZE,
       botSkill: 'veteran',
       environment: { weather: 'rain', startHour: 23, clockRunning: false },
     });
     expect(sanitizeRoomSettings(null)).toMatchObject({ mode: 'team-deathmatch', map: 'lechovia', teamSize: 4 });
+    expect(sanitizeRoomSettings({ teamSize: 0 }).teamSize).toBe(1);
+  });
+
+  it('seats 2 to 10 pilots in a room, half a side (revision 35)', () => {
+    expect(MAX_TEAM_SIZE).toBe(5);
+    expect([1, 2, 3, 4, 5].map((teamSize) => roomCapacity({ mode: 'team-deathmatch', teamSize }))).toEqual([2, 4, 6, 8, 10]);
+    expect(roomCapacity({ mode: 'free-flight', teamSize: 1 })).toBe(10);
   });
 
   it('makes room codes that read clearly, and reads them back from text or an invite link', () => {

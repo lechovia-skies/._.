@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 34)
+# Lechovia Skies — Design Spec (revision 35)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -134,6 +134,9 @@
     there is now a cockpit view (first person, inside a modelled cockpit) and two more chase distances, close and far;
     V steps through them. And the title screen is simpler: PLAY opens the match setup, which first asks Solo or
     Multiplayer and then sets the mission, the time of day, the AI pilots and the pilots per side.
+  - Revision 35 (2026-10-19): the owner set the number of pilots in a match at 2 to 10 (§7.1, §15.5). The match setup
+    offers 2, 4, 6, 8 or 10 pilots, the player included, half on each side (1 v 1 to 5 v 5; it offered 1 v 1, 2 v 2
+    and 4 v 4 before). A room holds 10 pilots at most (8 before), and only as many as its match has seats.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -173,6 +176,7 @@ was built in M2 and removed again. Revision 28: online play is back, hosted in a
 | Names | No name to fly alone; online asks for one the first time, up to five letters | Owner, 2026-10-19 (revision 33) |
 | Camera views | A cockpit view and three chase distances, stepped through with V (revision 4's "always third person" ends) | Owner, 2026-10-19 (revision 34) |
 | Play flow | PLAY → Solo or Multiplayer → mission, time of day, AI pilots, pilots per side | Owner, 2026-10-19 (revision 34) |
+| Pilots | 2 to 10 pilots a match, half a side (1 v 1 to 5 v 5); a room seats as many, 10 at most | Owner, 2026-10-19 (revision 35) |
 | Map | Fictional, procedurally generated Poland-inspired landscape with fictional locations; no real-world data download | Brief (supersedes real elevation data) |
 | Modes | Team Deathmatch, Air Superiority, Team Objective, Free Flight | Brief |
 | Environment | Clouds, weather presets, day/night cycle | Brief |
@@ -197,7 +201,7 @@ was built in M2 and removed again. Revision 28: online play is back, hosted in a
 | Zone capture | A zone's progress runs −1 (Russia) … +1 (USA) and moves toward the side with more aircraft inside at advantage / 10 s; a side owns it at its end of the scale and loses it when pushed back past 0. Only zones score in Air Superiority | M5, 2026-10-01 |
 | Team Objective scoring | Every death of a fighter gives the other team +1 (as in Team Deathmatch); a Sentinel +20 | M5, 2026-10-01 |
 | Datalink | Built in M5: each pilot sees the enemies on teammates' radar, drawn hollow, never lockable. Sentinels carry a 150 km all-round radar, so they feed it | M5, 2026-10-01 |
-| Offline team size | "Pilots per side" 1, 2 or 4 on the title screen: AI wingmen against as many AI pilots; Strike scales to 4 aircraft per pilot per team | M5, 2026-10-01 |
+| Offline team size | "Pilots per side" 1, 2 or 4 on the title screen: AI wingmen against as many AI pilots; Strike scales to 4 aircraft per pilot per team (revision 35: "Pilots" 2 to 10, so 1 to 5 a side) | M5, 2026-10-01 |
 | Free Flight online | No bots, no weapons, no drones; anyone in the room changes its weather and clock; "fly from here" on the map. Target drones are offline only | M5, 2026-10-01 |
 | Online play removed | The owner chose a static website with no server to run or pay for: online play and everything that served it are deleted; the site is published with GitHub Pages from every push | Owner request, 2026-10-02 |
 
@@ -401,7 +405,9 @@ browser hosts the room and runs the match, and the others connect to it directly
 - **The host (`HostSession`, `shared/net/room.ts`):**
   - The host's browser runs the `World` at 60 Hz in a `Room`: the host's own jet, one per pilot (up to `MAX_PILOTS` = 8
     with the host), AI pilots filling each team to the chosen size (1, 2 or 4 a side; none in Free Flight), input
-    queues, 30 Hz snapshots, events, roster and status. The host flies with no delay through the same views as single
+    queues, 30 Hz snapshots, events, roster and status. Revision 35: 1 to 5 a side (`MAX_TEAM_SIZE`), and the room
+    holds as many pilots as its match has seats (`roomCapacity`: 2 for 1 v 1 up to `MAX_PILOTS` = 10, and 10 in Free
+    Flight); the next one is told the room is full. The lobby shows the pilots in and the seats ("Pilots · 3 / 6"). The host flies with no delay through the same views as single
     player (`WorldViews`, shared with `LocalSession`).
   - Revision 33: the room opens in its **lobby** (`RoomPhase` `lobby` | `match`). The lobby is a Free Flight World with
     the pilots alone (no AI pilots, no weapons, nothing scored, no ground targets); a jet chosen there goes up at once
@@ -1559,7 +1565,9 @@ chase views at other distances. There is no free camera.
     form for both): *Mission* (Dogfight, Air Superiority, Team Objective, Strike, Free flight, with a line on what it
     asks), *Time of day* (Dawn, Day, Dusk, Night), *AI pilots* (Rookie, Veteran, Ace) and *Pilots per side* (1 v 1,
     2 v 2, 4 v 4), and *World* (map and start). Free Flight greys out the AI pilots and pilots per side; Strike fixes
-    the Test Range and an air start. Solo shows the jet (or why it cannot fly) and FLY. Multiplayer asks for the name
+    the Test Range and an air start. Revision 35: *Pilots per side* became *Pilots*, 2, 4, 6, 8 or 10 in the match,
+    the player included, each with its sides under it (1 v 1 … 5 v 5); still stored as pilots per side, so an old
+    4 v 4 is 8 pilots. Solo shows the jet (or why it cannot fly) and FLY. Multiplayer asks for the name
     the first time, then has two pages: *Create a room* (the same settings, then the room's lobby) and *Join a room*
     (the code). *Back* returns to the two cards. Solo keeps the keys the title screen used (`mission`, `timeOfDay`,
     `difficulty`, `teamSize`, `map`, `start`; Free Flight is now one of the missions), online its own (`onlineMode`,

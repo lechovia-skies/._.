@@ -8,7 +8,7 @@ describe('the lobby (revision 33)', () => {
   it('sums up the room in a few lines', () => {
     const lines = roomSummary({ mode: 'team-deathmatch', map: 'lechovia', environment: { ...CALM_NOON }, teamSize: 2, botSkill: 'veteran' });
     expect(lines[0]).toBe('Dogfight');
-    expect(lines[1]).toMatch(/^2 v 2 · empty seats flown by Veteran AI pilots$/);
+    expect(lines[1]).toMatch(/^4 pilots, 2 v 2 · empty seats flown by Veteran AI pilots$/);
     expect(lines[2]).toMatch(/^Lechovia · 12:00 · /);
     expect(roomSummary({ mode: 'free-flight', map: 'lechovia', environment: { ...CALM_NOON }, teamSize: 2, botSkill: 'veteran' })).toHaveLength(2);
   });

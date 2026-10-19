@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fixedWorld, flies, loadSetup, type MatchSetup, missionLine, PLAY_MISSIONS, saveSetup } from './match-setup.ts';
+import { MAX_TEAM_SIZE } from '../../shared/net/protocol.ts';
+import { fixedWorld, flies, loadSetup, type MatchSetup, missionLine, pilotsIn, PLAY_MISSIONS, saveSetup, SEATS } from './match-setup.ts';
 
 const setup = (over: Partial<MatchSetup> = {}): MatchSetup => ({ mission: 'team-deathmatch', time: 'day', skill: 'veteran', seats: '2', map: 'lechovia', start: 'runway', ...over });
 
@@ -19,6 +20,11 @@ describe('match setup (revision 34)', () => {
     expect(flies('strike')).toBe(true);
   });
 
+  it('offers 2 to 10 pilots, half on each side (revision 35)', () => {
+    expect(SEATS.map(pilotsIn)).toEqual([2, 4, 6, 8, 10]);
+    expect(Number(SEATS.at(-1))).toBe(MAX_TEAM_SIZE);
+  });
+
   it('keeps Strike on the Test Range from the air, and runway starts on Lechovia', () => {
     expect(fixedWorld(setup())).toEqual({ map: 'lechovia', start: 'runway' });
     expect(fixedWorld(setup({ mission: 'strike' }))).toEqual({ map: 'test-range', start: 'air' });
@@ -35,6 +41,8 @@ describe('match setup (revision 34)', () => {
     expect(loadSetup('online').mission).toBe('strike');
     expect(loadSetup('online').time).toBe('night');
     expect(loadSetup('solo').time).toBe('dusk');
+    saveSetup('solo', { ...loadSetup('solo'), seats: '5' });
+    expect(loadSetup('solo').seats).toBe('5');
   });
 
   it('falls back on anything stored that no longer makes sense', () => {

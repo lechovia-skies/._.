@@ -5,7 +5,7 @@ import type { GridTerrain } from '../map/terrain.ts';
 import { type ControlInput, neutralInput } from '../physics/controls.ts';
 import { CALM_NOON } from '../world/time-of-day.ts';
 import { decodeSnapshot, encodeInput, type Snapshot } from './codec.ts';
-import { type HostJsonMessage, MAX_PILOTS, PROTOCOL_VERSION, type RoomSettings } from './protocol.ts';
+import { type HostJsonMessage, MAX_PILOTS, MAX_TEAM_SIZE, PROTOCOL_VERSION, type RoomSettings } from './protocol.ts';
 import { type Peer, Room, type RoomOptions, SILENT_PILOT_TICKS } from './room.ts';
 
 let map: MapDefinition;
@@ -85,8 +85,21 @@ describe('online Room (revision 28)', () => {
     const odd = new FakePeer('odd');
     room.receiveJson(odd, hello('f-22'));
     expect(odd.last('reject')).toBeDefined();
-    for (let i = 0; i < MAX_PILOTS - 1; i++) expect(joined(room, `p${i}`).last('welcome')).toBeDefined();
-    expect(joined(room, 'late').last('reject')?.reason).toMatch(/full/);
+    // Four a side: eight pilots, the host included.
+    for (let i = 0; i < 7; i++) expect(joined(room, `p${i}`).last('welcome')).toBeDefined();
+    expect(joined(room, 'late').last('reject')?.reason).toMatch(/full \(8 pilots\)/);
+  });
+
+  it('holds as many pilots as the match has seats: two for 1 v 1, ten for 5 v 5 or Free Flight (revision 35)', () => {
+    const duel = new Room(options({}, { teamSize: 1 }));
+    expect(joined(duel, 'a').last('welcome')).toBeDefined();
+    expect(joined(duel, 'b').last('reject')?.reason).toMatch(/full \(2 pilots\)/);
+    for (const over of [{ teamSize: MAX_TEAM_SIZE }, { mode: 'free-flight' as const, teamSize: 1 }]) {
+      const room = new Room(options({}, over));
+      for (let i = 0; i < MAX_PILOTS - 1; i++) expect(joined(room, `p${i}`).last('welcome')).toBeDefined();
+      expect(joined(room, 'late').last('reject')?.reason).toMatch(/full \(10 pilots\)/);
+    }
+    expect(MAX_PILOTS).toBe(10);
   });
 
   it('applies one queued input per tick and acknowledges it in the snapshot, with the own jet in full', () => {

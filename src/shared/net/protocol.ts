@@ -20,8 +20,10 @@ export const PROTOCOL_VERSION = 7;
 /** The host sends a snapshot every this many ticks (30 Hz at 60 Hz ticks). */
 export const SNAPSHOT_EVERY_TICKS = 2;
 
-/** Pilots in one room, the host included: each is a WebRTC link from the host's browser. */
-export const MAX_PILOTS = 8;
+/** Pilots in one room, the host included: each is a WebRTC link from the host's browser (10 since revision 35). */
+export const MAX_PILOTS = 10;
+/** Pilots a side: a match has 2 to 10 pilots, half on each side (revision 35, at the owner's request). */
+export const MAX_TEAM_SIZE = MAX_PILOTS / 2;
 
 /** Limits on what a pilot may send. */
 export const MAX_CLIENT_BINARY_BYTES = 64;
@@ -173,14 +175,19 @@ export function sanitizeEnvironment(raw: unknown): EnvironmentSettings {
   return { weather: isWeather(r.weather) ? r.weather : 'clear', startHour: hour, clockRunning: r.clockRunning === true };
 }
 
-/** Room settings from the title screen or a host: known values only, the team size within 1 … MAX_PILOTS. */
+/** Room settings from the title screen or a host: known values only, the team size within 1 … MAX_TEAM_SIZE. */
 export function sanitizeRoomSettings(raw: unknown): RoomSettings {
   const r = isRecord(raw) ? raw : {};
   const mode = ONLINE_MODES.find((m) => m === r.mode) ?? 'team-deathmatch';
   const map = mode === 'strike' ? 'test-range' : (MAP_IDS.find((m) => m === r.map) ?? 'lechovia');
   const size = typeof r.teamSize === 'number' && Number.isFinite(r.teamSize) ? Math.round(r.teamSize) : 4;
   const botSkill = (Object.keys(DIFFICULTIES) as DifficultyId[]).find((d) => d === r.botSkill) ?? 'veteran';
-  return { mode, map, environment: sanitizeEnvironment(r.environment), teamSize: Math.min(MAX_PILOTS, Math.max(1, size)), botSkill };
+  return { mode, map, environment: sanitizeEnvironment(r.environment), teamSize: Math.min(MAX_TEAM_SIZE, Math.max(1, size)), botSkill };
+}
+
+/** The pilots a room holds, the host included: its seats, two to ten (any number up to ten in Free Flight). */
+export function roomCapacity(s: Pick<RoomSettings, 'mode' | 'teamSize'>): number {
+  return s.mode === 'free-flight' ? MAX_PILOTS : Math.min(MAX_PILOTS, 2 * Math.max(1, s.teamSize));
 }
 
 /** Parses and checks a JSON text message from a pilot. Throws ProtocolError on anything malformed. */

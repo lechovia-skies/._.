@@ -20,10 +20,10 @@ import {
   type HelloMessage,
   type HostJsonMessage,
   MAX_CLIENT_BINARY_BYTES,
-  MAX_PILOTS,
   parseClientJson,
   PROTOCOL_VERSION,
   ProtocolError,
+  roomCapacity,
   type RoomPhase,
   type RoomSettings,
   type RosterEntry,
@@ -170,7 +170,9 @@ export class Room {
     };
     if (this.pilots.has(peer.id)) return true;
     if (hello.version !== PROTOCOL_VERSION) return refuse('The host runs another version of the game: both of you reload the page.');
-    if (this.pilots.size + 1 >= MAX_PILOTS) return refuse(`The room is full (${MAX_PILOTS} pilots).`);
+    // The room holds its seats: two pilots for 1 v 1, up to ten (revision 35).
+    const seats = roomCapacity(this.settings);
+    if (this.pilots.size + 1 >= seats) return refuse(`The room is full (${seats} pilots).`);
     let team: TeamId;
     let aircraftId: string;
     try {

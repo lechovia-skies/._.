@@ -231,7 +231,8 @@ describe('online play between browsers (revision 28)', () => {
   });
 
   it('lets two pilots and the host see each other; a pilot who leaves goes from every list', async () => {
-    const h = new Harness(30);
+    // Three pilots need a room of 2 v 2: a 1 v 1 room seats two (revision 35).
+    const h = new Harness(30, { teamSize: 2 });
     const a = await join(h, 'a', 'kestrel');
     const b = await join(h, 'b', 'kobchik');
     fly(h, a, 1, () => neutralInput(0.8));

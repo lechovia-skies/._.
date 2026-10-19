@@ -12,8 +12,15 @@ import { loadSetting, saveSetting } from './storage.ts';
 export type PlayMission = OnlineModeId;
 export const PLAY_MISSIONS: readonly PlayMission[] = ['team-deathmatch', 'air-superiority', 'team-objective', 'strike', 'free-flight'];
 
-export const SEATS = ['1', '2', '4'] as const;
+/**
+ * Pilots per side, as stored. The form offers the whole match instead: 2 to 10 pilots, half on each side (revision 35,
+ * at the owner's request), so 1 v 1 up to 5 v 5.
+ */
+export const SEATS = ['1', '2', '3', '4', '5'] as const;
 export type Seats = (typeof SEATS)[number];
+
+/** The pilots in a match of `seats` a side, the player included. */
+export const pilotsIn = (seats: Seats) => 2 * Number(seats);
 
 /** Everything set up before a match (revision 34): the mission, the time of day, the AI pilots, the pilots per side, the map and the start. */
 export interface MatchSetup {
@@ -37,7 +44,7 @@ export function fixedWorld(s: MatchSetup): { map: MapId; start: SpawnStart } {
   return { map, start: map === 'lechovia' && s.mission !== 'strike' ? s.start : 'air' };
 }
 
-/** Free Flight has no enemies and no AI pilots: their skill and the pilots per side do not apply. */
+/** Free Flight has no enemies and no AI pilots: their skill and the number of pilots do not apply. */
 export const flies = (mission: PlayMission) => mission !== 'free-flight';
 
 /** One line on what the mission asks of the pilot. */
@@ -115,8 +122,8 @@ function select<T extends string>(label: string, values: readonly T[], names: (v
 
 /**
  * The match settings (revision 34, at the owner's request): the mission, the time of day, the AI pilots' skill and the
- * pilots per side, then the map and the start. Solo and online show the same form; each keeps its own choices.
- * `onChange` hears every change (the title screen's sky follows the time of day).
+ * number of pilots (2 to 10 since revision 35), then the map and the start. Solo and online show the same form; each
+ * keeps its own choices. `onChange` hears every change (the title screen's sky follows the time of day).
  */
 export function matchSetupForm(kind: 'solo' | 'online', onChange?: (s: MatchSetup) => void): { element: HTMLElement; value(): MatchSetup } {
   const s = loadSetup(kind);
@@ -142,11 +149,14 @@ export function matchSetupForm(kind: 'solo' | 'online', onChange?: (s: MatchSetu
     changed();
   });
   skill.title = kind === 'solo' ? 'How well the AI pilots fly and fight: your opponents and your wingmen' : 'How well the AI pilots in the empty seats fly and fight';
-  const seats = choiceGroup(`${kind}-seats`, 'Pilots per side', SEATS.map((n) => ({ value: n, label: `${n} v ${n}` })), s.seats, (n) => {
+  const seats = choiceGroup(`${kind}-seats`, 'Pilots', SEATS.map((n) => ({ value: n, label: String(pilotsIn(n)), kicker: `${n} v ${n}` })), s.seats, (n) => {
     s.seats = n;
     changed();
   });
-  seats.title = kind === 'solo' ? 'You and AI wingmen against as many AI pilots' : 'Seats on each side: the ones no one takes are flown by AI pilots';
+  seats.title =
+    kind === 'solo'
+      ? 'Pilots in the match, you included, half on each side: you and AI wingmen against as many AI pilots'
+      : 'Seats in the room, yours included, half on each side: the room holds as many pilots, and AI pilots fly the ones no one takes';
   const fights = el('div', 'setup-row');
   fights.append(skill, seats);
 
