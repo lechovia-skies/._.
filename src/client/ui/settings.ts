@@ -1,4 +1,5 @@
 import { type Bindings, DEFAULT_BINDINGS, sanitizeBindings } from '../input/bindings.ts';
+import { CAMERA_VIEWS, type CameraView } from '../camera/camera-rig.ts';
 import type { ControlMode } from '../input/control-mapper.ts';
 import {
   type AxisCalibration,
@@ -36,6 +37,8 @@ export interface Settings {
   hudColor: HudColor;
   /** 0.8..1.4 */
   hudScale: number;
+  /** the camera: in the cockpit or behind the jet at three distances (revision 34); V steps through them */
+  cameraView: CameraView;
   graphics: GraphicsSetting;
   /** the level Auto settled on, remembered for the next visit */
   autoGraphics: QualityLevel | null;
@@ -61,6 +64,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keys: DEFAULT_BINDINGS,
   hudColor: 'green',
   hudScale: 1,
+  cameraView: 'chase',
   graphics: 'auto',
   autoGraphics: null,
   reduceMotion: false,
@@ -123,6 +127,7 @@ export function sanitizeSettings(stored: unknown): Settings {
     keys: sanitizeBindings(raw.keys),
     hudColor: oneOf(raw.hudColor, HUD_COLORS, d.hudColor),
     hudScale: number(raw.hudScale, d.hudScale, HUD_SCALE_RANGE.min, HUD_SCALE_RANGE.max),
+    cameraView: oneOf(raw.cameraView, CAMERA_VIEWS, d.cameraView),
     graphics: oneOf(raw.graphics, GRAPHICS_SETTINGS, d.graphics),
     autoGraphics: QUALITY_LEVELS.find((l) => l === raw.autoGraphics) ?? null,
     reduceMotion: bool(raw.reduceMotion, d.reduceMotion),

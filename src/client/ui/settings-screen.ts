@@ -1,4 +1,5 @@
-import { ACTION_LABELS, BINDABLE_ACTIONS, canBind, DEFAULT_BINDINGS, type KeyAction, keysLabel, rebind } from '../input/bindings.ts';
+import { CAMERA_VIEW_LABELS, CAMERA_VIEWS, type CameraView } from '../camera/camera-rig.ts';
+import { ACTION_LABELS, BINDABLE_ACTIONS, canBind, DEFAULT_BINDINGS, type KeyAction, keyLabel, keysLabel, rebind } from '../input/bindings.ts';
 import type { ControlMode } from '../input/control-mapper.ts';
 import {
   AXIS_ROLES,
@@ -39,6 +40,7 @@ const PAD_ACTION_LABELS: Readonly<Record<PadAction, string>> = {
   throttleDown: 'Throttle down',
   weaponSrm: 'Select IR missile',
   weaponMrm: 'Select radar missile',
+  camera: 'Camera view',
 };
 const AXIS_LABELS: Readonly<Record<AxisRole, string>> = { roll: 'Roll', pitch: 'Pitch', yaw: 'Rudder', throttle: 'Throttle' };
 const GRAPHICS_LABELS: Readonly<Record<GraphicsSetting, string>> = { auto: 'Auto', low: 'Low', medium: 'Medium', high: 'High' };
@@ -170,6 +172,8 @@ export function openSettings(root: HTMLElement, store: SettingsStore, tab: Setti
           el('p', 'sheet-note', s.autoGraphics ? `Auto lowers the detail if the game runs slowly. It last settled on ${GRAPHICS_LABELS[s.autoGraphics]}.` : 'Auto lowers the detail if the game runs slowly.'),
           radios('HUD color', HUD_COLORS.map((c) => [c, c[0].toUpperCase() + c.slice(1)] as [HudColor, string]), s.hudColor, (c) => store.update({ hudColor: c })),
           slider('HUD size', HUD_SCALE_RANGE.min, HUD_SCALE_RANGE.max, 0.05, s.hudScale, percent, (v) => store.update({ hudScale: v })),
+          radios('Camera', CAMERA_VIEWS.map((v) => [v, CAMERA_VIEW_LABELS[v]] as [CameraView, string]), s.cameraView, (v) => store.update({ cameraView: v })),
+          el('p', 'sheet-note', `${keyLabel(s.keys.camera[0])} steps through the views in flight: the cockpit, then behind the jet close, normal and far.`),
           radios('Team colours', [['standard', 'Blue / red'], ['colorblind', 'Blue / orange']] as const, s.teamColors, (c) => store.update({ teamColors: c })),
           checkbox('Reduce motion (camera shake, G effect, kill cam)', s.reduceMotion, (v) => store.update({ reduceMotion: v })),
           checkbox('Reduce flashing (steady warnings, no strobe lights)', s.reduceFlashing, (v) => store.update({ reduceFlashing: v })),

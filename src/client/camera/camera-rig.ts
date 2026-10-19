@@ -11,11 +11,47 @@ export interface CameraTarget {
   /** look-around direction relative to the view (C / right mouse) */
   lookYaw: number;
   lookPitch: number;
+  /** the pilot's eyes in the jet's body frame, for the cockpit view; without it the cockpit view chases instead */
+  eye?: Vector3 | null;
+}
+
+/**
+ * Where the camera flies (revision 34, at the owner's request): in the cockpit (first person), or behind the jet at
+ * three distances (third person). V steps through them.
+ */
+export type CameraView = 'cockpit' | 'near' | 'chase' | 'far';
+export const CAMERA_VIEWS: readonly CameraView[] = ['cockpit', 'near', 'chase', 'far'];
+export const CAMERA_VIEW_LABELS: Readonly<Record<CameraView, string>> = { cockpit: 'Cockpit', near: 'Chase · close', chase: 'Chase', far: 'Chase · far' };
+
+/** The third-person views: how far behind and above the jet the camera rides, metres. */
+export const CHASE_VIEWS: Readonly<Record<Exclude<CameraView, 'cockpit'>, { distance: number; height: number }>> = {
+  near: { distance: 17, height: 4 },
+  chase: { distance: 30, height: 7 },
+  far: { distance: 56, height: 13 },
+};
+
+/** The next view after `view` (V), and the one before. */
+export function nextCameraView(view: CameraView, step = 1): CameraView {
+  const i = CAMERA_VIEWS.indexOf(view);
+  return CAMERA_VIEWS[(i + step + CAMERA_VIEWS.length) % CAMERA_VIEWS.length];
 }
 
 const FOV = 70;
-const CHASE_DISTANCE = 30;
-const CHASE_HEIGHT = 7;
+/** A little wider in the cockpit, where the frame and the panel take part of the view. */
+const COCKPIT_FOV = 76;
+/** The near plane: the chase camera's, and the cockpit's, where the panel is under a metre away. */
+const NEAR_M = 0.5;
+const COCKPIT_NEAR_M = 0.03;
+/** The head sinks under positive G and lifts under negative G, by this much per G, up to these limits (metres). */
+const HEAD_SAG_PER_G = 0.008;
+const HEAD_SAG_MAX = 0.06;
+const HEAD_LIFT_MAX = 0.04;
+/**
+ * Looking round in the cockpit the head turns on the neck, this far behind the eyes, and the pilot leans this far
+ * toward the side they look to, so a look over the shoulder clears the seat's headrest.
+ */
+const NECK_BEHIND_EYES_M = 0.1;
+const LEAN_M = 0.14;
 const CHASE_LOOK_AHEAD = 60;
 const CHASE_TAU = 0.15;
 const TRAUMA_DECAY_PER_S = 1.5;
@@ -97,9 +133,13 @@ export function decayTrauma(trauma: number, dt: number): number {
 
 const WORLD_UP = new Vector3(0, 1, 0);
 
-/** The game's only camera: third person, behind and above the jet (spec §15.1). */
+/**
+ * The game's camera: behind and above the jet (spec §15.1) at three distances, or in the cockpit (revision 34). The kill
+ * cam and spectating always fly third person.
+ */
 export class CameraRig {
   reduceMotion = false;
+  view: CameraView = 'chase';
   /** the ground's height, so the camera stays out of it (revision 23); null where there is no terrain */
   ground: ((x: number, z: number) => number) | null = null;
   /** an overcast deck to keep on the jet's side of (revision 25); null in other weather */
@@ -112,6 +152,9 @@ export class CameraRig {
   private offsetReady = false;
   /** the kill cam framed the last frame */
   private framing = false;
+  /** the last update put the camera in the cockpit */
+  private cockpit = false;
+  private readonly eyeAt = new Vector3();
   private readonly tmpA = new Vector3();
   private readonly tmpB = new Vector3();
   private readonly tmpUp = new Vector3();
@@ -132,11 +175,26 @@ export class CameraRig {
     this.offsetReady = false;
   }
 
-  /** `aimDirection`: the mouse-aim direction to look along (horizon level); null follows the jet's nose and roll. */
+  /** True when the last update put the camera in the cockpit. */
+  get inCockpit(): boolean {
+    return this.cockpit;
+  }
+
+  /**
+   * `aimDirection`: the mouse-aim direction to look along (horizon level behind the jet; in the cockpit the head turns
+   * that way and rolls with the jet); null follows the jet's nose and roll.
+   */
   update(dt: number, target: CameraTarget | null, aimDirection: Vector3 | null): void {
     if (!target) return;
     this.framing = false;
     this.time += dt;
+    if (this.view === 'cockpit' && target.eye) {
+      this.updateCockpit(dt, target, target.eye, aimDirection);
+      return;
+    }
+    this.cockpit = false;
+    this.setLens(FOV, NEAR_M);
+    const { distance, height } = CHASE_VIEWS[this.view === 'cockpit' ? 'chase' : this.view];
     const dir = this.tmpA;
     if (aimDirection) dir.copy(aimDirection).normalize();
     else dir.set(0, 0, -1).applyQuaternion(target.quaternion);
@@ -146,7 +204,7 @@ export class CameraRig {
       const side = this.tmpB.crossVectors(dir, up).normalize();
       dir.applyAxisAngle(side, target.lookPitch);
     }
-    const desired = this.tmpB.copy(dir).multiplyScalar(-CHASE_DISTANCE).addScaledVector(up, CHASE_HEIGHT);
+    const desired = this.tmpB.copy(dir).multiplyScalar(-distance).addScaledVector(up, height);
     if (!this.offsetReady) {
       this.offset.copy(desired);
       this.offsetReady = true;
@@ -163,10 +221,50 @@ export class CameraRig {
 
     this.trauma = Math.max(decayTrauma(this.trauma, dt), sustainedTrauma(target.gLoad, target.mach, target.throttle));
     if (this.trauma > 0) this.applyShake();
-    if (this.camera.fov !== FOV) {
-      this.camera.fov = FOV;
-      this.camera.updateProjectionMatrix();
+  }
+
+  /**
+   * The cockpit (revision 34): the camera at the pilot's eyes, fixed to the jet. It looks along the nose, or where the
+   * mouse aims (the head turns that way), plus any look-around, and rolls with the jet. The head sags a little under
+   * G, and the buffet shakes it as it shakes the chase camera.
+   */
+  private updateCockpit(dt: number, target: CameraTarget, eye: Vector3, aimDirection: Vector3 | null): void {
+    this.cockpit = true;
+    // Back to a chase view, the camera starts right behind the jet.
+    this.offsetReady = false;
+    this.lift = 0;
+    this.setLens(COCKPIT_FOV, COCKPIT_NEAR_M);
+    const up = this.tmpUp.set(0, 1, 0).applyQuaternion(target.quaternion);
+    const dir = this.tmpA;
+    if (aimDirection) dir.copy(aimDirection).normalize();
+    else dir.set(0, 0, -1).applyQuaternion(target.quaternion);
+    if (target.lookYaw !== 0 || target.lookPitch !== 0) {
+      dir.applyAxisAngle(up, -target.lookYaw);
+      const side = this.tmpB.crossVectors(dir, up);
+      if (side.lengthSq() > 1e-8) dir.applyAxisAngle(side.normalize(), target.lookPitch);
     }
+    // Where the head turns to, in the jet's frame: it swings on the neck and leans that way.
+    const local = this.tmpB.copy(dir).applyQuaternion(this.tmpQ.copy(target.quaternion).invert());
+    const yaw = Math.atan2(local.x, -local.z);
+    const at = this.eyeAt.copy(eye);
+    at.x += Math.sin(yaw) * NECK_BEHIND_EYES_M + Math.sin(clamp(yaw, -Math.PI / 2, Math.PI / 2)) * LEAN_M;
+    at.z += NECK_BEHIND_EYES_M * (1 - Math.cos(yaw));
+    if (!this.reduceMotion) at.y += clamp(-(target.gLoad - 1) * HEAD_SAG_PER_G, -HEAD_SAG_MAX, HEAD_LIFT_MAX);
+    this.camera.position.copy(at.applyQuaternion(target.quaternion)).add(target.position);
+    // Looking straight up or down through the canopy: the jet's tail is "up" on screen.
+    if (Math.abs(dir.dot(up)) > 0.995) up.set(0, 0, 1).applyQuaternion(target.quaternion);
+    const lookAt = this.tmpB.copy(this.camera.position).add(dir);
+    this.tmpM.lookAt(this.camera.position, lookAt, up);
+    this.camera.quaternion.setFromRotationMatrix(this.tmpM);
+    this.trauma = Math.max(decayTrauma(this.trauma, dt), sustainedTrauma(target.gLoad, target.mach, target.throttle));
+    if (this.trauma > 0) this.applyShake();
+  }
+
+  private setLens(fov: number, near: number): void {
+    if (this.camera.fov === fov && this.camera.near === near) return;
+    this.camera.fov = fov;
+    this.camera.near = near;
+    this.camera.updateProjectionMatrix();
   }
 
   /**
@@ -175,6 +273,11 @@ export class CameraRig {
    */
   frame(position: Vector3, lookAt: Vector3, fovDeg: number, dt: number): void {
     const cam = this.camera;
+    this.cockpit = false;
+    if (cam.near !== NEAR_M) {
+      cam.near = NEAR_M;
+      cam.updateProjectionMatrix();
+    }
     const k = dt > 0 ? 1 - Math.exp(-dt / FRAME_TAU_S) : 1;
     cam.position.lerp(position, this.framing ? k : 1);
     this.keepClear(lookAt, dt);

@@ -28,6 +28,7 @@ export function controlsHelp(mode: ControlMode, bindings: Bindings = DEFAULT_BIN
     [k('flares'), 'Flares and chaff'],
     [k('nextTarget'), 'Next target'],
     [`${k('look')} · right click`, 'Look around (hold)'],
+    [k('camera'), 'Camera view: cockpit, then chase close, normal and far'],
     [k('airbrake'), 'Airbrake (hold); wheel brakes on the runway'],
     [k('scores'), 'Scores (hold)'],
     [k('map'), 'Map'],
@@ -48,4 +49,5 @@ export const GAMEPAD_HELP: readonly HelpRow[] = [
   ['D-pad ↓ / ↑', 'Bomb · airbrake (hold)'],
   ['D-pad ← / →', 'Select an infrared / a radar missile'],
   ['Start · Back', 'Pause · scores (hold)'],
+  ['Right stick click', 'Camera view'],
 ];

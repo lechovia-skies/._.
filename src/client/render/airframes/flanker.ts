@@ -165,7 +165,8 @@ function flankerParts(o: FlankerOptions): AirframeParts {
   const exits = ([1.25, -1.25] as const).map((bl) => nozzle({ fs0: 19.5, fs1: 20.75, bl, wl: 2.0, r0: 0.62, r1: 0.54, petals: 18 }));
   return {
     skin: [forward, spine, centre, ...withMirror(nacelle.skin), ...withMirror(boom), ...withMirror(wing), ...withMirror(tailplane), ...withMirror(fin), ...withMirror(ventral), ...canards, irstBase],
-    dark: [...withMirror(nacelle.dark), cockpit.dark],
+    dark: [...withMirror(nacelle.dark)],
+    tub: [cockpit.dark],
     glass: [cockpit.glass, irst],
     trim: [...withMirror(rail), probe, ...cockpit.trim],
     crew: cockpit.crew,

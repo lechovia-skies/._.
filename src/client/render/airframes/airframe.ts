@@ -2,6 +2,7 @@ import { type BufferGeometry, DoubleSide, Group, Matrix4, Mesh, MeshPhysicalMate
 import { addEngines, type AircraftModel } from '../aircraft-model.ts';
 import type { GearLeg } from '../landing-gear.ts';
 import type { Loadout } from '../../../shared/data/loadout.ts';
+import { cockpitFitFrom } from '../cockpit.ts';
 import { merge, type NozzleParts } from './kit.ts';
 import { type BodyFrame, type PaintSpec, skinMaterial } from './paint.ts';
 import { planPylons, type StoresPlan, storeMeshes, tankGeometry } from './stores.ts';
@@ -10,8 +11,10 @@ import { planPylons, type StoresPlan, storeMeshes, tankGeometry } from './stores
 export interface AirframeParts {
   /** painted skin */
   skin: BufferGeometry[];
-  /** intake ducts, gaps, the inside of the cockpit */
+  /** intake ducts, gaps */
   dark: BufferGeometry[];
+  /** the dark cockpit under the canopy, seen through the glass (hidden from the cockpit view, revision 34) */
+  tub?: BufferGeometry[];
   /** canopy glass and sensor windows */
   glass: BufferGeometry[];
   /** canopy frames, launch rails, antennas */
@@ -64,7 +67,8 @@ export function airframeGearLegs(bp: Blueprint): GearLeg[] {
 }
 
 const darkMaterial = new MeshStandardMaterial({ color: 0x15181b, roughness: 0.92, metalness: 0.05, side: DoubleSide });
-const trimMaterial = new MeshStandardMaterial({ color: 0x2b3035, roughness: 0.55, metalness: 0.4 });
+// Both sides: the canopy bows are seen from inside too (revision 34).
+const trimMaterial = new MeshStandardMaterial({ color: 0x2b3035, roughness: 0.55, metalness: 0.4, side: DoubleSide });
 const metalMaterial = new MeshStandardMaterial({ color: 0x5a5c5e, roughness: 0.38, metalness: 0.85 });
 const cavityMaterial = new MeshStandardMaterial({ color: 0x232120, roughness: 0.8, metalness: 0.3, side: DoubleSide });
 
@@ -97,6 +101,11 @@ export function buildAirframe(bp: Blueprint, loads: { air: Loadout; strike?: Loa
     if (sets.length > 1 && loads.strike) for (const m of storeMeshes(bp.stores, loads.strike, 'strike', toBody)) root.add(m);
   }
   add(parts.dark, darkMaterial, 'airframe-dark');
+  add(parts.tub ?? [], darkMaterial, 'cockpit-tub');
+  // Where the pilot sits, for the cockpit view (revision 34).
+  if (parts.crew.length > 0 && parts.tub?.length) {
+    root.userData.cockpit = cockpitFitFrom(parts.crew[0].clone().applyMatrix4(toBody), merge(parts.tub).applyMatrix4(toBody));
+  }
   add(parts.trim, trimMaterial, 'airframe-trim');
   add(
     parts.nozzles.map((n) => n.metal),

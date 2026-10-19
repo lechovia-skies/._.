@@ -20,7 +20,8 @@ import { WEATHER } from '../shared/world/weather.ts';
 import { DT } from '../shared/world/world.ts';
 import { AudioEngine } from './audio/audio-engine.ts';
 import { explosionGain, missileTone, nearestSources } from './audio/sound-mix.ts';
-import { CameraRig, type CameraTarget, cloudDeck } from './camera/camera-rig.ts';
+import { CAMERA_VIEW_LABELS, CameraRig, type CameraTarget, cloudDeck, nextCameraView } from './camera/camera-rig.ts';
+import { cockpitEye, showCockpit } from './render/cockpit.ts';
 import { DeathCam, killcamFov, killcamPosition } from './camera/death-cam.ts';
 import { Hud } from './hud/hud.ts';
 import { describeDeath, KillFeed } from './hud/kill-feed.ts';
@@ -93,8 +94,8 @@ const MISSION_BANNER_S = 4;
 const EXPLOSION_SHAKE_RANGE_M = 1500;
 
 const HINTS: Record<ControlMode, string> = {
-  'mouse-aim': 'MOUSE aim · SPACE gun · F missile · 1/2 select · X flares+chaff · R target · SHIFT/Z throttle · C look · TAB scores · P pause',
-  direct: 'W/S pitch · A/D roll · Q/E rudder · SPACE gun · F missile · 1/2 select · X flares+chaff · R target · SHIFT/Z throttle · C look · P pause',
+  'mouse-aim': 'MOUSE aim · SPACE gun · F missile · 1/2 select · X flares+chaff · R target · SHIFT/Z throttle · C look · V view · TAB scores · P pause',
+  direct: 'W/S pitch · A/D roll · Q/E rudder · SPACE gun · F missile · 1/2 select · X flares+chaff · R target · SHIFT/Z throttle · C look · V view · P pause',
 };
 
 export interface GameHandlers {
@@ -302,6 +303,7 @@ export async function startGame(
     mapper.settings.bindings = s.keys;
     input.captured = capturedKeys(s.keys);
     cameraRig.reduceMotion = s.reduceMotion;
+    cameraRig.view = s.cameraView;
     hud.reduceMotion = s.reduceMotion;
     hud.reduceFlashing = s.reduceFlashing;
     setStrobes(!s.reduceFlashing);
@@ -364,7 +366,9 @@ export async function startGame(
     throttle: 0,
     lookYaw: 0,
     lookPitch: 0,
+    eye: null,
   };
+  const eyeAt = new Vector3();
   // While waiting to respawn (M5): the kill cam, then spectating; and the jet to fly next.
   const deathCam = new DeathCam();
   const watchTarget: CameraTarget = { ...target, position: new Vector3(), quaternion: new Quaternion() };
@@ -805,6 +809,12 @@ export async function startGame(
       mapScreen.toggle();
       if (freeFlight && mapScreen.open && input.pointerLocked) document.exitPointerLock();
     }
+    // The camera view (revision 34): V steps through the cockpit and the three chase distances, and it is remembered.
+    if (!paused && !matchOver && !settingsOpen && !lobbyOpen && mapper.cameraRequested(snap, padFrame)) {
+      const view = nextCameraView(cameraRig.view);
+      settings.update({ cameraView: view });
+      showBanner(`VIEW · ${CAMERA_VIEW_LABELS[view].toUpperCase()}`, nowS, 1.5);
+    }
     if (!matchOver && !settingsOpen && mapper.pauseRequested(snap, padFrame)) {
       // In the lobby Esc only brings its screen back: an Esc press may not capture the mouse again.
       if (inLobby()) {
@@ -932,6 +942,9 @@ export async function startGame(
       target.lookYaw = mapper.lookYaw;
       target.lookPitch = mapper.lookPitch;
     }
+    // The pilot's eyes, for the cockpit view.
+    const localModel = local ? sceneSync.modelFor(local.id) : undefined;
+    target.eye = local?.alive && localModel && cameraRig.view === 'cockpit' ? cockpitEye(localModel.root, eyeAt) : null;
     const aim = mapper.settings.mode === 'mouse-aim' ? mapper.aimDirection : null;
     const watched = local && !local.alive && deathCam.phase === 'spectate' && deathCam.watchingId !== null ? session.view(deathCam.watchingId) : null;
     if (local && !local.alive && deathCam.phase === 'killcam') {
@@ -952,6 +965,7 @@ export async function startGame(
     } else {
       cameraRig.update(active ? dt : 0, local ? target : null, aim);
     }
+    if (local && localModel) showCockpit(localModel.root, cameraRig.inCockpit, local.team);
     ground.update(renderer.camera.position);
     worldFeatures.update(renderer.camera.position);
     if (session.environment !== environmentSettings) {

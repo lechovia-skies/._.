@@ -117,7 +117,8 @@ function parts(): AirframeParts {
   const exits = ([1.0, -1.0] as const).map((bl) => nozzle({ fs0: 15.5, fs1: 16.6, bl, wl: 1.76, r0: 0.5, r1: 0.44, petals: 16 }));
   return {
     skin: [forward, spine, centre, ...withMirror(nacelle.skin), ...withMirror(boom), ...withMirror(wing), ...withMirror(tailplane), ...withMirror(fin), ...withMirror(ventral)],
-    dark: [...withMirror(nacelle.dark), cockpit.dark],
+    dark: [...withMirror(nacelle.dark)],
+    tub: [cockpit.dark],
     glass: [cockpit.glass, irst],
     trim: [probe, ...cockpit.trim],
     crew: cockpit.crew,

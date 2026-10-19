@@ -210,6 +210,11 @@ export class ControlMapper {
     return { watch, jet };
   }
 
+  /** The camera key (or the pad's right stick click) was pressed this frame (revision 34): the next camera view. */
+  cameraRequested(snap: InputSnapshot, pad: PadFrame | null): boolean {
+    return this.settings.bindings.camera.some((c) => snap.pressed.has(c)) || (pad !== null && pad.pressed.has('camera'));
+  }
+
   /** The map key was pressed this frame (M4): it opens and closes the map screen. */
   mapToggled(snap: InputSnapshot): boolean {
     return this.settings.bindings.map.some((c) => snap.pressed.has(c));

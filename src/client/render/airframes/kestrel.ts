@@ -101,7 +101,8 @@ function parts(): AirframeParts {
   const engine = nozzle({ fs0: 14.35, fs1: 15.0, bl: 0, wl: 2.04, r0: 0.53, r1: 0.47, petals: 16 });
   return {
     skin: [fuselage, duct.skin, ...withMirror(wing), ...withMirror(tailplane), fin, finRoot, ...withMirror(ventral)],
-    dark: [duct.dark, cockpit.dark],
+    dark: [duct.dark],
+    tub: [cockpit.dark],
     glass: [cockpit.glass],
     trim: [...withMirror(tipRails), probe, ...cockpit.trim],
     crew: cockpit.crew,

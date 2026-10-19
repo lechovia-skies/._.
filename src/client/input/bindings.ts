@@ -20,6 +20,7 @@ export const BINDABLE_ACTIONS = [
   'pause',
   'weaponSrm',
   'weaponMrm',
+  'camera',
 ] as const;
 
 export type KeyAction = (typeof BINDABLE_ACTIONS)[number];
@@ -48,6 +49,7 @@ export const DEFAULT_BINDINGS: Bindings = {
   pause: ['KeyP'],
   weaponSrm: ['Digit1'],
   weaponMrm: ['Digit2'],
+  camera: ['KeyV'],
 };
 
 /** How each action reads in the Controls list. */
@@ -72,6 +74,7 @@ export const ACTION_LABELS: Readonly<Record<KeyAction, string>> = {
   pause: 'Pause',
   weaponSrm: 'Select short-range missile',
   weaponMrm: 'Select medium-range missile',
+  camera: 'Camera view (cockpit, close, chase, far)',
 };
 
 /** Keys never offered for rebinding: Esc pauses and releases the mouse, and browsers own the function and modifier keys. */
@@ -81,7 +84,7 @@ export function canBind(code: string): boolean {
 }
 
 /** Spare keys handed to an action whose stored keys all clashed (only after storage was edited by hand). */
-const SPARE_KEYS = ['KeyH', 'KeyJ', 'KeyK', 'KeyL', 'KeyU', 'KeyI', 'KeyO', 'KeyN', 'KeyV', 'KeyT', 'KeyY'];
+const SPARE_KEYS = ['KeyH', 'KeyJ', 'KeyK', 'KeyL', 'KeyU', 'KeyI', 'KeyO', 'KeyN', 'KeyT', 'KeyY'];
 
 /**
  * Binds `code` as the primary key of `action`. A key that another action uses moves over: if it was that action's

@@ -97,7 +97,8 @@ function parts(): AirframeParts {
   );
   return {
     skin: [nose, body, spine, ...withMirror(inlet.skin), ...withMirror(wing), ...withMirror(tailplane), ...withMirror(fin), ...withMirror(boom)],
-    dark: [...withMirror(inlet.dark), cockpit.dark],
+    dark: [...withMirror(inlet.dark)],
+    tub: [cockpit.dark],
     glass: [cockpit.glass],
     trim: cockpit.trim,
     crew: cockpit.crew,

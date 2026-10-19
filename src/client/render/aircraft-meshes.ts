@@ -6,6 +6,7 @@ import prizrakUrl from '../assets/models/prizrak.glb?url';
 import shadeUrl from '../assets/models/shade.glb?url';
 import { addEngines, type AircraftModel, parametricModel } from './aircraft-model.ts';
 import { airframeModel } from './airframes/index.ts';
+import type { CockpitFit } from './cockpit.ts';
 import type { LoadProgress } from './load-progress.ts';
 import { sentinelModel } from './sentinel-model.ts';
 
@@ -18,6 +19,8 @@ export interface ModelFit {
   /** nozzle exit centres, where the afterburner flames start */
   nozzles: readonly (readonly [x: number, y: number, z: number])[];
   nozzleRadius: number;
+  /** where the pilot sits, for the cockpit view (revision 34; measured off the models' canopies) */
+  cockpit?: CockpitFit;
 }
 
 /**
@@ -25,7 +28,12 @@ export interface ModelFit {
  * the Shade and the Su-57-inspired one as the Prizrak (owner's choice, 2026-10-01).
  */
 export const IMPORTED_MODELS: Readonly<Record<string, ModelFit>> = {
-  shade: { url: shadeUrl, nozzles: [[0, -0.045, 0.31]], nozzleRadius: 0.035 },
+  shade: {
+    url: shadeUrl,
+    nozzles: [[0, -0.045, 0.31]],
+    nozzleRadius: 0.035,
+    cockpit: { eye: [0, 0.0522, -0.2834], sillY: 0.0255, halfWidth: 0.0331, frontZ: -0.3694 },
+  },
   prizrak: {
     url: prizrakUrl,
     nozzles: [
@@ -33,6 +41,7 @@ export const IMPORTED_MODELS: Readonly<Record<string, ModelFit>> = {
       [0.098, -0.06, 0.49],
     ],
     nozzleRadius: 0.04,
+    cockpit: { eye: [0, 0.0458, -0.1915], sillY: 0.0308, halfWidth: 0.0259, frontZ: -0.2687 },
   },
 };
 
@@ -67,6 +76,11 @@ export function buildImportedModel(template: Object3D, fit: ModelFit, lengthM: n
   body.scale.setScalar(lengthM);
   root.add(body);
   const exits = fit.nozzles.map(([x, y, z]) => new Vector3(x, y, z).multiplyScalar(lengthM));
+  const c = fit.cockpit;
+  if (c) {
+    const cockpit: CockpitFit = { eye: [c.eye[0] * lengthM, c.eye[1] * lengthM, c.eye[2] * lengthM], sillY: c.sillY * lengthM, halfWidth: c.halfWidth * lengthM, frontZ: c.frontZ * lengthM };
+    root.userData.cockpit = cockpit;
+  }
   return { root, ...addEngines(root, exits, fit.nozzleRadius * lengthM) };
 }
 

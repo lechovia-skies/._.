@@ -1,7 +1,7 @@
 import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { WEATHER } from '../../shared/world/weather.ts';
-import { CameraRig, type CameraTarget, clearanceLift, cloudDeck, decayTrauma, deckShift, sustainedTrauma } from './camera-rig.ts';
+import { CAMERA_VIEWS, CameraRig, type CameraTarget, CHASE_VIEWS, clearanceLift, cloudDeck, decayTrauma, deckShift, nextCameraView, sustainedTrauma } from './camera-rig.ts';
 
 /** A jet at 1000 m pointing north (-z) unless told otherwise. */
 const target = (position = new Vector3(0, 1000, 0), quaternion = new Quaternion()): CameraTarget => ({
@@ -38,7 +38,7 @@ describe('camera shake', () => {
   });
 });
 
-describe('CameraRig (always third person)', () => {
+describe('CameraRig: the chase view', () => {
   it('starts behind and above the jet, looking the way it points', () => {
     const cam = new PerspectiveCamera();
     tick(new CameraRig(cam), 0, target());
@@ -190,5 +190,71 @@ describe('the camera stays on the jet\'s side of an overcast deck (revision 25)'
     rig.deck = deck;
     tick(rig, 1, target(new Vector3(0, 1700, 0)));
     expect(cam.position.y).toBeCloseTo(1707, 3);
+  });
+});
+
+describe('camera views (revision 34)', () => {
+  const eye = new Vector3(0, 0.9, -4.2);
+
+  it('steps through the cockpit and the three chase distances with V', () => {
+    expect(CAMERA_VIEWS).toEqual(['cockpit', 'near', 'chase', 'far']);
+    expect(nextCameraView('chase')).toBe('far');
+    expect(nextCameraView('far')).toBe('cockpit');
+    expect(nextCameraView('cockpit', -1)).toBe('far');
+  });
+
+  it('chases closer or further behind the jet', () => {
+    const behind = (view: 'near' | 'chase' | 'far') => {
+      const cam = new PerspectiveCamera();
+      const rig = new CameraRig(cam);
+      rig.view = view;
+      tick(rig, 0, target());
+      return cam.position.distanceTo(new Vector3(0, 1000, 0));
+    };
+    expect(behind('near')).toBeLessThan(behind('chase'));
+    expect(behind('chase')).toBeLessThan(behind('far'));
+    expect(behind('far')).toBeCloseTo(Math.hypot(CHASE_VIEWS.far.distance, CHASE_VIEWS.far.height), 3);
+  });
+
+  it("sits at the pilot's eyes, looks along the nose and rolls with the jet", () => {
+    const cam = new PerspectiveCamera();
+    const rig = new CameraRig(cam);
+    rig.view = 'cockpit';
+    const rolled = new Quaternion().setFromAxisAngle(new Vector3(0, 0, -1), Math.PI / 2);
+    const t = { ...target(new Vector3(0, 1000, 0), rolled), eye };
+    tick(rig, 0, t);
+    expect(rig.inCockpit).toBe(true);
+    expect(cam.position.distanceTo(eye.clone().applyQuaternion(rolled).add(t.position))).toBeLessThan(1e-6);
+    expect(forward(cam).z).toBeLessThan(-0.999);
+    expect(up(cam).x).toBeGreaterThan(0.999);
+    expect(cam.near).toBeLessThan(0.1);
+  });
+
+  it('turns the head toward the mouse aim, rolling with the jet, and leans into a look over the shoulder', () => {
+    const cam = new PerspectiveCamera();
+    const rig = new CameraRig(cam);
+    rig.view = 'cockpit';
+    const t = { ...target(), eye };
+    tick(rig, 0, t, new Vector3(1, 0, -1).normalize());
+    expect(forward(cam).x).toBeCloseTo(Math.SQRT1_2, 5);
+    t.lookYaw = 2.6;
+    tick(rig, 0, t);
+    // Looking right and back: the head swings right and back, clear of the headrest.
+    expect(cam.position.x).toBeGreaterThan(0.1);
+    expect(cam.position.z).toBeGreaterThan(-4.2 + 0.1);
+  });
+
+  it('chases instead when there is no cockpit, and the kill cam puts the near plane back', () => {
+    const cam = new PerspectiveCamera();
+    const rig = new CameraRig(cam);
+    rig.view = 'cockpit';
+    tick(rig, 0, target());
+    expect(rig.inCockpit).toBe(false);
+    expect(cam.position.z).toBeGreaterThan(20);
+    tick(rig, 0, { ...target(), eye });
+    expect(rig.inCockpit).toBe(true);
+    rig.frame(new Vector3(0, 1100, 100), new Vector3(0, 1000, 0), 60, 0);
+    expect(rig.inCockpit).toBe(false);
+    expect(cam.near).toBe(0.5);
   });
 });
