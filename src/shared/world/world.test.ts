@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DIFFICULTIES } from '../ai/difficulty.ts';
 import { buildTerrain } from '../data/maps/map-definition.ts';
 import { createTestRange } from '../data/maps/test-range.ts';
 import { FreeFlightMode } from '../modes/free-flight.ts';
@@ -39,6 +40,27 @@ describe('World', () => {
     const a = w.addAircraft({ callsign: 'A', team: 'usa', aircraftId: 'kestrel' });
     const b = w.addAircraft({ callsign: 'B', team: 'usa', aircraftId: 'kestrel' });
     expect(a.flight.pos.distanceTo(b.flight.pos)).toBeGreaterThan(500);
+  });
+
+  it('hands an AI fighter over to a pilot who joins, and nothing else (revision 36)', () => {
+    const w = new World({ map, terrain, mode: new TeamDeathmatchMode(), seed: 7 });
+    const human = w.addAircraft({ callsign: 'Me', team: 'usa', aircraftId: 'kestrel' });
+    const bot = w.addAircraft({ callsign: '[BOT] Grom', team: 'russia', aircraftId: 'kobchik', bot: DIFFICULTIES.veteran });
+    run(w, 30);
+    w.applyDamage(bot, 10, human, 'cannon');
+    expect(w.takeOver(human.id, 'X', 'kestrel', 'air')).toBe(false);
+    expect(w.takeOver(bot.id, 'X', 'kestrel', 'air')).toBe(false);
+    expect(w.takeOver(bot.id, 'X', 'nope', 'air')).toBe(false);
+    w.drainEvents();
+    const hp = bot.hp;
+    expect(w.takeOver(bot.id, 'Hiro', 'kobchik', 'runway')).toBe(true);
+    expect(bot).toMatchObject({ callsign: 'Hiro', isBot: false, start: 'runway', hp });
+    expect(w.drainEvents()).toEqual([{ type: 'takeover', aircraftId: bot.id, from: '[BOT] Grom' }]);
+    expect(w.takeOver(bot.id, 'Ken', 'kobchik', 'air')).toBe(false);
+    // From now on the jet answers the pilot's stick.
+    const pull = new Map([[bot.id, { ...neutralInput(0.8), pitch: 1 }]]);
+    run(w, 1, pull);
+    expect(bot.input.pitch).toBe(1);
   });
 
   it('rejects an aircraft flown for the wrong team', () => {

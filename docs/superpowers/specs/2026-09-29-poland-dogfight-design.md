@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 35)
+# Lechovia Skies — Design Spec (revision 36)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -137,6 +137,10 @@
   - Revision 35 (2026-10-19): the owner set the number of pilots in a match at 2 to 10 (§7.1, §15.5). The match setup
     offers 2, 4, 6, 8 or 10 pilots, the player included, half on each side (1 v 1 to 5 v 5; it offered 1 v 1, 2 v 2
     and 4 v 4 before). A room holds 10 pilots at most (8 before), and only as many as its match has seats.
+  - Revision 36 (2026-10-19): the owner asked for joining a match already under way (§7.1). A pilot who joins a room
+    whose match has started takes an AI pilot's place: preferably the one flying the jet the pilot chose, in that jet,
+    where it is, from then on under the pilot's name (with another jet of the side, the chosen jet takes its place
+    there). Protocol 8.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -177,6 +181,7 @@ was built in M2 and removed again. Revision 28: online play is back, hosted in a
 | Camera views | A cockpit view and three chase distances, stepped through with V (revision 4's "always third person" ends) | Owner, 2026-10-19 (revision 34) |
 | Play flow | PLAY → Solo or Multiplayer → mission, time of day, AI pilots, pilots per side | Owner, 2026-10-19 (revision 34) |
 | Pilots | 2 to 10 pilots a match, half a side (1 v 1 to 5 v 5); a room seats as many, 10 at most | Owner, 2026-10-19 (revision 35) |
+| Late join | A pilot joining a running match takes over an AI pilot's jet in the air, preferably one flying the jet they chose | Owner, 2026-10-19 (revision 36) |
 | Map | Fictional, procedurally generated Poland-inspired landscape with fictional locations; no real-world data download | Brief (supersedes real elevation data) |
 | Modes | Team Deathmatch, Air Superiority, Team Objective, Free Flight | Brief |
 | Environment | Clouds, weather presets, day/night cycle | Brief |
@@ -413,16 +418,28 @@ browser hosts the room and runs the match, and the others connect to it directly
     the pilots alone (no AI pilots, no weapons, nothing scored, no ground targets); a jet chosen there goes up at once
     (`World.changeJetNow`). The host starts the match (`Room.startMatch`): a new World in the room's mode, the AI
     pilots filling the seats, each pilot in the jet last chosen. A pilot may join in the lobby or during a match.
+  - Revision 36 (at the owner's request): a pilot who joins **during a match** takes an AI pilot's seat
+    (`Room.seatFor`, `World.takeOver`) instead of a new jet appearing at the spawn while an AI pilot vanishes. The
+    seat is an AI pilot of the pilot's side flying the jet they chose, else any AI pilot of that side; one in the air
+    before one waiting to respawn. The pilot gets that very jet where it is, with its speed, fuel, damage and weapons
+    left, and their name; their kills and deaths start at nought (the team's score is the mode's and does not change).
+    With another jet chosen, it takes the AI jet's place there, fully armed and fuelled (a seat waiting to respawn
+    comes back in it). The AI flies the jet on until the pilot's first input arrives (their page may still be loading
+    the match), and the pilot takes it over in that tick; one who leaves before leaves it to the AI, and two joining
+    pilots never get the same seat. Everyone gets a `takeover` event (kill feed "Hiro takes over from [BOT] Sokol"; the pilot's banner
+    "YOU TAKE OVER FROM …"), and the roster renames the jet. In the lobby, in Free Flight, or with no AI pilot left on
+    that side, the pilot still gets a jet of their own at the spawn.
   - A finished match shows the results to everyone and, 15 s later, the room goes back to its lobby with a new seed
     (before revision 33 the next match started by itself; a `Room` without the `lobby` option still does, for tests).
   - A pilot who leaves (or sends nothing for 30 s; pilots ping every 3 s even while their page is still loading) hands
     their seat back to an AI pilot. When the host leaves, the room closes and the pilots are told why.
   - A hidden host tab gets no frames: a tiny worker's timer keeps stepping the match (`BackgroundTicker`), so a host who
     switches tabs does not freeze the room; pilots' pages do the same, so they are not timed out.
-- **Protocol 7 (`shared/net/protocol.ts`, `codec.ts`):** M2's layout, brought up to date (5 in revision 28; 6 since
+- **Protocol 8 (`shared/net/protocol.ts`, `codec.ts`):** M2's layout, brought up to date (5 in revision 28; 6 since
   revision 30: the input's weapon is the selected missile slot, 3 bits; a missile in flight names its type from
   `MISSILE_IDS`; the pilot's own section counts missiles per type of its load, flares and chaff; 7 since revision 33:
-  the lobby).
+  the lobby; 8 since revision 36: a joining pilot can take over an AI pilot's jet, so a jet's callsign and AI flag can
+  change, and the `takeover` event).
   - `hello` carries the callsign, jet and start; the `welcome` carries the room's settings (mode, map, weather and
     clock, seats, AI skill), the match seed (the wind comes from it), the tick, the host's callsign, the phase (lobby
     or match) and the host's aircraft id. `matchStart` (a new World: the match, or the lobby again) carries the phase

@@ -22,5 +22,7 @@ export type GameEvent =
   | { type: 'bombImpact'; bombId: number; x: number; y: number; z: number }
   | { type: 'targetHit'; targetId: string; attackerId: number | null; damage: number }
   | { type: 'targetDestroyed'; targetId: string; attackerId: number | null }
+  /** a pilot who joined the match online took over the jet of the AI pilot `from` (revision 36) */
+  | { type: 'takeover'; aircraftId: number; from: string }
   /** an Air Superiority zone changed hands (M5): captured by `owner`, or neutralized (owner null) from `previous` */
   | { type: 'zone'; zoneId: string; owner: TeamId | null; previous: TeamId | null };

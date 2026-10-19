@@ -83,11 +83,11 @@ interface Sample {
 /** An aircraft as seen over the link: interpolated (others) or predicted (your own). */
 class NetAircraft implements AircraftView {
   readonly id: number;
-  readonly callsign: string;
+  callsign: string;
   readonly team: TeamId;
   config: AircraftConfig;
   readonly isLocal: boolean;
-  readonly isBot: boolean;
+  isBot: boolean;
   alive = true;
   hp: number;
   spawnGen = 0;
@@ -664,6 +664,9 @@ export class NetworkSession implements GameSession {
       }
       a.kills = r.kills;
       a.deaths = r.deaths;
+      // A pilot who joined the match took this AI pilot's jet over (revision 36).
+      a.callsign = r.callsign;
+      a.isBot = r.isBot;
       // A pilot who respawned in another jet.
       if (a.config.id !== r.aircraftId) {
         a.config = getAircraft(r.aircraftId);

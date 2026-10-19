@@ -24,6 +24,9 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
 - **Camera views** (2026-10-19): **V** steps through the cockpit (first person, inside a modelled cockpit: glare
   shield, HUD glass, displays and gauges, consoles, stick, seat; look round with C or the right mouse) and the chase
   camera close, normal and far. The view is remembered (Settings → Display → Camera).
+- **Joining a match under way** (2026-10-19): join a room whose match has started and you take an AI pilot's place
+  at once, in the air where it is: preferably the AI pilot flying the jet you chose, else another of your side, whose
+  jet becomes yours there. Everyone sees "… takes over from [BOT] …".
 - **Online lobby** (2026-10-19): *Create the room* on the Online sheet opens the room's lobby with its code in big
   letters (and *Copy code*, *Copy invite link*). Friends join with the code and wait in the lobby, where everyone sees
   who is in and picks a jet, and may fly round meanwhile; the host presses *Start the match*. After each match the

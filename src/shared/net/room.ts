@@ -31,6 +31,16 @@ import {
 } from './protocol.ts';
 import { ownState, sharedSnapshot } from './snapshot.ts';
 
+/** A fighter of that side, by id. */
+function fliesFor(aircraftId: string, team: TeamId): boolean {
+  try {
+    const config = getAircraft(aircraftId);
+    return config.team === team && !config.support;
+  } catch {
+    return false;
+  }
+}
+
 /** One connected pilot's link, whatever carries it (WebRTC in the browser, a fake in tests). */
 export interface Peer {
   readonly id: string;
@@ -78,6 +88,11 @@ interface Pilot {
   readonly start: SpawnStart;
   /** the pilot's aircraft in the current World */
   entityId: number;
+  /**
+   * Joined during a match (revision 36): `entityId` is an AI pilot's jet, which the AI flies on until the pilot's first
+   * input arrives (their page may take a while to load the match), and the pilot takes it over then.
+   */
+  takingOver: boolean;
   readonly queue: DecodedInput[];
   readonly lastInput: ControlInput;
   ackSeq: number;
@@ -190,14 +205,22 @@ export class Room {
       team,
       start: hello.start,
       entityId: -1,
+      takingOver: false,
       queue: [],
       lastInput: neutralInput(0.8),
       ackSeq: 0,
       lastHeardTick: this.world.tick,
     };
     this.pilots.set(peer.id, pilot);
-    this.removeBot(team);
-    pilot.entityId = this.world.addAircraft({ callsign: pilot.callsign, team, aircraftId, start: pilot.start }).id;
+    // In a running match the pilot takes over an AI pilot's jet, where it is, once they fly (revision 36); in the
+    // lobby, in Free Flight or with no AI pilot left on the side, a jet of their own joins.
+    const seat = this.noBots ? null : this.seatFor(team, aircraftId);
+    if (seat) {
+      pilot.entityId = seat.id;
+      pilot.takingOver = true;
+    } else {
+      pilot.entityId = this.world.addAircraft({ callsign: pilot.callsign, team, aircraftId, start: pilot.start }).id;
+    }
     peer.sendJson({
       type: 'welcome',
       version: PROTOCOL_VERSION,
@@ -222,6 +245,8 @@ export class Room {
     const p = this.pilots.get(peerId);
     if (!p) return;
     this.pilots.delete(peerId);
+    // A pilot who never took the AI pilot's jet over leaves it to the AI.
+    if (p.takingOver) return;
     this.world.removeAircraft(p.entityId);
     this.fillBots();
     this.rosterDirty = true;
@@ -251,7 +276,10 @@ export class Room {
         this.broadcastChat(p.entityId, msg.index);
         break;
       case 'jet':
-        if (this.world.setNextAircraft(p.entityId, msg.aircraftId)) {
+        // Still the AI's jet: the choice waits for the takeover.
+        if (p.takingOver) {
+          if (fliesFor(msg.aircraftId, p.team)) p.aircraftId = msg.aircraftId;
+        } else if (this.world.setNextAircraft(p.entityId, msg.aircraftId)) {
           p.aircraftId = msg.aircraftId;
           if (this.phase === 'lobby') this.world.changeJetNow(p.entityId);
         }
@@ -314,6 +342,7 @@ export class Room {
         continue;
       }
       const next = p.queue.shift();
+      if (next && p.takingOver) this.takeOver(p);
       const entity = this.world.getAircraft(p.entityId);
       if (next) {
         Object.assign(p.lastInput, next.input);
@@ -381,7 +410,10 @@ export class Room {
     this.world = world;
     const host = getAircraft(this.host.aircraftId);
     this.hostEntityId = world.addAircraft({ callsign: this.host.callsign, team: host.team, aircraftId: host.id, start: this.host.start }).id;
-    for (const p of this.pilots.values()) p.entityId = world.addAircraft({ callsign: p.callsign, team: p.team, aircraftId: p.aircraftId, start: p.start }).id;
+    for (const p of this.pilots.values()) {
+      p.entityId = world.addAircraft({ callsign: p.callsign, team: p.team, aircraftId: p.aircraftId, start: p.start }).id;
+      p.takingOver = false;
+    }
     this.fillBots();
     return world;
   }
@@ -413,12 +445,28 @@ export class Room {
     return [...this.world.aircraftList()].filter((a) => a.isBot && !a.support && a.team === team);
   }
 
-  private removeBot(team: TeamId): void {
-    const bot = this.botsOn(team).at(-1);
-    if (bot) {
-      this.world.removeAircraft(bot.id);
+  /**
+   * The AI pilot a joining pilot takes over (revision 36, at the owner's request): one flying the jet they chose, else
+   * any on their side; one in the air before one waiting to respawn; never one another pilot is about to take.
+   */
+  private seatFor(team: TeamId, aircraftId: string): AircraftEntity | null {
+    const taken = new Set<number>();
+    for (const p of this.pilots.values()) if (p.takingOver) taken.add(p.entityId);
+    const bots = this.botsOn(team).filter((a) => !taken.has(a.id));
+    const rank = (a: AircraftEntity) => (a.config.id === aircraftId ? 0 : 2) + (a.alive ? 0 : 1);
+    return bots.reduce<AircraftEntity | null>((best, a) => (best === null || rank(a) < rank(best) ? a : best), null);
+  }
+
+  /** The pilot's first input after joining a match: the AI pilot's jet is theirs from this tick (revision 36). */
+  private takeOver(p: Pilot): void {
+    p.takingOver = false;
+    if (this.world.takeOver(p.entityId, p.callsign, p.aircraftId, p.start)) {
       this.rosterDirty = true;
+      return;
     }
+    // The seat is gone (it cannot be while the match runs): a jet of their own.
+    p.entityId = this.world.addAircraft({ callsign: p.callsign, team: p.team, aircraftId: p.aircraftId, start: p.start }).id;
+    this.rosterDirty = true;
   }
 
   /** Tops each team up with AI pilots to the team size (none in Free Flight or the lobby). */

@@ -335,6 +335,48 @@ export class World implements ModeDirector, CombatHost, BotWorld {
     return true;
   }
 
+  /**
+   * Online, a pilot who joins a running match takes an AI pilot's seat (revision 36, at the owner's request): the AI's
+   * jet, where it is and as it is, from now on flown by the pilot under their name, with no kills or deaths yet. When
+   * the pilot chose another jet of the side, that jet takes its place there, fully armed and fuelled (a jet waiting to
+   * respawn comes back as it). False for anything but one of the World's AI fighters, or a jet of the other side.
+   */
+  takeOver(id: number, callsign: string, aircraftId: string, start: SpawnStart): boolean {
+    const a = this.aircraft.get(id);
+    if (!a || !a.isBot || a.support || a.spawnSlot < 0 || !this.bots.has(id)) return false;
+    let config;
+    try {
+      config = getAircraft(aircraftId);
+    } catch {
+      return false;
+    }
+    if (config.team !== a.team || config.support) return false;
+    const from = a.callsign;
+    this.bots.delete(id);
+    a.isBot = false;
+    a.callsign = callsign;
+    a.start = start;
+    a.kills = 0;
+    a.deaths = 0;
+    a.nextAircraftId = null;
+    // No trigger the AI held stays pressed into the pilot's first tick.
+    a.input.fireCannon = false;
+    a.input.fireMissile = false;
+    a.input.countermeasures = false;
+    a.input.dropBomb = false;
+    a.input.cycleTarget = false;
+    if (config.id !== a.config.id) {
+      if (a.alive) {
+        a.config = config;
+        resetForSpawn(a);
+      } else {
+        a.nextAircraftId = config.id;
+      }
+    }
+    this.emit({ type: 'takeover', aircraftId: id, from });
+    return true;
+  }
+
   launchMissileAt(shooterId: number, targetId: number): number | null {
     const shooter = this.aircraft.get(shooterId);
     const target = this.aircraft.get(targetId);

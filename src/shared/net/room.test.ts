@@ -50,9 +50,14 @@ const ticks = (room: Room, n: number) => {
   for (let i = 0; i < n; i++) room.tick(hostInput);
 };
 
-function joined(room: Room, id: string, aircraftId = 'kestrel', callsign = 'Ace'): FakePeer {
+/** A pilot joins; once `ready` their page flies (revision 36: their first input takes an AI pilot's jet over). */
+function joined(room: Room, id: string, aircraftId = 'kestrel', callsign = 'Ace', ready = true): FakePeer {
   const p = new FakePeer(id);
   room.receiveJson(p, hello(aircraftId, callsign));
+  if (ready && p.last('welcome')) {
+    room.receiveBinary(id, send(0));
+    room.tick(hostInput);
+  }
   return p;
 }
 
@@ -75,6 +80,75 @@ describe('online Room (revision 28)', () => {
     expect(roster.filter((r) => r.team === 'russia')).toHaveLength(4);
     expect(roster.filter((r) => r.team === 'usa')).toHaveLength(4);
     expect(roster.filter((r) => r.isBot)).toHaveLength(6);
+  });
+
+  it('lets a pilot join a running match in the jet of the AI pilot flying the one they chose, where it is (revision 36)', () => {
+    const room = new Room(options());
+    ticks(room, 120);
+    const count = [...room.world.aircraftList()].length;
+    const bot = [...room.world.aircraftList()].find((a) => a.isBot && a.team === 'russia')!;
+    const from = bot.callsign;
+    const p = joined(room, 'a', bot.config.id, 'Hiro', false);
+    expect(p.last('welcome')?.you).toBe(bot.id);
+    // While the pilot's page loads the match, the AI flies on.
+    ticks(room, 90);
+    expect(bot).toMatchObject({ isBot: true, callsign: from });
+    expect(room.world.getAircraft(bot.id)).toBe(bot);
+    const at = bot.flight.pos.clone();
+    const stores = { ...bot.stores };
+    // The first input: the jet is the pilot's, where it is.
+    room.receiveBinary('a', send(1, { pitch: 1, throttle: 1 }));
+    const events = room.tick(hostInput);
+    expect(events).toContainEqual({ type: 'takeover', aircraftId: bot.id, from });
+    const me = room.world.getAircraft(bot.id)!;
+    expect(me).toMatchObject({ isBot: false, callsign: 'Hiro', kills: 0, deaths: 0 });
+    expect(me.flight.pos.distanceTo(at)).toBeLessThan(10);
+    expect(me.stores.cannonRounds).toBe(stores.cannonRounds);
+    expect(me.input.pitch).toBe(1);
+    expect([...room.world.aircraftList()]).toHaveLength(count);
+    ticks(room, 1);
+    const roster = p.last('roster')?.players ?? [];
+    expect(roster.find((r) => r.id === bot.id)).toMatchObject({ callsign: 'Hiro', isBot: false });
+    expect(roster.filter((r) => r.isBot)).toHaveLength(6);
+  });
+
+  it('leaves the jet to the AI when a joining pilot goes before flying, and never gives one seat to two', () => {
+    const room = new Room(options({}, { teamSize: 2 }));
+    const a = joined(room, 'a', 'kobchik', 'A', false);
+    const b = joined(room, 'b', 'kobchik', 'B', false);
+    const seatA = a.last('welcome')!.you;
+    expect(b.last('welcome')!.you).not.toBe(seatA);
+    room.leave('a');
+    ticks(room, 2);
+    expect(room.world.getAircraft(seatA)).toMatchObject({ isBot: true });
+    expect([...room.world.aircraftList()].filter((x) => x.team === 'russia')).toHaveLength(2);
+  });
+
+  it('with no AI pilot in the jet they chose, a joining pilot takes over another, and their jet takes its place there', () => {
+    const room = new Room(options({}, { teamSize: 1 }));
+    ticks(room, 60);
+    const bot = [...room.world.aircraftList()].find((a) => a.isBot && a.team === 'russia')!;
+    const other = ['kobchik', 'yastreb', 'sapsan', 'prizrak'].find((id) => id !== bot.config.id)!;
+    joined(room, 'a', other, 'Hiro', false);
+    const at = bot.flight.pos.clone();
+    room.receiveBinary('a', send(0));
+    ticks(room, 1);
+    const me = room.world.getAircraft(bot.id)!;
+    expect(me.config.id).toBe(other);
+    expect(me.flight.pos.distanceTo(at)).toBeLessThan(10);
+    expect(me.hp).toBe(me.config.damage.hitPoints);
+    expect(me.stores.fuelKg).toBeGreaterThan(0.999 * me.config.physics.fuelKg);
+  });
+
+  it('gives a joining pilot a jet of their own in the lobby, and in a running match with no AI pilot left on their side', () => {
+    const lobby = new Room(options({ lobby: true }));
+    const count = [...lobby.world.aircraftList()].length;
+    const a = joined(lobby, 'a', 'kobchik');
+    expect([...lobby.world.aircraftList()]).toHaveLength(count + 1);
+    expect(a.last('welcome')?.phase).toBe('lobby');
+    const duel = new Room(options({}, { teamSize: 1 }));
+    expect(duel.world.getAircraft(joined(duel, 'b', 'condor').last('welcome')!.you)?.isBot).toBe(false);
+    expect([...duel.world.aircraftList()].filter((x) => x.team === 'usa' && !x.support)).toHaveLength(2);
   });
 
   it('refuses another version, unknown jets and a full room', () => {
@@ -104,7 +178,7 @@ describe('online Room (revision 28)', () => {
 
   it('applies one queued input per tick and acknowledges it in the snapshot, with the own jet in full', () => {
     const room = new Room(options());
-    const p = joined(room, 'a');
+    const p = joined(room, 'a', 'kestrel', 'Ace', false);
     const you = p.last('welcome')?.you ?? -1;
     room.receiveBinary('a', send(10, { throttle: 1 }));
     room.receiveBinary('a', send(11, { throttle: 1 }));
@@ -122,7 +196,7 @@ describe('online Room (revision 28)', () => {
 
   it('repeats the last input without its presses when the queue runs dry, and keeps at most 30 waiting', () => {
     const room = new Room(options());
-    const p = joined(room, 'a');
+    const p = joined(room, 'a', 'kestrel', 'Ace', false);
     const a = room.world.getAircraft(p.last('welcome')?.you ?? -1);
     room.receiveBinary('a', send(1, { throttle: 0.3, fireMissile: true, fireCannon: true }));
     ticks(room, 2);
@@ -148,7 +222,7 @@ describe('online Room (revision 28)', () => {
 
   it('sends snapshots at 30 Hz with the status, and answers pings with its tick', () => {
     const room = new Room(options());
-    const p = joined(room, 'a');
+    const p = joined(room, 'a', 'kestrel', 'Ace', false);
     ticks(room, 60);
     expect(p.snapshots.length).toBe(30);
     expect(p.json.some((m) => m.type === 'status')).toBe(true);

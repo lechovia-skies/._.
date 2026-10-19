@@ -150,6 +150,9 @@ export class WorldViews {
         view.position.copy(a.flight.pos);
         view.quaternion.copy(a.flight.quat);
       }
+      // A pilot who joined the match flies an AI pilot's jet from now on (revision 36).
+      view.callsign = a.callsign;
+      view.isBot = a.isBot;
       view.config = a.config;
       view.loadout = a.loadout;
       view.alive = a.alive;

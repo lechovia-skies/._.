@@ -630,6 +630,14 @@ export async function startGame(
         audio?.zoneChanged(e.owner === me.team || (e.owner === null && e.previous !== me.team));
         killFeed.add(zoneFeedText(e.zoneId, e.owner, e.previous), e.owner ?? e.previous ?? me.team, false);
       }
+    } else if (e.type === 'takeover') {
+      // A pilot joined the match and took over an AI pilot's jet (revision 36).
+      const v = session.view(e.aircraftId);
+      if (v?.isLocal) {
+        showBanner(`YOU TAKE OVER FROM ${e.from.toUpperCase()}`, nowS, 4);
+        if (!v.alive) deathMessage = `You take over from ${e.from}`;
+      }
+      if (v) killFeed.add(`${v.callsign} takes over from ${e.from}`, v.team, v.isLocal);
     } else if (e.type === 'targetDestroyed') {
       const text = targetDestroyedText(e.targetId);
       showBanner(text, nowS);

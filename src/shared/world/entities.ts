@@ -29,10 +29,11 @@ export const NEVER = -1e9;
 
 export interface AircraftEntity extends CreditRecord {
   readonly id: number;
-  readonly callsign: string;
+  /** a pilot who joins a match online takes over an AI pilot's jet, name and all (revision 36) */
+  callsign: string;
   team: TeamId;
   config: AircraftConfig;
-  readonly isBot: boolean;
+  isBot: boolean;
   flight: FlightState;
   /** position at the start of the current tick, for swept hit tests */
   readonly prevPos: Vector3;

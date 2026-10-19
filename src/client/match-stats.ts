@@ -55,6 +55,9 @@ export class MatchStats {
       this.edit(e.shooterId).missilesFired++;
     } else if (e.type === 'destroyed' && e.killerId !== null && isSupport(e.aircraftId)) {
       this.edit(e.killerId).sentinels++;
+    } else if (e.type === 'takeover') {
+      // A pilot took the jet over from an AI pilot (revision 36): what the AI did stays out of their line.
+      this.pilots.delete(e.aircraftId);
     }
   }
 

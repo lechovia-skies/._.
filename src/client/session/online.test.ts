@@ -235,8 +235,12 @@ describe('online play between browsers (revision 28)', () => {
     const h = new Harness(30, { teamSize: 2 });
     const a = await join(h, 'a', 'kestrel');
     const b = await join(h, 'b', 'kobchik');
-    fly(h, a, 1, () => neutralInput(0.8));
-    b.update(1 / 60, neutralInput(0.8));
+    // Both fly: each takes over an AI pilot's jet with their first input (revision 36).
+    for (let i = 0; i < 60; i++) {
+      a.update(1 / 60, neutralInput(0.8));
+      b.update(1 / 60, neutralInput(0.8));
+      h.advance(FRAME_MS);
+    }
     expect([...a.views()].filter((v) => !v.isBot)).toHaveLength(3);
     a.dispose();
     expect(a.closed).toBe(true);
@@ -310,6 +314,26 @@ describe('online play between browsers (revision 28)', () => {
     expect(s.modeStatus().winner).toBeNull();
     expect(s.localView()?.alive).toBe(true);
     expect(h.host.room.world.getAircraft(s.localId)?.callsign).toBe('a');
+  });
+
+  it("lets a pilot join a running match in an AI pilot's jet, and everyone sees the name change (revision 36)", async () => {
+    const h = new Harness(20, { teamSize: 2 });
+    const a = await join(h, 'a', 'kobchik');
+    fly(h, a, 1, () => neutralInput(0.8));
+    const world = h.host.room.world;
+    const bot = [...world.aircraftList()].find((x) => x.team === 'russia' && x.isBot)!;
+    const from = bot.callsign;
+    a.drainEvents();
+    const b = await join(h, 'b', bot.config.id);
+    expect(b.localId).toBe(bot.id);
+    fly(h, b, 1, weave);
+    a.update(1 / 60, neutralInput(0.8));
+    expect(b.predictionErrorM).toBeLessThan(0.05);
+    expect(a.view(bot.id)).toMatchObject({ callsign: 'b', isBot: false });
+    expect(h.host.view(bot.id)).toMatchObject({ callsign: 'b', isBot: false });
+    expect(a.drainEvents()).toContainEqual({ type: 'takeover', aircraftId: bot.id, from });
+    // Russia still flies two jets: no AI pilot is left on that side.
+    expect([...a.views()].filter((v) => v.team === 'russia').map((v) => v.isBot)).toEqual([false, false]);
   });
 
   it('waits in the lobby with the pilots alone until the host starts the match, and goes back to it after (revision 33)', async () => {

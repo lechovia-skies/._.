@@ -21,12 +21,13 @@ import type { SupplyKind } from '../../shared/world/supply.ts';
 /** What the renderer and HUD may know about an aircraft. */
 export interface AircraftView {
   readonly id: number;
-  readonly callsign: string;
+  /** with `isBot`, changes when a pilot who joins a match online takes over an AI pilot's jet (revision 36) */
+  callsign: string;
   readonly team: TeamId;
   /** changes when the pilot respawns in another jet (M5) */
   config: AircraftConfig;
   readonly isLocal: boolean;
-  readonly isBot: boolean;
+  isBot: boolean;
   alive: boolean;
   hp: number;
   spawnGen: number;
