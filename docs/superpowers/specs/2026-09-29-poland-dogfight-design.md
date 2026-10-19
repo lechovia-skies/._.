@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 33)
+# Lechovia Skies — Design Spec (revision 34)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -130,6 +130,10 @@
     there until the host starts the match, and everyone comes back there after each match. Pilot names: flying alone
     needs none, so the title screen no longer has a name field; the first time a pilot goes online they are asked
     for one, up to five letters (any script), and it is kept from then on.
+  - Revision 34 (2026-10-19): two more requests from the owner (§15.1, §15.5). Camera views: besides the chase camera
+    there is now a cockpit view (first person, inside a modelled cockpit) and two more chase distances, close and far;
+    V steps through them. And the title screen is simpler: PLAY opens the match setup, which first asks Solo or
+    Multiplayer and then sets the mission, the time of day, the AI pilots and the pilots per side.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -167,6 +171,8 @@ was built in M2 and removed again. Revision 28: online play is back, hosted in a
 | Online name | Online asks for a pilot name first and remembers it; the host sets the room's world on its own page | Owner, 2026-10-16 (revision 32) |
 | Lobby | A room waits in a lobby showing its code until the host starts the match, and returns to it after each match | Owner, 2026-10-19 (revision 33) |
 | Names | No name to fly alone; online asks for one the first time, up to five letters | Owner, 2026-10-19 (revision 33) |
+| Camera views | A cockpit view and three chase distances, stepped through with V (revision 4's "always third person" ends) | Owner, 2026-10-19 (revision 34) |
+| Play flow | PLAY → Solo or Multiplayer → mission, time of day, AI pilots, pilots per side | Owner, 2026-10-19 (revision 34) |
 | Map | Fictional, procedurally generated Poland-inspired landscape with fictional locations; no real-world data download | Brief (supersedes real elevation data) |
 | Modes | Team Deathmatch, Air Superiority, Team Objective, Free Flight | Brief |
 | Environment | Clouds, weather presets, day/night cycle | Brief |
@@ -313,7 +319,7 @@ contested-skies/
         ├── session/         game-session.ts, local-session.ts, network-session.ts (M2)
         ├── input/           keyboard, mouse-aim, gamepad (M5) → ControlInput
         ├── render/          renderer, sky, terrain/, models/, effects/, title-screen showcase, clouds (M4)
-        ├── camera/          camera-rig.ts (third-person chase, look-around, shake)
+        ├── camera/          camera-rig.ts (chase views, cockpit, look-around, shake)
         ├── hud/             hud.ts, layers (flight, weapons, radar display, warnings), units
         ├── ui/              menus, overlays, settings
         └── audio/           synthesized sounds
@@ -444,7 +450,8 @@ browser hosts the room and runs the match, and the others connect to it directly
   - A badge under the mode status shows `ROOM CODE · n PILOTS` (host) or `ROOM CODE · ms` (pilot).
   - Quick chat: 7, 8, 9 and 0 send four preset lines to the kill feed of everyone in the room.
   - Matches online count in the career records and towards pilot levels like any other.
-- **Title screen:** *Online* beside *Campaign* opens the Online sheet: host a room (mode: Dogfight, Air Superiority,
+- **Title screen:** (revision 34: *Online* is now Play → *Multiplayer*, §15.5; its room settings are the match
+  setup form, with no separate World page.) *Online* beside *Campaign* opens the Online sheet: host a room (mode: Dogfight, Air Superiority,
   Team Objective, Free Flight or Strike; pilots per side; the AI pilots' skill; the map, start and time of day from the
   title screen) or join one with its code. Revision 32: a pilot still called "Pilot" (no name set) first sees a
   warning box in the middle of the sheet asking for a name, and cannot host or join without one; the name then shows,
@@ -1286,8 +1293,25 @@ stands still. Mission 1 is always open; clearing (winning) a mission opens the n
 
 ### 15.1 Camera
 
-The game is always third-person (revision 4). There is no first-person, cockpit or free camera.
+The game was always third-person from revision 4 until revision 34, when the owner asked for a cockpit view and for
+chase views at other distances. There is no free camera.
 
+- **Views (revision 34, `CameraView`):** *Cockpit*, *Chase · close* (17 m back, 4 m up), *Chase* (30 m, 7 m, the
+  default) and *Chase · far* (56 m, 13 m). V (bindable; the pad's right stick click) steps through them in that order
+  and a banner names the view; the choice is kept in the settings (Display: *Camera*). The kill cam and spectating
+  always fly a chase camera, and so does the cockpit view for a jet without a cockpit.
+- **Cockpit (revision 34, `cockpit.ts`):** the camera sits at the pilot's eyes (76° field of view, a 3 cm near plane),
+  fixed to the jet and rolling with it. It looks along the nose, or where the mouse aims (the head turns that way),
+  plus any look-around; looking round, the head turns on the neck 10 cm behind the eyes and leans up to 14 cm toward
+  the side, so a look over the shoulder clears the headrest; it sags under positive G (0.8 cm per G, at most 6 cm;
+  not with reduce motion), and the buffet shakes it. The eyes come from each airframe's front helmet and cockpit tub
+  (the imported F-35A and Su-57 models carry measured values). The inside is built round the eyes: a glare shield
+  sloping to the windscreen, the HUD with its glass, the instrument panel drawn on a canvas (two displays, the
+  up-front control and a gauge on US jets; displays among round gauges on a blue-grey panel on Russian jets; caution
+  lights; a faint floodlight so it reads in shade and at night), side consoles, throttle, a side stick (US) or centre
+  stick (Russian), the tub's walls and floor up to the sill with the canopy rails, and the seat. In the cockpit the
+  pilot's own helmet and the dark tub the outside view sees through the glass are hidden; canopy frames are drawn
+  from both sides so they show from inside.
 - **Chase camera:** behind and above the jet (30 m back, 7 m up, 70° field of view) with a smoothed follow. In
   mouse-aim mode it follows the aim direction and keeps the horizon level; in keyboard mode it rolls with the jet.
   After a respawn it starts behind the new position instead of sweeping across the map.
@@ -1376,7 +1400,8 @@ The game is always third-person (revision 4). There is no first-person, cockpit 
 - **Gamepad and flight stick (M1c):** the browser Gamepad API.
   - Standard layout: left stick pitch/roll (push = nose down), right stick look, LB/RB rudder, LT/RT throttle
     down/up, X cannon (hold), A missile, B flares and chaff, Y next target, D-pad down bomb, D-pad up airbrake (hold),
-    D-pad left / right select an infrared / a radar missile (M3), Start pause, Back scores (hold).
+    D-pad left / right select an infrared / a radar missile (M3), Start pause, Back scores (hold), right stick click
+    camera view (revision 34).
   - Other devices (flight sticks): assignable roll, pitch, rudder and throttle axes with invert flags and assignable
     buttons; calibration records each axis's travel and rest position (levers use mid-travel); 0.08 dead zone.
   - Stick input overrides the mouse aim like the keyboard; in mouse-aim mode the aim follows the nose while the pad
@@ -1396,6 +1421,7 @@ The game is always third-person (revision 4). There is no first-person, cockpit 
 | X | Countermeasures |
 | B | Airbrake (hold) |
 | C or right mouse | Look around (hold); also aims the helmet sight |
+| V | Camera view: cockpit, chase close, chase, chase far (revision 34) |
 | Tab | Scoreboard (hold) |
 | M | Map (M4): the whole map with towns, roads and airfields, the combat area, you, teammates and known enemies |
 | P / Esc | Pause |
@@ -1527,6 +1553,19 @@ The game is always third-person (revision 4). There is no first-person, cockpit 
     Controls (control scheme and key list), the callsign in a corner, and one line of image credits. Revision 33: no
     callsign any more (flying alone needs no name; single player calls the pilot by the online name if there is one,
     else "Pilot"); the level and the funds are in the corner.
+  - Revision 34 (at the owner's request): the title screen is the jets with the hangar line, a large PLAY and
+    *Campaign*, and the links Training, Controls, Settings and Records. PLAY opens the **Play sheet**
+    (`play-sheet.ts`): first two cards, *Solo* and *Multiplayer*; then the match settings (`match-setup.ts`, the same
+    form for both): *Mission* (Dogfight, Air Superiority, Team Objective, Strike, Free flight, with a line on what it
+    asks), *Time of day* (Dawn, Day, Dusk, Night), *AI pilots* (Rookie, Veteran, Ace) and *Pilots per side* (1 v 1,
+    2 v 2, 4 v 4), and *World* (map and start). Free Flight greys out the AI pilots and pilots per side; Strike fixes
+    the Test Range and an air start. Solo shows the jet (or why it cannot fly) and FLY. Multiplayer asks for the name
+    the first time, then has two pages: *Create a room* (the same settings, then the room's lobby) and *Join a room*
+    (the code). *Back* returns to the two cards. Solo keeps the keys the title screen used (`mission`, `timeOfDay`,
+    `difficulty`, `teamSize`, `map`, `start`; Free Flight is now one of the missions), online its own (`onlineMode`,
+    `onlineSeats`, `onlineSkill`, `onlineWorld`, starting from the solo world). The sky behind the title screen follows
+    the solo time of day. An invite link opens Play on Multiplayer with the code filled in. The mission choice, the
+    opponent, pilots and world rows (below) and the Online and Free flight buttons left the title screen for it.
   - The scenery photos load while the start screen is up and the game reuses them, so a match starts without a
     loading wait. Until they are ready the title shows over a dark background.
   - Typography: the display font Rajdhani (SIL Open Font License 1.1) is bundled with the page, Latin subset only;

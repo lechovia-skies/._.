@@ -17,6 +17,13 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
   available to *develop*, which costs credits (Yastreb 8,000 up to Shade 32,000). You start with the Kestrel and the
   Kobchik and the credits your earlier matches would have paid; the two starters can always be repaired, even with no
   money.
+- **Play** (2026-10-19): the title screen is your jet and a big **PLAY**. PLAY asks *Solo* or *Multiplayer*, then
+  sets the match up: the mission (Dogfight, Air Superiority, Team Objective, Strike or Free flight), the time of day,
+  the AI pilots' skill and the pilots per side, with the map and start below. Multiplayer creates a room with the same
+  settings or joins one with its code.
+- **Camera views** (2026-10-19): **V** steps through the cockpit (first person, inside a modelled cockpit: glare
+  shield, HUD glass, displays and gauges, consoles, stick, seat; look round with C or the right mouse) and the chase
+  camera close, normal and far. The view is remembered (Settings → Display → Camera).
 - **Online lobby** (2026-10-19): *Create the room* on the Online sheet opens the room's lobby with its code in big
   letters (and *Copy code*, *Copy invite link*). Friends join with the code and wait in the lobby, where everyone sees
   who is in and picks a jet, and may fly round meanwhile; the host presses *Start the match*. After each match the
