@@ -1,22 +1,22 @@
-import { DIFFICULTIES, type DifficultyId } from '../../shared/ai/difficulty.ts';
+import type { DifficultyId } from '../../shared/ai/difficulty.ts';
 import { listAircraft, TEAM_NAMES } from '../../shared/data/aircraft/registry.ts';
 import type { AircraftConfig } from '../../shared/data/aircraft/types.ts';
 import { loadoutFor } from '../../shared/data/loadout.ts';
-import { MAP_IDS, MAP_NAMES, type MapId } from '../../shared/data/maps/registry.ts';
+import { MAP_IDS, type MapId } from '../../shared/data/maps/registry.ts';
 import { SPAWN_STARTS, type SpawnStart } from '../../shared/world/spawns.ts';
-import { type EnvironmentSettings, START_HOURS, TIME_OF_DAY_IDS, TIME_OF_DAY_LABELS, type TimeOfDayId } from '../../shared/world/time-of-day.ts';
+import { type EnvironmentSettings, START_HOURS, TIME_OF_DAY_IDS, type TimeOfDayId } from '../../shared/world/time-of-day.ts';
 import type { WeatherId } from '../../shared/world/weather.ts';
-import { STRIKE_ATTACKER, STRIKE_DEFAULTS, STRIKE_DEFENDER } from '../../shared/modes/strike.ts';
-import { MISSION_RULES } from '../hud/objective-hud.ts';
+import { STRIKE_DEFAULTS, STRIKE_DEFENDER } from '../../shared/modes/strike.ts';
 import type { ControlMode } from '../input/control-mapper.ts';
 import { controlsHelp, GAMEPAD_HELP } from './controls-help.ts';
 import { loadCareer } from '../career.ts';
 import { careerXp, isUnlocked, levelProgress, nextUnlock } from '../progression.ts';
 import { canFly, develop, formatCredits, type Hangar, jetState, loadHangar, repair, saveHangar } from '../hangar.ts';
 import { isTouchOnly } from './device.ts';
-import { MISSION_LABELS } from './records-format.ts';
 import { campaignSheet } from './campaign-sheet.ts';
-import { type OnlineStart, onlineSheet, soloCallsign } from './online-sheet.ts';
+import { fixedWorld, loadSetup, type MatchSetup } from './match-setup.ts';
+import { type OnlineStart, soloCallsign } from './online-sheet.ts';
+import { playSheet } from './play-sheet.ts';
 import { recordsSheet } from './records-sheet.ts';
 import { choiceGroup, el } from './choice-group.ts';
 import { openSettings } from './settings-screen.ts';
@@ -60,14 +60,6 @@ export interface StartMenuHandlers {
 }
 
 const CONTROL_MODES: readonly ControlMode[] = ['mouse-aim', 'direct'];
-type FlyMission = Exclude<MissionId, 'free-flight' | 'training'>;
-const MISSIONS: readonly { value: FlyMission; label: string }[] = (['team-deathmatch', 'air-superiority', 'team-objective', 'strike'] as const).map((value) => ({
-  value,
-  label: MISSION_LABELS[value],
-}));
-/** Pilots per side (M5). */
-export const TEAM_SIZES = ['1', '2', '4'] as const;
-type TeamSizeChoice = (typeof TEAM_SIZES)[number];
 const CONTROL_LABELS: Record<ControlMode, string> = { 'mouse-aim': 'Mouse aim', direct: 'Keyboard' };
 
 /** Saved settings can outlive the options they name (or be edited by hand). */
@@ -138,67 +130,6 @@ export function environmentOf(w: WorldChoice): EnvironmentSettings {
 export function effectiveWorld(w: WorldChoice, mission: MissionId): WorldChoice {
   const map: MapId = mission === 'strike' || mission === 'training' ? 'test-range' : w.map;
   return { ...w, map, start: map === 'lechovia' && mission !== 'strike' && mission !== 'training' ? w.start : 'air' };
-}
-
-const START_LABELS: Record<SpawnStart, string> = { air: 'Air start', runway: 'Runway start' };
-
-function select<T extends string>(label: string, values: readonly T[], names: (v: T) => string, value: T, onChange: (v: T) => void): HTMLSelectElement {
-  const sel = el('select', 'world-select');
-  sel.setAttribute('aria-label', label);
-  sel.title = label;
-  for (const v of values) {
-    const o = el('option', undefined, names(v));
-    o.value = v;
-    sel.appendChild(o);
-  }
-  sel.value = value;
-  sel.addEventListener('change', () => onChange(sel.value as T));
-  return sel;
-}
-
-function worldGroup(initial: WorldChoice, onChange: (w: WorldChoice) => void): { set: HTMLFieldSetElement; refresh(mission: MissionId): void } {
-  const w = { ...initial };
-  const set = el('fieldset', 'pick pick-world');
-  set.appendChild(el('legend', 'eyebrow', 'World'));
-  const row = el('div', 'world-row');
-  const changed = () => {
-    saveSetting('map', w.map);
-    saveSetting('start', w.start);
-    saveSetting('timeOfDay', w.time);
-    onChange({ ...w });
-  };
-  const map = select('Map', MAP_IDS, (m) => MAP_NAMES[m], w.map, (m) => {
-    w.map = m;
-    changed();
-    refreshStart();
-  });
-  const start = select('Start', ['air', 'runway'] as const, (v) => START_LABELS[v], w.start, (v) => {
-    w.start = v;
-    changed();
-  });
-  const time = select('Time of day', TIME_OF_DAY_IDS, (t) => TIME_OF_DAY_LABELS[t], w.time, (t) => {
-    w.time = t;
-    changed();
-  });
-  row.append(map, start, time);
-  set.appendChild(row);
-  let mission: MissionId = 'team-deathmatch';
-  // Strike and Training keep the Test Range; runway starts need Lechovia's airfields.
-  const refreshStart = () => {
-    const fixed = effectiveWorld(w, mission);
-    map.disabled = fixed.map !== w.map || mission === 'strike';
-    map.value = fixed.map;
-    start.disabled = fixed.map !== 'lechovia' || mission === 'strike';
-    start.value = fixed.start;
-  };
-  refreshStart();
-  return {
-    set,
-    refresh(m: MissionId) {
-      mission = m;
-      refreshStart();
-    },
-  };
 }
 
 function titleLockup(): HTMLHeadingElement {
@@ -315,13 +246,18 @@ export function hangarLine(h: Hangar, id: string, level: number): { text: string
   }
 }
 
-/** Opens the Online sheet as the title screen shows: with an invite link's code, or after a failed online start. */
+/** Opens Play on Multiplayer as the title screen shows: with an invite link's code, or after a failed online start. */
 export interface OnlineOpening {
   code?: string;
   error?: string;
 }
 
 /** Shows the title screen over the live scene. Returns a cleanup function that removes it. */
+/**
+ * Shows the title screen over the live scene. Revision 34 (at the owner's request): the title screen is the jet and
+ * PLAY; PLAY opens the Play sheet, which asks Solo or Multiplayer and then sets the match up. Returns a cleanup
+ * function that removes it.
+ */
 export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, settings: SettingsStore, online?: OnlineOpening): () => void {
   const aircraft = listAircraft();
   // Pilot level (revision 26): the jets open as it rises; a saved jet still locked falls back to an open one.
@@ -330,12 +266,6 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   let hangar = loadHangar(loadCareer());
   const ids = aircraft.filter((a) => isUnlocked(a.id, progress.level)).map((a) => a.id);
   let aircraftId = pickValid(loadSetting<unknown>('aircraft', ids[0]), ids, ids[0]);
-  let difficulty = pickValid(loadSetting<unknown>('difficulty', 'rookie'), Object.keys(DIFFICULTIES) as DifficultyId[], 'rookie');
-  let mission = pickValid(
-    loadSetting<unknown>('mission', 'team-deathmatch'),
-    MISSIONS.map((m) => m.value),
-    'team-deathmatch',
-  );
 
   const screen = el('div', 'start');
   const form = el('form', 'start-form');
@@ -366,12 +296,10 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   const hangarAction = el('button', 'button secondary hangar-action');
   hangarAction.type = 'button';
   hangarRow.append(hangarText, hangarAction);
-  // In Strike the line under the jets says what the chosen jet must do; otherwise it describes the jet.
   const showSummary = () => {
     const a = aircraft.find((x) => x.id === aircraftId) ?? aircraft[0];
-    summary.textContent =
-      mission === 'strike' ? strikeRole(a) : mission === 'air-superiority' || mission === 'team-objective' ? `${a.name} · ${MISSION_RULES[mission]}` : aircraftSummary(a);
-    arms.textContent = armamentLine(a, mission === 'strike' && a.team === STRIKE_ATTACKER);
+    summary.textContent = aircraftSummary(a);
+    arms.textContent = armamentLine(a, false);
   };
   const jets = choiceGroup(
     'aircraft',
@@ -390,63 +318,26 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   jets.append(summary, arms, hangarRow);
   showSummary();
 
-  let world = loadWorldChoice();
-  const worldRow = worldGroup(world, (w) => {
-    world = w;
-    handlers.onWorld?.(environmentOf(w));
-  });
-  const missions = choiceGroup('mission', 'Mission', MISSIONS, mission, (m) => {
-    mission = m;
-    saveSetting('mission', m);
-    showSummary();
-    worldRow.refresh(m);
-  });
-  worldRow.refresh(mission);
-
-  const skill = choiceGroup(
-    'skill',
-    'Opponent',
-    Object.values(DIFFICULTIES).map((d) => ({ value: d.id, label: d.label })),
-    difficulty,
-    (d) => {
-      difficulty = d;
-      saveSetting('difficulty', d);
-    },
-  );
-  let teamSize: TeamSizeChoice = pickValid(String(loadSetting<unknown>('teamSize', '1')), TEAM_SIZES, '1');
-  const size = choiceGroup(
-    'size',
-    'Pilots per side',
-    TEAM_SIZES.map((n) => ({ value: n, label: `${n} v ${n}` })),
-    teamSize,
-    (n) => {
-      teamSize = n;
-      saveSetting('teamSize', n);
-    },
-  );
-  size.title = 'You and AI wingmen against as many AI pilots';
+  // The sky behind the title screen follows the solo match's time of day.
+  const soloSetup = loadSetup('solo');
+  let world: WorldChoice = { ...loadWorldChoice(), map: soloSetup.map, start: soloSetup.start, time: soloSetup.time };
 
   const launch = el('div', 'launch');
-  const fly = el('button', 'fly', 'Fly');
-  fly.type = 'submit';
+  const play = el('button', 'fly', 'Play');
+  play.type = 'submit';
+  play.title = 'Set up a match: solo against AI pilots, or online with friends';
+  play.setAttribute('aria-haspopup', 'dialog');
   const campaignButton = el('button', 'campaign-button', 'Campaign');
   campaignButton.type = 'button';
   campaignButton.title = 'Nine missions in order, for either side';
   campaignButton.setAttribute('aria-haspopup', 'dialog');
-  const onlineButton = el('button', 'campaign-button online-button', 'Online');
-  onlineButton.type = 'button';
-  onlineButton.title = 'Fly with friends: host a room or join one with its code';
-  onlineButton.setAttribute('aria-haspopup', 'dialog');
   const launchRow = el('div', 'launch-row');
-  launchRow.append(fly, campaignButton, onlineButton);
+  launchRow.append(play, campaignButton);
   const links = el('div', 'links');
   const training = el('button', 'link', 'Training');
   training.type = 'button';
   training.title = 'Learn to fly, shoot and beat a missile (about 3 minutes)';
   if (!settings.current.trainingDone) training.appendChild(el('span', 'link-badge', 'New'));
-  const freeFlight = el('button', 'link', 'Free flight');
-  freeFlight.type = 'button';
-  freeFlight.title = 'Fly without enemies';
   const controlsLink = el('button', 'link', 'Controls');
   controlsLink.type = 'button';
   controlsLink.setAttribute('aria-haspopup', 'dialog');
@@ -457,8 +348,12 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   recordsLink.type = 'button';
   recordsLink.title = 'Your matches, kills and personal bests in this browser';
   recordsLink.setAttribute('aria-haspopup', 'dialog');
-  links.append(training, freeFlight, controlsLink, settingsLink, recordsLink);
+  links.append(training, controlsLink, settingsLink, recordsLink);
   launch.append(launchRow, links);
+
+  /** Why the chosen jet cannot fly (not developed, grounded), or null. */
+  const jetProblem = () =>
+    canFly(hangar, aircraftId) ? null : `${aircraft.find((a) => a.id === aircraftId)?.name ?? 'This jet'}: ${hangarLine(hangar, aircraftId, progress.level).text} Choose another jet on the title screen.`;
 
   // The hangar's state of the chosen jet: its badge on every jet button, the line and action under it, and whether
   // it can fly (a jet not developed or grounded stays on the ground; the campaign lends its own).
@@ -479,9 +374,7 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
       hangarAction.textContent = line.action.label;
       hangarAction.disabled = !line.action.enabled;
     }
-    const flyable = canFly(hangar, aircraftId);
-    for (const b of [fly, freeFlight, training]) b.disabled = !flyable;
-    fly.title = flyable ? '' : line.text;
+    training.disabled = !canFly(hangar, aircraftId);
   };
   hangarAction.addEventListener('click', () => {
     const s = jetState(hangar, aircraftId, progress.level);
@@ -491,9 +384,7 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   });
   refreshHangar();
 
-  const opponents = el('div', 'opponent-row');
-  opponents.append(skill, size);
-  main.append(brand, missions, jets, opponents, worldRow.set, launch);
+  main.append(brand, jets, launch);
   form.append(top, main, credits());
 
   const sheet = controlsSheet(settings);
@@ -502,67 +393,87 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
     () => ({ aircraftId, callsign: soloCallsign(), controlMode: settings.current.controlMode }),
     (options) => handlers.onStart(options),
   );
-  const onlineDialog = onlineSheet(
-    {
-      jetProblem: () => (canFly(hangar, aircraftId) ? null : `${aircraft.find((a) => a.id === aircraftId)?.name ?? 'This jet'}: ${hangarLine(hangar, aircraftId, progress.level).text} Choose another jet on the title screen.`),
-      world: () => ({ map: world.map, start: world.start, time: world.time }),
-      environment: (time) => environmentOf({ ...world, time }),
-    },
-    (choice) => {
-      const w = effectiveWorld(world, choice.role === 'host' ? choice.settings.mode : 'team-deathmatch');
-      const options: StartOptions = {
-        aircraftId,
-        callsign: choice.name,
-        controlMode: settings.current.controlMode,
-        mission: choice.role === 'host' ? choice.settings.mode : 'team-deathmatch',
-        difficulty,
-        map: choice.role === 'host' ? choice.settings.map : w.map,
-        start: choice.role === 'host' ? choice.start : w.start,
-        environment: choice.role === 'host' ? choice.settings.environment : environmentOf(w),
-        teamSize: choice.role === 'host' ? choice.settings.teamSize : 1,
-        online: choice,
-      };
-      saveSetting('aircraft', options.aircraftId);
-      handlers.onStart(options);
-    },
-  );
-  screen.append(form, sheet, records.dialog, campaign.dialog, onlineDialog.dialog);
 
-  const start = (mission: MissionId) => {
+  const startSolo = (s: MatchSetup) => {
     if (!canFly(hangar, aircraftId)) return;
-    const w = effectiveWorld(world, mission);
+    const w = fixedWorld(s);
     const options: StartOptions = {
       aircraftId,
       callsign: soloCallsign(),
       controlMode: settings.current.controlMode,
-      mission,
-      difficulty,
+      mission: s.mission,
+      difficulty: s.skill,
+      map: w.map,
+      start: w.start,
+      environment: environmentOf({ ...world, ...w, time: s.time }),
+      teamSize: s.mission === 'free-flight' ? 1 : Number(s.seats),
+    };
+    saveSetting('aircraft', options.aircraftId);
+    handlers.onStart(options);
+  };
+  const startOnline = (choice: OnlineStart) => {
+    const own = loadSetup('online');
+    const options: StartOptions = {
+      aircraftId,
+      callsign: choice.name,
+      controlMode: settings.current.controlMode,
+      mission: choice.role === 'host' ? choice.settings.mode : 'team-deathmatch',
+      difficulty: own.skill,
+      map: choice.role === 'host' ? choice.settings.map : own.map,
+      start: choice.role === 'host' ? choice.start : own.start,
+      environment: choice.role === 'host' ? choice.settings.environment : environmentOf({ ...world, time: own.time }),
+      teamSize: choice.role === 'host' ? choice.settings.teamSize : 1,
+      online: choice,
+    };
+    saveSetting('aircraft', options.aircraftId);
+    handlers.onStart(options);
+  };
+  const playDialog = playSheet(
+    {
+      jetName: () => aircraft.find((a) => a.id === aircraftId)?.name ?? '',
+      jetProblem,
+      environment: (time) => environmentOf({ ...world, time }),
+      onSoloChange: (s) => {
+        world = { ...world, map: s.map, start: s.start, time: s.time };
+        handlers.onWorld?.(environmentOf(world));
+      },
+    },
+    startSolo,
+    startOnline,
+  );
+  screen.append(form, sheet, records.dialog, campaign.dialog, playDialog.dialog);
+
+  /** Training flies the Test Range from the air, at noon. */
+  const startTraining = () => {
+    if (!canFly(hangar, aircraftId)) return;
+    const w = effectiveWorld(world, 'training');
+    handlers.onStart({
+      aircraftId,
+      callsign: soloCallsign(),
+      controlMode: settings.current.controlMode,
+      mission: 'training',
+      difficulty: soloSetup.skill,
       map: w.map,
       start: w.start,
       environment: environmentOf(w),
-      teamSize: Number(teamSize),
-    };
-    saveSetting('aircraft', options.aircraftId);
-    saveSetting('difficulty', options.difficulty);
-    handlers.onStart(options);
+      teamSize: 1,
+    });
   };
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    start(mission);
+    playDialog.open();
   });
-  freeFlight.addEventListener('click', () => start('free-flight'));
-  training.addEventListener('click', () => start('training'));
+  training.addEventListener('click', startTraining);
   controlsLink.addEventListener('click', () => sheet.showModal());
   recordsLink.addEventListener('click', () => records.open());
   campaignButton.addEventListener('click', () => campaign.open());
-  onlineButton.addEventListener('click', () => onlineDialog.open());
   settingsLink.addEventListener('click', () => openSettings(root, settings, 'controls'));
 
   root.appendChild(screen);
   handlers.onPreview(aircraftId);
   handlers.onWorld?.(environmentOf(world));
-  fly.focus();
-  if (online) onlineDialog.open(online.code, online.error);
+  play.focus();
+  if (online) playDialog.open('online', online.code, online.error);
   return () => {
     screen.remove();
   };

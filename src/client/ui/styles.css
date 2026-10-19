@@ -602,6 +602,42 @@ input:focus-visible + .option { color: var(--hud); }
 .flight-summary dt { color: var(--ghost); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; align-self: end; }
 .flight-summary dd { margin: 0; font-weight: 600; }
 
+/* Play (revision 34): PLAY opens this sheet: Solo or Multiplayer, then the match settings. */
+.play-sheet { width: min(760px, calc(100% - 32px)); overflow-y: auto; }
+.play-sheet .sheet-title:focus { outline: none; }
+.play-head { display: grid; gap: 6px; justify-items: start; }
+.play-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.play-mode {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-height: 150px;
+  padding: 20px 22px;
+  text-align: left;
+  color: var(--canopy);
+  background: rgb(255 255 255 / 0.03);
+  border: 0;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+  cursor: pointer;
+  transition: box-shadow 0.15s, background 0.15s;
+}
+.play-mode:hover { background: rgb(255 255 255 / 0.06); box-shadow: inset 0 0 0 1px var(--canopy); }
+.play-mode:focus-visible { outline: 2px solid var(--hud); outline-offset: 3px; }
+.play-mode-kicker { font: 500 10px/1.3 var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ghost); }
+.play-mode-name { font: 700 34px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
+.play-mode-text { font-size: 14px; line-height: 1.45; color: var(--ghost); }
+.play-step { display: grid; gap: 18px; justify-items: start; }
+.play-jet { margin: 0; font: 500 12px/1.5 var(--mono); letter-spacing: 0.06em; color: var(--ghost); }
+.play-jet.is-error { color: var(--warn); }
+/* The match settings, alone or online. */
+.match-setup { display: grid; gap: 18px; width: 100%; }
+.match-setup .pick-world { display: grid; gap: 8px; }
+.setup-row { display: flex; flex-wrap: wrap; gap: 14px 40px; }
+.setup-note { margin: 8px 0 0; max-width: 64ch; font-size: 13px; line-height: 1.45; color: var(--ghost); }
+.pick.is-off { opacity: 0.4; }
+.online-section { display: grid; gap: 16px; }
+
 /* Online (revision 28): the sheet on the title screen, the room in the pause menu and its code in a corner. */
 .online-button { min-width: 112px; }
 .online-sheet { width: min(640px, calc(100% - 32px)); overflow-y: auto; }
