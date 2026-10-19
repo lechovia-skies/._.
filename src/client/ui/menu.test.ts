@@ -4,16 +4,10 @@ import { kobchik } from '../../shared/data/aircraft/kobchik.ts';
 import { STRIKE_DEFAULTS } from '../../shared/modes/strike.ts';
 import { DEFAULT_BINDINGS, rebind } from '../input/bindings.ts';
 import { controlsHelp } from './controls-help.ts';
-import { aircraftSummary, effectiveWorld, environmentOf, hangarLine, jetBadge, loadWorldChoice, pickValid, sanitizeCallsign, strikeRole, type WorldChoice } from './menu.ts';
-import { nameIsSet, roomWorld } from './online-sheet.ts';
+import { aircraftSummary, effectiveWorld, environmentOf, hangarLine, jetBadge, loadWorldChoice, pickValid, strikeRole, type WorldChoice } from './menu.ts';
+import { loadOnlineName, nameIsSet, roomWorld, saveOnlineName, soloCallsign, suggestedName } from './online-sheet.ts';
 
 describe('start menu helpers', () => {
-  it('cleans callsigns', () => {
-    expect(sanitizeCallsign('  Ace<script>  ')).toBe('Acescript');
-    expect(sanitizeCallsign('a very long callsign indeed')).toBe('a very long call');
-    expect(sanitizeCallsign('!!!')).toBe('Pilot');
-  });
-
   it('falls back when a saved choice is no longer offered', () => {
     expect(pickValid('kobchik', ['kestrel', 'kobchik'], 'kestrel')).toBe('kobchik');
     expect(pickValid('f-16', ['kestrel', 'kobchik'], 'kestrel')).toBe('kestrel');
@@ -113,11 +107,30 @@ describe('the hangar on the title screen (revision 32)', () => {
   });
 });
 
-describe('the Online sheet (revision 32)', () => {
-  it('asks for a name until the pilot has one other than the default', () => {
+describe('the Online sheet (revisions 32 and 33)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('asks for a name until the pilot has one other than the default, five letters at most', () => {
     expect(nameIsSet('Pilot')).toBe(false);
     expect(nameIsSet('  ')).toBe(false);
-    expect(nameIsSet('Hiroto')).toBe(true);
+    expect(nameIsSet('Hiro')).toBe(true);
+    expect(nameIsSet('ヒロト')).toBe(true);
+    expect(nameIsSet('Hiroto')).toBe(false);
+  });
+
+  it('keeps the name from the first time online; flying alone needs none', () => {
+    const data = new Map<string, string>([['contested-skies:callsign', JSON.stringify('Hiroto')]]);
+    vi.stubGlobal('localStorage', { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) });
+    expect(loadOnlineName()).toBe('');
+    expect(soloCallsign()).toBe('Pilot');
+    // The old title-screen callsign, cut to five letters, is offered the first time.
+    expect(suggestedName()).toBe('Hirot');
+    expect(saveOnlineName('Pilot')).toBe(false);
+    expect(saveOnlineName('!!')).toBe(false);
+    expect(loadOnlineName()).toBe('');
+    expect(saveOnlineName(' Hiroto ')).toBe(true);
+    expect(loadOnlineName()).toBe('Hirot');
+    expect(soloCallsign()).toBe('Hirot');
   });
   it('keeps Strike on the Test Range and runway starts on Lechovia', () => {
     expect(roomWorld({ map: 'lechovia', start: 'runway', time: 'dusk' }, 'strike')).toEqual({ map: 'test-range', start: 'air', time: 'dusk' });

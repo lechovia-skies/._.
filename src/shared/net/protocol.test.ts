@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_PILOTS, newRoomCode, parseClientJson, parseRoomCode, ProtocolError, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, sanitizeCallsign, sanitizeRoomSettings } from './protocol.ts';
+import { MAX_PILOTS, newRoomCode, onlineName, parseClientJson, parseRoomCode, ProtocolError, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, sanitizeCallsign, sanitizeRoomSettings } from './protocol.ts';
 
 describe('online protocol (revision 28)', () => {
   it('parses what pilots send and folds bad values into safe ones', () => {
@@ -41,5 +41,11 @@ describe('online protocol (revision 28)', () => {
   it('cleans callsigns', () => {
     expect(sanitizeCallsign('  Red-1  ')).toBe('Red-1');
     expect(sanitizeCallsign(42)).toBe('Pilot');
+    // Revision 33: five letters at most, of any script; nothing left is no name.
+    expect(sanitizeCallsign('Maverick')).toBe('Maver');
+    expect(onlineName('ヒロト<b>')).toBe('ヒロトb');
+    expect(onlineName('ﾄﾞﾗｺﾞﾝ部隊')).toHaveLength(5);
+    expect(onlineName('ト\u3099')).toBe('ド');
+    expect(onlineName('!!!')).toBe('');
   });
 });

@@ -23,7 +23,7 @@ export function progressLine(p: CampaignProgress, side: TeamId, index: number): 
 /**
  * The title screen's Campaign sheet (revision 18): the side to fly for, the nine missions with what is cleared, open and
  * locked, and the chosen mission's briefing with a jet to fly it in. Progress is read fresh each time it opens. `pilot`
- * gives the title screen's callsign, steering and jet (the jet only picks the side for a first campaign).
+ * gives the pilot's callsign, steering and jet (the jet only picks the side for a first campaign).
  */
 export function campaignSheet(pilot: () => CampaignPilot, onFly: (options: StartOptions) => void): { dialog: HTMLDialogElement; open(): void } {
   const dialog = el('dialog', 'sheet campaign-sheet');

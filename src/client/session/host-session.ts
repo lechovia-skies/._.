@@ -1,7 +1,7 @@
 import type { MapDefinition } from '../../shared/data/maps/map-definition.ts';
 import type { Terrain } from '../../shared/map/terrain.ts';
 import type { ModeStatus } from '../../shared/modes/mode.ts';
-import type { RoomSettings } from '../../shared/net/protocol.ts';
+import type { RoomPhase, RoomSettings } from '../../shared/net/protocol.ts';
 import { Room, type HostPilot, type Peer } from '../../shared/net/room.ts';
 import { type ControlInput, neutralInput } from '../../shared/physics/controls.ts';
 import type { SteadyWind } from '../../shared/physics/wind.ts';
@@ -36,12 +36,15 @@ export interface HostSessionOptions {
   restartDelayS?: number;
   /** a lower score limit (tests) */
   scoreLimit?: number;
+  /** fly the first match at once instead of waiting in the lobby (tests) */
+  noLobby?: boolean;
 }
 
 /**
  * The host's side of an online room (revision 28): the Room runs the match in this browser, the host flies in it
  * with no delay, and the link carries the others' inputs in and the snapshots out. A slow frame is caught up with up
- * to a quarter second of steps, so the others' clocks keep running.
+ * to a quarter second of steps, so the others' clocks keep running. Revision 33: the room opens in its lobby and the
+ * host starts each match.
  */
 export class HostSession implements GameSession {
   readonly room: Room;
@@ -64,7 +67,7 @@ export class HostSession implements GameSession {
     this.terrain = opts.terrain;
     this.code = opts.code;
     this.link = opts.link;
-    this.room = new Room({ settings: opts.settings, host: opts.host, map: opts.map, terrain: opts.terrain, seed: opts.seed, restartDelayS: opts.restartDelayS, scoreLimit: opts.scoreLimit });
+    this.room = new Room({ settings: opts.settings, host: opts.host, map: opts.map, terrain: opts.terrain, seed: opts.seed, restartDelayS: opts.restartDelayS, scoreLimit: opts.scoreLimit, lobby: !opts.noLobby });
     this.worldViews = new WorldViews(this.room.world, this.room.hostEntityId);
     this.pendingEvents.push(...this.room.world.drainEvents());
     this.link.onJson = (peer, text) => this.room.receiveJson(peer, text);
@@ -157,6 +160,21 @@ export class HostSession implements GameSession {
   /** Seconds until the next match after one has ended; null while a match runs. */
   nextMatchInS(): number | null {
     return this.room.nextMatchInS;
+  }
+
+  /** Waiting in the lobby or flying a match. */
+  get phase(): RoomPhase {
+    return this.room.phase;
+  }
+
+  /** The host's own aircraft: this browser's. */
+  get hostId(): number {
+    return this.room.hostEntityId;
+  }
+
+  /** The host starts the match from the lobby. */
+  startMatch(): void {
+    if (!this.closed) this.room.startMatch();
   }
 
   /** True once after the room started its next match (new aircraft ids). */

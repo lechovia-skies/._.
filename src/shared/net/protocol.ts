@@ -14,8 +14,8 @@ import { WEATHER_IDS, type WeatherId } from '../world/weather.ts';
  * status as JSON. The layout follows the dedicated server of milestone M2 (protocols 1 to 4), which this replaces.
  */
 
-/** Bumped whenever a message layout changes; host and pilot must agree (6: the real weapons of revision 30). */
-export const PROTOCOL_VERSION = 6;
+/** Bumped whenever a message layout changes; host and pilot must agree (7: the lobby of revision 33). */
+export const PROTOCOL_VERSION = 7;
 
 /** The host sends a snapshot every this many ticks (30 Hz at 60 Hz ticks). */
 export const SNAPSHOT_EVERY_TICKS = 2;
@@ -30,6 +30,15 @@ export const MAX_CLIENT_JSON_BYTES = 2048;
 /** Modes a room can be hosted with: all but Training. */
 export type OnlineModeId = 'team-deathmatch' | 'air-superiority' | 'team-objective' | 'free-flight' | 'strike';
 export const ONLINE_MODES: readonly OnlineModeId[] = ['team-deathmatch', 'air-superiority', 'team-objective', 'free-flight', 'strike'];
+
+/**
+ * A room waits in its lobby until the host starts a match, and goes back to it after each one (revision 33). In the
+ * lobby the pilots' jets cruise in a Free Flight world with no AI pilots and nothing scored.
+ */
+export type RoomPhase = 'lobby' | 'match';
+
+/** Pilot names online: up to five letters (revision 33). */
+export const ONLINE_NAME_MAX = 5;
 
 /** Preset quick-chat lines (no free text). */
 export const QUICK_CHAT: readonly string[] = ['Nice shot!', 'Help me!', 'On my way', 'Good game'];
@@ -118,6 +127,10 @@ export interface WelcomeMessage {
   snapshotEvery: number;
   /** the host's callsign, for "hosted by" */
   host: string;
+  /** waiting in the lobby or flying a match */
+  phase: RoomPhase;
+  /** the host's own aircraft, marked in the lobby's list */
+  hostId: number;
 }
 
 export type HostJsonMessage =
@@ -129,16 +142,25 @@ export type HostJsonMessage =
   | { type: 'status'; tick: number; status: ModeStatus }
   | { type: 'chat'; from: number; index: number }
   | { type: 'matchEnd'; status: ModeStatus; restartInS: number }
-  | { type: 'matchStart'; you: number; tick: number; seed: number }
+  /** a new World: the next match, or the lobby again */
+  | { type: 'matchStart'; you: number; tick: number; seed: number; phase: RoomPhase; hostId: number }
   /** a Free Flight room's weather or clock changed */
   | { type: 'environment'; environment: EnvironmentSettings }
   /** the host is leaving: the room closes */
   | { type: 'shutdown'; reason: string };
 
-/** Callsigns: letters, digits, space, dot, dash and underscore, at most 16 (as on the title screen). */
+/**
+ * A pilot name for online play (revision 33): at most five letters or digits of any script (so ヒロト is a name),
+ * spaces and . _ -; empty when nothing is left.
+ */
+export function onlineName(raw: string): string {
+  const kept = raw.normalize('NFC').replace(/[^\p{L}\p{N} _.-]/gu, '').trim();
+  return Array.from(kept).slice(0, ONLINE_NAME_MAX).join('').trim();
+}
+
+/** A callsign as it arrives in a hello: an online name, or "Pilot". */
 export function sanitizeCallsign(raw: unknown): string {
-  const s = typeof raw === 'string' ? raw.replace(/[^A-Za-z0-9 _.-]/g, '').trim().slice(0, 16) : '';
-  return s || 'Pilot';
+  return (typeof raw === 'string' ? onlineName(raw) : '') || 'Pilot';
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);

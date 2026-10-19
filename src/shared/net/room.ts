@@ -24,6 +24,7 @@ import {
   parseClientJson,
   PROTOCOL_VERSION,
   ProtocolError,
+  type RoomPhase,
   type RoomSettings,
   type RosterEntry,
   SNAPSHOT_EVERY_TICKS,
@@ -54,6 +55,11 @@ export interface RoomOptions {
   restartDelayS?: number;
   /** a lower score limit for the scoring modes (tests) */
   scoreLimit?: number;
+  /**
+   * Open in a lobby and go back to it after each match (revision 33; the game's rooms do). Without it the room flies
+   * its first match at once and starts the next by itself.
+   */
+  lobby?: boolean;
 }
 
 /** Inputs waiting per pilot; older ones are dropped beyond this (half a second). */
@@ -82,6 +88,8 @@ interface Pilot {
  * An online match hosted in a browser (revision 28): the World at 60 Hz with the host's own aircraft, one aircraft per
  * connected pilot and AI pilots filling each team, input queues, 30 Hz snapshots and event fan-out. After a match it
  * starts the next one by itself. Time is driven from outside through `tick()`; nothing here touches the network.
+ * Revision 33: with `lobby`, the room opens in its lobby (a Free Flight World with the pilots alone) and goes back to
+ * it after each match; the host starts each match.
  */
 export class Room {
   world: World;
@@ -94,6 +102,8 @@ export class Room {
   endedAtTick: number | null = null;
   /** quick-chat lines for the host's own HUD */
   readonly chat: { from: number; index: number }[] = [];
+  /** waiting in the lobby or flying a match */
+  phase: RoomPhase;
   private readonly options: RoomOptions;
   private readonly host: HostPilot;
   private readonly pilots = new Map<string, Pilot>();
@@ -112,7 +122,16 @@ export class Room {
     this.host = { ...options.host };
     this.baseSeed = options.seed ?? Math.floor(Math.random() * 0x7fffffff);
     this.botJets = new Rng(this.baseSeed ^ 0x2545f491);
+    this.phase = options.lobby ? 'lobby' : 'match';
     this.world = this.createWorld();
+  }
+
+  /** The host starts a match from the lobby; false when the room is not in its lobby. */
+  startMatch(): boolean {
+    if (this.phase !== 'lobby') return false;
+    this.phase = 'match';
+    this.restart();
+    return true;
   }
 
   /** The current match's seed: the wind comes from it. */
@@ -136,6 +155,11 @@ export class Room {
   /** Free Flight rooms fly without AI pilots. */
   private get freeFlight(): boolean {
     return this.settings.mode === 'free-flight';
+  }
+
+  /** No AI pilots in Free Flight or in the lobby. */
+  private get noBots(): boolean {
+    return this.freeFlight || this.phase === 'lobby';
   }
 
   /** A pilot's first message. Answers with `welcome`, or `reject` and false. */
@@ -182,6 +206,8 @@ export class Room {
       tickRate: TICK_RATE,
       snapshotEvery: SNAPSHOT_EVERY_TICKS,
       host: this.host.callsign,
+      phase: this.phase,
+      hostId: this.hostEntityId,
     });
     this.rosterDirty = true;
     this.sendStatus(true);
@@ -223,7 +249,10 @@ export class Room {
         this.broadcastChat(p.entityId, msg.index);
         break;
       case 'jet':
-        if (this.world.setNextAircraft(p.entityId, msg.aircraftId)) p.aircraftId = msg.aircraftId;
+        if (this.world.setNextAircraft(p.entityId, msg.aircraftId)) {
+          p.aircraftId = msg.aircraftId;
+          if (this.phase === 'lobby') this.world.changeJetNow(p.entityId);
+        }
         break;
       case 'world':
         this.changeWorld(msg.weather, msg.hour, msg.clockRunning);
@@ -255,9 +284,11 @@ export class Room {
     this.broadcastChat(this.hostEntityId, index);
   }
 
-  /** The jet the host flies from their next respawn on, and in the next match. */
+  /** The jet the host flies from their next respawn on (in the lobby at once), and in the next match. */
   hostChooseJet(aircraftId: string): void {
-    if (this.world.setNextAircraft(this.hostEntityId, aircraftId)) this.host.aircraftId = aircraftId;
+    if (!this.world.setNextAircraft(this.hostEntityId, aircraftId)) return;
+    this.host.aircraftId = aircraftId;
+    if (this.phase === 'lobby') this.world.changeJetNow(this.hostEntityId);
   }
 
   /** Free Flight: the host or any pilot sets the weather and the hour it is now, for everyone. */
@@ -308,6 +339,8 @@ export class Room {
       this.flush(status);
       this.broadcast({ type: 'matchEnd', status, restartInS: this.restartDelayS });
     } else if (this.endedAtTick !== null && this.world.tick - this.endedAtTick >= this.restartDelayS * TICK_RATE) {
+      // Back to the lobby, or straight on to the next match.
+      if (this.options.lobby) this.phase = 'lobby';
       this.restart();
       return events;
     }
@@ -336,7 +369,8 @@ export class Room {
   private createWorld(): World {
     const s = this.settings;
     const size = Math.max(1, s.teamSize);
-    const mode = createMode(s.mode, {
+    // The lobby: the pilots cruise in Free Flight while they wait; nothing is scored.
+    const mode = createMode(this.phase === 'lobby' ? 'free-flight' : s.mode, {
       strike: { aircraftPerTeam: STRIKE_AIRCRAFT_PER_PILOT * size },
       scoreLimit: this.options.scoreLimit,
       teamObjective: { fighters: { usa: size, russia: size } },
@@ -360,7 +394,7 @@ export class Room {
       p.queue.length = 0;
       p.ackSeq = 0;
       p.lastHeardTick = this.world.tick;
-      p.peer.sendJson({ type: 'matchStart', you: p.entityId, tick: this.world.tick, seed: this.seed });
+      p.peer.sendJson({ type: 'matchStart', you: p.entityId, tick: this.world.tick, seed: this.seed, phase: this.phase, hostId: this.hostEntityId });
     }
     this.lastStatusKey = '';
     this.flush(this.world.mode.status(this.world));
@@ -385,9 +419,9 @@ export class Room {
     }
   }
 
-  /** Tops each team up with AI pilots to the team size (none in Free Flight). */
+  /** Tops each team up with AI pilots to the team size (none in Free Flight or the lobby). */
   private fillBots(): void {
-    const size = this.freeFlight ? 0 : this.settings.teamSize;
+    const size = this.noBots ? 0 : this.settings.teamSize;
     const profile = DIFFICULTIES[this.settings.botSkill];
     for (const team of ['usa', 'russia'] as const) {
       const bots = this.botsOn(team);

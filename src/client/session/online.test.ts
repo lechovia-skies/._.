@@ -35,7 +35,7 @@ class Harness implements HostLink {
   private readonly lines: Transport[] = [];
   readonly oneWayMs: number;
 
-  constructor(oneWayMs: number, settings: Partial<RoomSettings> = {}, seed = 3, scoreLimit?: number) {
+  constructor(oneWayMs: number, settings: Partial<RoomSettings> = {}, seed = 3, scoreLimit?: number, lobby = false) {
     this.oneWayMs = oneWayMs;
     this.host = new HostSession({
       settings: { mode: 'team-deathmatch', map: 'test-range', environment: { ...CALM_NOON }, teamSize: 1, botSkill: 'rookie', ...settings },
@@ -47,6 +47,7 @@ class Harness implements HostLink {
       seed,
       restartDelayS: 3,
       scoreLimit,
+      noLobby: !lobby,
     });
   }
 
@@ -308,5 +309,39 @@ describe('online play between browsers (revision 28)', () => {
     expect(s.modeStatus().winner).toBeNull();
     expect(s.localView()?.alive).toBe(true);
     expect(h.host.room.world.getAircraft(s.localId)?.callsign).toBe('a');
+  });
+
+  it('waits in the lobby with the pilots alone until the host starts the match, and goes back to it after (revision 33)', async () => {
+    const h = new Harness(20, { teamSize: 2 }, 3, 1, true);
+    const s = await join(h, 'a', 'kobchik');
+    fly(h, s, 0.5, () => neutralInput(0.8));
+    expect(s.phase).toBe('lobby');
+    expect(h.host.phase).toBe('lobby');
+    expect([...s.views()].filter((v) => v.isBot)).toHaveLength(0);
+    expect(s.modeStatus().label).toBe('Free Flight');
+    // A jet chosen in the lobby goes up at once.
+    s.chooseNextJet('yastreb');
+    fly(h, s, 0.5, () => neutralInput(0.8));
+    expect(s.localView()?.config.id).toBe('yastreb');
+    expect(s.localView()?.alive).toBe(true);
+    h.host.startMatch();
+    expect(h.host.consumeMatchStart()).toBe(false);
+    fly(h, s, 0.5, () => neutralInput(0.8));
+    expect(h.host.consumeMatchStart()).toBe(true);
+    expect(s.consumeMatchStart()).toBe(true);
+    expect(s.phase).toBe('match');
+    expect([...s.views()].filter((v) => v.isBot)).toHaveLength(2);
+    expect(s.localView()?.config.id).toBe('yastreb');
+    // The first kill wins; a few seconds after, everyone is back in the lobby.
+    const world = h.host.room.world;
+    const enemy = [...world.aircraftList()].find((x) => x.team === 'usa' && x.isBot)!;
+    world.applyDamage(enemy, 9999, world.getAircraft(s.localId) ?? null, 'cannon');
+    fly(h, s, h.host.room.restartDelayS + 1, () => neutralInput(0.8));
+    expect(s.consumeMatchStart()).toBe(true);
+    expect(s.phase).toBe('lobby');
+    expect(h.host.phase).toBe('lobby');
+    fly(h, s, 0.5, () => neutralInput(0.8));
+    expect([...s.views()].filter((v) => v.isBot)).toHaveLength(0);
+    expect(s.modeStatus().winner).toBeNull();
   });
 });

@@ -76,6 +76,7 @@ import type { MissionId, StartOptions } from './ui/menu.ts';
 import { PauseMenu } from './ui/pause.ts';
 import { onlinePanel, type RoomInfo } from './ui/online-panel.ts';
 import { ConnectionOverlay } from './ui/connection-overlay.ts';
+import { type LobbyState, LobbyScreen } from './ui/lobby-screen.ts';
 import { neutralInput } from '../shared/physics/controls.ts';
 import { freeFlightPanel } from './ui/free-flight-panel.ts';
 import { openSettings } from './ui/settings-screen.ts';
@@ -388,6 +389,14 @@ export async function startGame(
     line: hosted ? `You are hosting · ${hosted.room.pilotCount + 1} pilots` : `Hosted by ${net?.hostCallsign ?? ''}`,
     invite: inviteLink(roomCode, location),
   });
+  const openGameSettings = () => {
+    settingsOpen = true;
+    openSettings(root, settings, 'controls', () => {
+      settingsOpen = false;
+      // The Esc that closed the dialog must not also toggle the pause menu.
+      input.snapshot();
+    });
+  };
   const pause = new PauseMenu(root, {
     onResume: () => {
       pause.hide();
@@ -395,14 +404,7 @@ export async function startGame(
       last = performance.now();
       input.requestPointerLock();
     },
-    onSettings: () => {
-      settingsOpen = true;
-      openSettings(root, settings, 'controls', () => {
-        settingsOpen = false;
-        // The Esc that closed the dialog must not also toggle the pause menu.
-        input.snapshot();
-      });
-    },
+    onSettings: () => openGameSettings(),
     onQuit: () => {
       cleanup();
       handlers.onQuit();
@@ -431,12 +433,68 @@ export async function startGame(
     badgeAt = nowS;
     badge.textContent = hosted ? `ROOM ${roomCode} · ${hosted.room.pilotCount + 1} PILOTS` : `ROOM ${roomCode} · ${Math.round(net?.rttMs ?? 0)} MS`;
   };
+  // The lobby (revision 33): the room waits here before each match, its code in big letters.
+  const inLobby = () => onlineSession?.phase === 'lobby';
+  /** the lobby's screen is up (else the pilot flies round while waiting) */
+  let lobbyOpen = false;
+  const lobbyState = (): LobbyState => {
+    const me = session.localView();
+    const team = me?.team ?? getAircraft(options.aircraftId).team;
+    return {
+      code: roomCode,
+      invite: inviteLink(roomCode, location),
+      isHost: hosted !== null,
+      hostName: net?.hostCallsign ?? options.callsign,
+      settings: hosted ? hosted.room.settings : net!.settings,
+      pilots: [...session.views()]
+        .filter((v) => !v.isBot && !v.config.support)
+        .map((v) => ({ id: v.id, callsign: v.callsign, team: v.team, jet: v.config.name, host: v.id === onlineSession?.hostId, you: v.isLocal })),
+      jets: changeableJets(team).map((j) => ({ id: j.id, name: j.name })),
+      jet: me?.config.id ?? options.aircraftId,
+    };
+  };
+  const lobby = onlineSession
+    ? new LobbyScreen(root, {
+        onStart: () => {
+          hosted?.startMatch();
+          closeLobby();
+        },
+        onFly: () => {
+          closeLobby();
+          showBanner('LOBBY · ESC FOR THE ROOM', performance.now() / 1000, 4);
+        },
+        onJet: (id) => session.chooseNextJet(id),
+        onSettings: () => openGameSettings(),
+        onLeave: () => {
+          cleanup();
+          handlers.onQuit();
+        },
+      })
+    : null;
+  const openLobby = () => {
+    if (!lobby || lobbyOpen) return;
+    lobbyOpen = true;
+    pause.hide();
+    paused = false;
+    if (input.pointerLocked) document.exitPointerLock();
+    lobby.show(lobbyState());
+  };
+  /** Back to the stick, from a click (pointer lock needs one). */
+  const closeLobby = () => {
+    if (!lobby) return;
+    lobbyOpen = false;
+    lobby.hide();
+    last = performance.now();
+    input.requestPointerLock();
+  };
+  let lobbyAt = -Infinity;
   const connection = net ? new ConnectionOverlay(root) : null;
   if (net) {
     net.onClosed = (reason) => {
       if (!running) return;
       if (input.pointerLocked) document.exitPointerLock();
       pause.hide();
+      lobby?.hide();
       closeEndScreen?.();
       closeEndScreen = null;
       connection?.show('The room has closed', reason, [
@@ -474,7 +532,10 @@ export async function startGame(
   document.addEventListener('visibilitychange', onVisibility);
   // Browsers swallow Esc while the pointer is locked and release the lock instead: treat that as "pause".
   const onPointerLockChange = () => {
-    if (running && !matchOver && !input.pointerLocked && !paused && !(freeFlight && mapScreen.open)) openPause();
+    if (!running || matchOver || input.pointerLocked || paused || lobbyOpen || (freeFlight && mapScreen.open) || connection?.visible) return;
+    // In the lobby, Esc brings back the lobby's screen instead of the pause menu.
+    if (inLobby()) openLobby();
+    else openPause();
   };
   document.addEventListener('pointerlockchange', onPointerLockChange);
   const onPointerDown = () => audio?.resume();
@@ -484,7 +545,6 @@ export async function startGame(
     banner = text;
     bannerUntil = nowS + seconds;
   };
-  if (hosted) showBanner(`ROOM ${roomCode} · INVITE FRIENDS FROM THE PAUSE MENU`, performance.now() / 1000, 6);
   const campaignMission = options.campaign ? missionById(options.campaign.missionId) : undefined;
   let missionAnnounced = false;
 
@@ -674,14 +734,15 @@ export async function startGame(
     const againGrounded = !onlineSession && again.aircraftId !== againLent && !canFly(loadHangar(loadCareer()), again.aircraftId);
     if (againGrounded) againLabel = 'Repair on the title screen';
     audio?.matchEnd(training || (me && final.winner === me.team) ? 'win' : final.winner === 'draw' ? 'draw' : 'loss');
-    // Online (revision 28): the room goes on to its next match by itself.
-    if (onlineSession) result.note = [result.note, 'The next match in this room starts in a few seconds.'].filter(Boolean).join(' ');
+    // Online (revision 33): the room goes back to its lobby, where the host starts the next match.
+    if (onlineSession) result.note = [result.note, 'The room goes back to its lobby in a few seconds.'].filter(Boolean).join(' ');
     closeEndScreen = showEndScreen(root, result, rows, {
-      againLabel: onlineSession ? 'Stay for the next match' : againLabel,
+      againLabel: onlineSession ? 'Back to the lobby' : againLabel,
       onAgain: () => {
         if (onlineSession) {
           closeEndScreen?.();
           closeEndScreen = null;
+          if (inLobby()) lobby?.show(lobbyState());
           return;
         }
         cleanup();
@@ -695,16 +756,29 @@ export async function startGame(
     }, flight, bests);
   };
 
-  /** Online: the room started its next match (new jets, fresh scores). */
+  /**
+   * Online: the room has a new World: a match the host started (new jets, fresh scores), or its lobby again after one.
+   * The last match's results stay up over the lobby until they are closed.
+   */
   const nextMatch = () => {
-    closeEndScreen?.();
-    closeEndScreen = null;
     stats.reset();
     matchOver = false;
     spawnGen = -1;
     deathMessage = null;
     deathCam.stop();
     killFeed.clear();
+    if (inLobby()) {
+      openLobby();
+      if (closeEndScreen) lobby?.hide();
+      return;
+    }
+    closeEndScreen?.();
+    closeEndScreen = null;
+    if (lobbyOpen) {
+      lobbyOpen = false;
+      lobby?.hide();
+    }
+    showBanner(input.pointerLocked || hosted ? 'THE MATCH IS ON' : 'THE MATCH IS ON · CLICK TO TAKE THE STICK', performance.now() / 1000, 4);
     if (!paused) input.requestPointerLock();
   };
 
@@ -727,12 +801,15 @@ export async function startGame(
         settings.update({ autoGraphics: lower });
       }
     }
-    if (!paused && !matchOver && !settingsOpen && mapper.mapToggled(snap)) {
+    if (!paused && !matchOver && !settingsOpen && !lobbyOpen && mapper.mapToggled(snap)) {
       mapScreen.toggle();
       if (freeFlight && mapScreen.open && input.pointerLocked) document.exitPointerLock();
     }
     if (!matchOver && !settingsOpen && mapper.pauseRequested(snap, padFrame)) {
-      if (paused) {
+      // In the lobby Esc only brings its screen back: an Esc press may not capture the mouse again.
+      if (inLobby()) {
+        openLobby();
+      } else if (paused) {
         pause.hide();
         paused = false;
       } else {
@@ -740,7 +817,7 @@ export async function startGame(
       }
     }
 
-    const active = !paused && !matchOver;
+    const active = !paused && !matchOver && !lobbyOpen;
     if (onlineSession?.consumeMatchStart()) nextMatch();
     // Online the match never pauses: with the menu or the results up, the jet flies on with the stick centred.
     if (active || onlineSession) {
@@ -935,7 +1012,7 @@ export async function startGame(
         }
       }
       const targets = session.groundTargets();
-      const status = session.modeStatus();
+      const status = inLobby() ? { ...session.modeStatus(), label: 'Lobby' } : session.modeStatus();
       const bomb = local.loadout.bomb;
       const bombImpact = bombCue(local.alive && bomb && local.stores.bombs > 0 ? predictImpact(f.pos, f.vel, bomb, terrain, DT, impactPoint, session.wind) : null, targets);
       // Not on the take-off run: the gear is down until the jet is well clear of the runway.
@@ -1009,10 +1086,15 @@ export async function startGame(
     }
     mapScreen.draw(session.localView(), session.views(), session.groundTargets(), session.modeStatus());
     updateBadge(nowS);
+    if (lobby?.visible && nowS - lobbyAt >= 0.5) {
+      lobbyAt = nowS;
+      lobby.update(lobbyState());
+    }
     rafId = requestAnimationFrame(frame);
   };
   rafId = requestAnimationFrame(frame);
-  input.requestPointerLock();
+  if (inLobby()) openLobby();
+  else input.requestPointerLock();
 
   function cleanup(): void {
     running = false;
@@ -1020,6 +1102,7 @@ export async function startGame(
     ticker?.stop();
     document.removeEventListener('visibilitychange', onVisibility);
     badge?.remove();
+    lobby?.dispose();
     connection?.dispose();
     stopSettings();
     debug?.dispose();

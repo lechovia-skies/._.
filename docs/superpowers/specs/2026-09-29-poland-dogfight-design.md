@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 32)
+# Lechovia Skies — Design Spec (revision 33)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -125,6 +125,11 @@
     host sets the room on two pages, Room and World (map, start, time of day). And money: matches pay credits for
     kills, Sentinels and wins; a jet shot down is damaged and, after three times, grounded until it is repaired;
     levels make jets available to develop, and developing one costs credits (the hangar).
+  - Revision 33 (2026-10-19): two requests from the owner to improve online play (§7.1, §15.5). A lobby: the host
+    creates a room and its code appears in big letters in the room's lobby; the others join with the code and wait
+    there until the host starts the match, and everyone comes back there after each match. Pilot names: flying alone
+    needs none, so the title screen no longer has a name field; the first time a pilot goes online they are asked
+    for one, up to five letters (any script), and it is kept from then on.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -160,6 +165,8 @@ was built in M2 and removed again. Revision 28: online play is back, hosted in a
 | Real looks | The six generated jets are drawn as the real types in their real paint and markings, with their stores on the pylons, after the owner's reference pictures | Owner, 2026-10-16 (revision 31) |
 | Hangar | Credits from kills and wins; jets damaged when shot down and grounded until repaired; levels open jets for development, which costs credits | Owner, 2026-10-16 (revision 32) |
 | Online name | Online asks for a pilot name first and remembers it; the host sets the room's world on its own page | Owner, 2026-10-16 (revision 32) |
+| Lobby | A room waits in a lobby showing its code until the host starts the match, and returns to it after each match | Owner, 2026-10-19 (revision 33) |
+| Names | No name to fly alone; online asks for one the first time, up to five letters | Owner, 2026-10-19 (revision 33) |
 | Map | Fictional, procedurally generated Poland-inspired landscape with fictional locations; no real-world data download | Brief (supersedes real elevation data) |
 | Modes | Team Deathmatch, Air Superiority, Team Objective, Free Flight | Brief |
 | Environment | Clouds, weather presets, day/night cycle | Brief |
@@ -390,16 +397,26 @@ browser hosts the room and runs the match, and the others connect to it directly
     with the host), AI pilots filling each team to the chosen size (1, 2 or 4 a side; none in Free Flight), input
     queues, 30 Hz snapshots, events, roster and status. The host flies with no delay through the same views as single
     player (`WorldViews`, shared with `LocalSession`).
-  - A finished match shows the results to everyone and the next starts by itself after 15 s, with a new seed.
+  - Revision 33: the room opens in its **lobby** (`RoomPhase` `lobby` | `match`). The lobby is a Free Flight World with
+    the pilots alone (no AI pilots, no weapons, nothing scored, no ground targets); a jet chosen there goes up at once
+    (`World.changeJetNow`). The host starts the match (`Room.startMatch`): a new World in the room's mode, the AI
+    pilots filling the seats, each pilot in the jet last chosen. A pilot may join in the lobby or during a match.
+  - A finished match shows the results to everyone and, 15 s later, the room goes back to its lobby with a new seed
+    (before revision 33 the next match started by itself; a `Room` without the `lobby` option still does, for tests).
   - A pilot who leaves (or sends nothing for 30 s; pilots ping every 3 s even while their page is still loading) hands
     their seat back to an AI pilot. When the host leaves, the room closes and the pilots are told why.
   - A hidden host tab gets no frames: a tiny worker's timer keeps stepping the match (`BackgroundTicker`), so a host who
     switches tabs does not freeze the room; pilots' pages do the same, so they are not timed out.
-- **Protocol 6 (`shared/net/protocol.ts`, `codec.ts`):** M2's layout, brought up to date (5 in revision 28; 6 since
+- **Protocol 7 (`shared/net/protocol.ts`, `codec.ts`):** M2's layout, brought up to date (5 in revision 28; 6 since
   revision 30: the input's weapon is the selected missile slot, 3 bits; a missile in flight names its type from
-  `MISSILE_IDS`; the pilot's own section counts missiles per type of its load, flares and chaff).
+  `MISSILE_IDS`; the pilot's own section counts missiles per type of its load, flares and chaff; 7 since revision 33:
+  the lobby).
   - `hello` carries the callsign, jet and start; the `welcome` carries the room's settings (mode, map, weather and
-    clock, seats, AI skill), the match seed (the wind comes from it), the tick and the host's callsign.
+    clock, seats, AI skill), the match seed (the wind comes from it), the tick, the host's callsign, the phase (lobby
+    or match) and the host's aircraft id. `matchStart` (a new World: the match, or the lobby again) carries the phase
+    and the host's id too.
+  - Callsigns online (revision 33, `onlineName`): up to five letters or digits of any script (NFC, counted in code
+    points), spaces and `. _ -`; the host cuts a longer one down.
   - Inputs: 17 bytes, as in M2. Snapshots: per jet also the gear and load factor (for the vapour); the pilot's own
     section carries every number of its flight state at 64 bits (`FLIGHT_SCALARS`, `FLIGHT_VECTORS`, a test keeps the
     list complete), the fuel, the G strain and the tick of a blackout, the respawn countdown and the supply progress.
@@ -413,6 +430,14 @@ browser hosts the room and runs the match, and the others connect to it directly
   interpolation) sets `viewDelayTicks`; the gun's aim assist and the hit tests take the targets where the pilot saw
   them, up to 250 ms back and within the target's current life. Missiles and collisions are not rewound.
 - **The game (`game.ts`):**
+  - The lobby (revision 33, `ui/lobby-screen.ts`): while the room is in its lobby a screen shows *Lobby*, the room
+    code in big letters with *Copy code* and *Copy invite link*, a line (the host: pass the code on, or how many are
+    in; the others: "Waiting for … to start the match"), the room's settings (mode, seats and AI skill, map, time and
+    weather), the pilots (side, name, jet, *Host*, *You*), *Your jet* (the jets fit to fly of the pilot's side), the
+    host's *Start the match*, *Fly while you wait*, *Settings* and *Close the room* / *Leave the room*. Flying while waiting, the
+    HUD's mode reads LOBBY and Esc brings the screen back (instead of the pause menu). When the match starts the
+    screen goes; a pilot whose mouse is not captured is told to click. After a match the results stay up until
+    *Back to the lobby* is pressed, then the lobby shows again.
   - Online, the match never pauses: with the pause menu or the results up, the jet flies on with the stick centred and
     the throttle held. The pause menu shows the room's code, who hosts it and *Copy invite link*; its last button is
     *Close the room* (host) or *Leave the room*.
@@ -423,7 +448,10 @@ browser hosts the room and runs the match, and the others connect to it directly
   Team Objective, Free Flight or Strike; pilots per side; the AI pilots' skill; the map, start and time of day from the
   title screen) or join one with its code. Revision 32: a pilot still called "Pilot" (no name set) first sees a
   warning box in the middle of the sheet asking for a name, and cannot host or join without one; the name then shows,
-  and can be changed, at the top of the sheet and on the title screen, and is kept for the next time. The host's
+  and can be changed, at the top of the sheet, and is kept for the next time. Revision 33: the name is asked for the
+  first time the pilot goes online (setting `onlineName`; the callsign once typed on the title screen, cut to five
+  letters, is offered), up to five letters of any script; *Host a room* became *Create the room*, which opens the
+  room's lobby with its code. The host's
   settings have two pages: *Room* (mode, pilots per side, AI pilots) and *World* (map, the host's own start, time of
   day; first as on the title screen, then remembered; Strike keeps the Test Range and runway starts need Lechovia).
   Hosting and joining also need a jet fit to fly (revision 32's hangar). A failed join or host brings the title screen back with the reason in the
@@ -1496,7 +1524,9 @@ The game is always third-person (revision 4). There is no first-person, cockpit 
 - **Start screen (revision 4):** a minimal title screen over a live 3D scene. The selected jet circles over the
   landscape while the camera orbits it slowly; the scene holds still when the system asks for reduced motion.
   - On screen: the title, the aircraft choice, the opponent's skill, a large FLY button, links to Free Flight and to
-    Controls (control scheme and key list), the callsign in a corner, and one line of image credits.
+    Controls (control scheme and key list), the callsign in a corner, and one line of image credits. Revision 33: no
+    callsign any more (flying alone needs no name; single player calls the pilot by the online name if there is one,
+    else "Pilot"); the level and the funds are in the corner.
   - The scenery photos load while the start screen is up and the game reuses them, so a match starts without a
     loading wait. Until they are ready the title shows over a dark background.
   - Typography: the display font Rajdhani (SIL Open Font License 1.1) is bundled with the page, Latin subset only;

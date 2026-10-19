@@ -324,6 +324,17 @@ export class World implements ModeDirector, CombatHost, BotWorld {
     return true;
   }
 
+  /**
+   * An online room's lobby (revision 33): the jet chosen goes up at once, from the team's start, instead of after the
+   * next respawn. False when no other jet is waiting.
+   */
+  changeJetNow(id: number): boolean {
+    const a = this.aircraft.get(id);
+    if (!a || a.support || !a.nextAircraftId) return false;
+    this.respawn(a);
+    return true;
+  }
+
   launchMissileAt(shooterId: number, targetId: number): number | null {
     const shooter = this.aircraft.get(shooterId);
     const target = this.aircraft.get(targetId);

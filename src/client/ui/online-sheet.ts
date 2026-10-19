@@ -1,6 +1,6 @@
 import { DIFFICULTIES, type DifficultyId } from '../../shared/ai/difficulty.ts';
 import { MAP_IDS, MAP_NAMES, type MapId } from '../../shared/data/maps/registry.ts';
-import { type OnlineModeId, ONLINE_MODES, parseRoomCode, ROOM_CODE_LENGTH, type RoomSettings, sanitizeRoomSettings } from '../../shared/net/protocol.ts';
+import { ONLINE_NAME_MAX, type OnlineModeId, ONLINE_MODES, onlineName, parseRoomCode, ROOM_CODE_LENGTH, type RoomSettings, sanitizeRoomSettings } from '../../shared/net/protocol.ts';
 import { SPAWN_STARTS, type SpawnStart } from '../../shared/world/spawns.ts';
 import { type EnvironmentSettings, TIME_OF_DAY_IDS, TIME_OF_DAY_LABELS, type TimeOfDayId } from '../../shared/world/time-of-day.ts';
 import { choiceGroup, el } from './choice-group.ts';
@@ -14,14 +14,14 @@ export interface OnlineWorld {
   time: TimeOfDayId;
 }
 
-/** The host's room and their own start (the others start as they each chose); a guest's room code. */
-export type OnlineStart = { role: 'host'; settings: RoomSettings; start: SpawnStart } | { role: 'join'; code: string };
+/**
+ * The host's room and their own start (the others start as they each chose); a guest's room code. Either way the
+ * pilot's online name.
+ */
+export type OnlineStart = ({ role: 'host'; settings: RoomSettings; start: SpawnStart } | { role: 'join'; code: string }) & { name: string };
 
 /** What the sheet needs from the title screen. */
 export interface OnlinePilot {
-  /** the pilot name as typed on the title screen, and a way to change it there */
-  name(): string;
-  setName(name: string): void;
   /** why the chosen jet cannot fly (not developed, grounded), or null */
   jetProblem(): string | null;
   /** the title screen's world, the World page's first choice */
@@ -36,7 +36,41 @@ type Seats = (typeof SEATS)[number];
 /** The default name: online, a pilot still called this has not set a name. */
 export const DEFAULT_CALLSIGN = 'Pilot';
 
-export const nameIsSet = (name: string) => name.trim() !== '' && name.trim() !== DEFAULT_CALLSIGN;
+/** A name fit for online play: not empty, not the default, and already clean (five letters at most). */
+export const nameIsSet = (name: string) => name !== '' && name !== DEFAULT_CALLSIGN && onlineName(name) === name;
+
+/*
+ * Pilot names (revision 33, at the owner's request): flying alone needs none, so the title screen has no name field.
+ * The first time the pilot goes online the sheet asks for one, up to five letters; it is kept from then on.
+ */
+const NAME_KEY = 'onlineName';
+
+/** The name saved for online play, or '' before the pilot's first time online. */
+export function loadOnlineName(): string {
+  const raw = loadSetting<unknown>(NAME_KEY, '');
+  const name = typeof raw === 'string' ? onlineName(raw) : '';
+  return nameIsSet(name) ? name : '';
+}
+
+/** Keeps a name for online play; false (and nothing kept) when it is not fit for it. */
+export function saveOnlineName(raw: string): boolean {
+  const name = onlineName(raw);
+  if (!nameIsSet(name)) return false;
+  saveSetting(NAME_KEY, name);
+  return true;
+}
+
+/** What the name step offers the first time: the callsign once typed on the title screen, cut to five letters. */
+export function suggestedName(): string {
+  const old = loadSetting<unknown>('callsign', '');
+  const name = typeof old === 'string' ? onlineName(old) : '';
+  return nameIsSet(name) ? name : '';
+}
+
+/** The callsign flying alone: the online name if there is one, else the default. */
+export const soloCallsign = () => loadOnlineName() || DEFAULT_CALLSIGN;
+
+const NAME_RULE = `Up to ${ONLINE_NAME_MAX} letters or digits (any script), spaces and . _ -`;
 
 const START_LABELS: Record<SpawnStart, string> = { air: 'Air start', runway: 'Runway start' };
 
@@ -65,7 +99,8 @@ function select<T extends string>(label: string, values: readonly T[], names: (v
  * The title screen's Online sheet (revision 28): host a room or join one with its code. `?join=CODE` opens it with
  * the code filled in. Revision 32: online the pilot needs a name: without one the sheet first asks for it in the
  * middle of the screen; once set it is carried over from then on and can be changed at the top of the sheet. The
- * host sets the room on two pages: Room (mode, seats, AI pilots) and World (map, start, time of day).
+ * host sets the room on two pages: Room (mode, seats, AI pilots) and World (map, start, time of day). Revision 33: the
+ * name is asked for the first time online, up to five letters; a room opens in its lobby.
  */
 export function onlineSheet(pilot: OnlinePilot, onGo: (start: OnlineStart) => void): { dialog: HTMLDialogElement; open(code?: string, error?: string): void } {
   const dialog = el('dialog', 'sheet online-sheet');
@@ -78,7 +113,7 @@ export function onlineSheet(pilot: OnlinePilot, onGo: (start: OnlineStart) => vo
   const note = el(
     'p',
     'sheet-note',
-    "Fly with friends: one of you hosts a room, the others join it with its code. The match runs in the host's browser, so the host keeps the game open in front. Empty seats are flown by AI pilots.",
+    "Fly with friends: one of you hosts a room and gets its code, the others join it with the code and wait in the room's lobby until the host starts the match. The match runs in the host's browser, so the host keeps the game open in front. Empty seats are flown by AI pilots.",
   );
   const error = el('p', 'notice online-error');
   error.setAttribute('role', 'alert');
@@ -88,30 +123,31 @@ export function onlineSheet(pilot: OnlinePilot, onGo: (start: OnlineStart) => vo
   const nameStep = el('div', 'name-step');
   nameStep.setAttribute('role', 'alertdialog');
   nameStep.setAttribute('aria-labelledby', 'name-step-title');
-  const stepTitle = el('h3', 'name-step-title', 'Set your pilot name');
+  const stepTitle = el('h3', 'name-step-title', 'Choose your pilot name');
   stepTitle.id = 'name-step-title';
   const stepInput = el('input', 'pilot-input name-step-input');
-  stepInput.maxLength = 16;
+  stepInput.maxLength = ONLINE_NAME_MAX;
   stepInput.autocomplete = 'off';
   stepInput.spellcheck = false;
   stepInput.placeholder = 'YOUR NAME';
   stepInput.setAttribute('aria-label', 'Pilot name');
   const stepGo = el('button', 'button', 'Continue');
   stepGo.type = 'button';
-  const stepHint = el('p', 'name-step-hint', 'The others in the room see this name. Letters, digits, spaces and . _ - (up to 16).');
+  const stepHint = el('p', 'name-step-hint');
+  const firstHint = `First time online: the others in the room see this name. ${NAME_RULE}.`;
   nameStep.append(el('p', 'name-step-warn', '⚠ No pilot name'), stepTitle, stepInput, stepHint, stepGo);
 
   const nameRow = el('label', 'online-name');
   nameRow.appendChild(el('span', 'eyebrow', 'Pilot name'));
   const nameInput = el('input', 'pilot-input');
-  nameInput.maxLength = 16;
+  nameInput.maxLength = ONLINE_NAME_MAX;
   nameInput.autocomplete = 'off';
   nameInput.spellcheck = false;
   nameRow.appendChild(nameInput);
 
   // Host: the Room and World pages.
   const host = el('section', 'online-part');
-  host.appendChild(el('h3', 'eyebrow', 'Host a room'));
+  host.appendChild(el('h3', 'eyebrow', 'Create a room'));
   let mode: OnlineModeId = ONLINE_MODES.find((m) => m === loadSetting<unknown>('onlineMode', 'team-deathmatch')) ?? 'team-deathmatch';
   let seats: Seats = SEATS.find((s) => s === String(loadSetting<unknown>('onlineSeats', '2'))) ?? '2';
   let skill: DifficultyId = (Object.keys(DIFFICULTIES) as DifficultyId[]).find((d) => d === loadSetting<unknown>('onlineSkill', 'veteran')) ?? 'veteran';
@@ -222,7 +258,7 @@ export function onlineSheet(pilot: OnlinePilot, onGo: (start: OnlineStart) => vo
   showPage(0);
   refreshWorld();
 
-  const hostButton = el('button', 'button', 'Host a room');
+  const hostButton = el('button', 'button', 'Create the room');
   hostButton.type = 'button';
   host.append(tabs, ...pages.map((p) => p.page), el('p', 'sheet-note', 'Your jet: the one selected on the title screen.'), hostButton);
 
@@ -262,20 +298,17 @@ export function onlineSheet(pilot: OnlinePilot, onGo: (start: OnlineStart) => vo
   };
   /** Shows the name step until there is a name, then the rest of the sheet. */
   const showStep = () => {
-    const set = nameIsSet(pilot.name());
+    const name = loadOnlineName();
+    const set = name !== '';
     nameStep.hidden = set;
     body.hidden = !set;
     note.hidden = !set;
-    nameInput.value = pilot.name();
-    stepInput.value = set ? pilot.name() : '';
-  };
-  const setName = (raw: string): boolean => {
-    pilot.setName(raw);
-    return nameIsSet(pilot.name());
+    nameInput.value = name;
+    stepInput.value = set ? name : suggestedName();
   };
   const confirmName = () => {
-    if (!setName(stepInput.value)) {
-      stepHint.textContent = `Choose a name other than "${DEFAULT_CALLSIGN}": letters, digits, spaces and . _ - (up to 16).`;
+    if (!saveOnlineName(stepInput.value)) {
+      stepHint.textContent = `Choose a name other than "${DEFAULT_CALLSIGN}". ${NAME_RULE}.`;
       stepHint.classList.add('is-error');
       stepInput.focus();
       return;
@@ -291,18 +324,15 @@ export function onlineSheet(pilot: OnlinePilot, onGo: (start: OnlineStart) => vo
     }
   });
   nameInput.addEventListener('change', () => {
-    if (!setName(nameInput.value)) {
-      // Cleared or back to the default: ask again.
-      showStep();
-      stepInput.focus();
-      return;
-    }
-    nameInput.value = pilot.name();
+    // Cleared or back to the default: the name kept stays.
+    saveOnlineName(nameInput.value);
+    nameInput.value = loadOnlineName();
   });
 
   /** Online needs a name and a jet fit to fly. */
   const ready = (): boolean => {
-    if (!setName(nameInput.value)) {
+    saveOnlineName(nameInput.value);
+    if (loadOnlineName() === '') {
       showStep();
       stepInput.focus();
       return false;
@@ -323,13 +353,13 @@ export function onlineSheet(pilot: OnlinePilot, onGo: (start: OnlineStart) => vo
     }
     if (!ready()) return;
     dialog.close();
-    onGo({ role: 'join', code: parsed });
+    onGo({ role: 'join', code: parsed, name: loadOnlineName() });
   };
   hostButton.addEventListener('click', () => {
     if (!ready()) return;
     const w = roomWorld(world, mode);
     dialog.close();
-    onGo({ role: 'host', start: w.start, settings: sanitizeRoomSettings({ mode, map: w.map, environment: pilot.environment(w.time), teamSize: Number(seats), botSkill: skill }) });
+    onGo({ role: 'host', start: w.start, name: loadOnlineName(), settings: sanitizeRoomSettings({ mode, map: w.map, environment: pilot.environment(w.time), teamSize: Number(seats), botSkill: skill }) });
   });
   joinButton.addEventListener('click', tryJoin);
   code.addEventListener('keydown', (e) => {
@@ -346,10 +376,10 @@ export function onlineSheet(pilot: OnlinePilot, onGo: (start: OnlineStart) => vo
       if (prefill) code.value = prefill;
       showError(message);
       showStep();
-      stepHint.textContent = 'The others in the room see this name. Letters, digits, spaces and . _ - (up to 16).';
+      stepHint.textContent = firstHint;
       stepHint.classList.remove('is-error');
       dialog.showModal();
-      if (!nameIsSet(pilot.name())) stepInput.focus();
+      if (loadOnlineName() === '') stepInput.focus();
       else if (prefill) joinButton.focus();
       else title.focus();
     },

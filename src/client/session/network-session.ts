@@ -10,7 +10,7 @@ import { Rng } from '../../shared/math/rng.ts';
 import type { GameMode, ModeStatus } from '../../shared/modes/mode.ts';
 import { createMode } from '../../shared/modes/registry.ts';
 import { applyFlightNumbers, decodeSnapshot, encodeInput, quantizeInput, type Snapshot } from '../../shared/net/codec.ts';
-import { type HostJsonMessage, type OnlineModeId, PROTOCOL_VERSION, type RoomSettings, type RosterEntry, type WelcomeMessage } from '../../shared/net/protocol.ts';
+import { type HostJsonMessage, type OnlineModeId, PROTOCOL_VERSION, type RoomPhase, type RoomSettings, type RosterEntry, type WelcomeMessage } from '../../shared/net/protocol.ts';
 import { atmosphere, SEA_LEVEL_DENSITY } from '../../shared/physics/atmosphere.ts';
 import { type ControlInput, neutralInput } from '../../shared/physics/controls.ts';
 import { createFlightState, type FlightState } from '../../shared/physics/flight-model.ts';
@@ -168,6 +168,8 @@ function hermite(p0: Vector3, v0: Vector3, p1: Vector3, v1: Vector3, s: number, 
     .addScaledVector(v1, h11 * durationS);
 }
 
+const NO_TARGETS: readonly GroundTargetView[] = [];
+
 /**
  * A pilot's side of an online room (revision 28, after the M2 client): predicts the pilot's own jet with the very
  * flight step the host runs (wind, fuel, damage, the runway, G strain) and reconciles it with each snapshot, draws
@@ -188,6 +190,10 @@ export class NetworkSession implements GameSession {
   closeReason = '';
   /** weather and clock of the room; a Free Flight room can change them */
   environment: EnvironmentSettings;
+  /** waiting in the room's lobby or flying a match (revision 33) */
+  phase: RoomPhase;
+  /** the host's own aircraft */
+  hostId: number;
   wind: WindField;
 
   private readonly transport: Transport;
@@ -313,6 +319,8 @@ export class NetworkSession implements GameSession {
     this.hostCallsign = welcome.host;
     this.environment = welcome.settings.environment;
     this.seed = welcome.seed;
+    this.phase = welcome.phase;
+    this.hostId = welcome.hostId;
     this.wind = windFor(this.environment, this.seed);
     const size = Math.max(1, welcome.settings.teamSize);
     this.mode = createMode(this.modeId, { teamObjective: { fighters: { usa: size, russia: size } } });
@@ -399,7 +407,8 @@ export class NetworkSession implements GameSession {
   }
 
   groundTargets(): readonly GroundTargetView[] {
-    return this.targetViews;
+    // The lobby flies Free Flight: no targets.
+    return this.phase === 'lobby' ? NO_TARGETS : this.targetViews;
   }
 
   bombs(): Iterable<BombView> {
@@ -606,6 +615,8 @@ export class NetworkSession implements GameSession {
         this.nextMatchAtMs = this.now() + msg.restartInS * 1000;
         break;
       case 'matchStart':
+        this.phase = msg.phase;
+        this.hostId = msg.hostId;
         this.startNewMatch(msg.you, msg.tick, msg.seed);
         break;
       case 'chat':
@@ -648,7 +659,7 @@ export class NetworkSession implements GameSession {
       seen.add(r.id);
       let a = this.aircraft.get(r.id);
       if (!a) {
-        a = new NetAircraft(r, r.id === this.localId, this.mode.strikes(r.team));
+        a = new NetAircraft(r, r.id === this.localId, this.phase === 'match' && this.mode.strikes(r.team));
         this.aircraft.set(r.id, a);
       }
       a.kills = r.kills;

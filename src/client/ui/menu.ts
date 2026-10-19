@@ -16,7 +16,7 @@ import { canFly, develop, formatCredits, type Hangar, jetState, loadHangar, repa
 import { isTouchOnly } from './device.ts';
 import { MISSION_LABELS } from './records-format.ts';
 import { campaignSheet } from './campaign-sheet.ts';
-import { type OnlineStart, onlineSheet } from './online-sheet.ts';
+import { type OnlineStart, onlineSheet, soloCallsign } from './online-sheet.ts';
 import { recordsSheet } from './records-sheet.ts';
 import { choiceGroup, el } from './choice-group.ts';
 import { openSettings } from './settings-screen.ts';
@@ -69,10 +69,6 @@ const MISSIONS: readonly { value: FlyMission; label: string }[] = (['team-deathm
 export const TEAM_SIZES = ['1', '2', '4'] as const;
 type TeamSizeChoice = (typeof TEAM_SIZES)[number];
 const CONTROL_LABELS: Record<ControlMode, string> = { 'mouse-aim': 'Mouse aim', direct: 'Keyboard' };
-
-export function sanitizeCallsign(s: string): string {
-  return s.replace(/[^A-Za-z0-9 _.-]/g, '').trim().slice(0, 16) || 'Pilot';
-}
 
 /** Saved settings can outlive the options they name (or be edited by hand). */
 export function pickValid<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
@@ -266,7 +262,7 @@ function controlsSheet(settings: SettingsStore): HTMLDialogElement {
   return dialog;
 }
 
-/** The pilot's level under the callsign (revision 26): the level, a bar to the next one and the next jet it opens. */
+/** The pilot's level at the top of the title screen (revision 26): the level, a bar to the next one and the next jet it opens. */
 function levelBadge(p: ReturnType<typeof levelProgress>): HTMLElement {
   const box = el('div', 'pilot-level');
   const next = nextUnlock(p.level);
@@ -345,18 +341,12 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   const form = el('form', 'start-form');
   form.noValidate = true;
 
+  // No pilot name here (revision 33): flying alone needs none; online asks for one the first time.
   const top = el('div', 'start-top');
-  const pilot = el('label', 'pilot');
-  const callsign = el('input', 'pilot-input');
-  callsign.maxLength = 16;
-  callsign.autocomplete = 'off';
-  callsign.spellcheck = false;
-  callsign.value = sanitizeCallsign(String(loadSetting<unknown>('callsign', 'Pilot')));
-  pilot.append(el('span', 'eyebrow', 'Pilot'), callsign);
   const funds = el('div', 'pilot-funds');
   funds.title = 'Credits: shoot down enemies and win to earn them; spend them developing and repairing jets';
   // Fullscreen: the corner button on every screen (revision 29; a link here since revision 26).
-  top.append(levelBadge(progress), funds, pilot);
+  top.append(levelBadge(progress), funds);
 
   const main = el('div', 'start-main');
   const brand = el('header', 'brand');
@@ -509,19 +499,11 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   const sheet = controlsSheet(settings);
   const records = recordsSheet();
   const campaign = campaignSheet(
-    () => ({ aircraftId, callsign: sanitizeCallsign(callsign.value), controlMode: settings.current.controlMode }),
-    (options) => {
-      saveSetting('callsign', options.callsign);
-      handlers.onStart(options);
-    },
+    () => ({ aircraftId, callsign: soloCallsign(), controlMode: settings.current.controlMode }),
+    (options) => handlers.onStart(options),
   );
   const onlineDialog = onlineSheet(
     {
-      name: () => sanitizeCallsign(callsign.value),
-      setName: (name) => {
-        callsign.value = sanitizeCallsign(name);
-        saveSetting('callsign', callsign.value);
-      },
       jetProblem: () => (canFly(hangar, aircraftId) ? null : `${aircraft.find((a) => a.id === aircraftId)?.name ?? 'This jet'}: ${hangarLine(hangar, aircraftId, progress.level).text} Choose another jet on the title screen.`),
       world: () => ({ map: world.map, start: world.start, time: world.time }),
       environment: (time) => environmentOf({ ...world, time }),
@@ -530,7 +512,7 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
       const w = effectiveWorld(world, choice.role === 'host' ? choice.settings.mode : 'team-deathmatch');
       const options: StartOptions = {
         aircraftId,
-        callsign: sanitizeCallsign(callsign.value),
+        callsign: choice.name,
         controlMode: settings.current.controlMode,
         mission: choice.role === 'host' ? choice.settings.mode : 'team-deathmatch',
         difficulty,
@@ -541,7 +523,6 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
         online: choice,
       };
       saveSetting('aircraft', options.aircraftId);
-      saveSetting('callsign', options.callsign);
       handlers.onStart(options);
     },
   );
@@ -552,7 +533,7 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
     const w = effectiveWorld(world, mission);
     const options: StartOptions = {
       aircraftId,
-      callsign: sanitizeCallsign(callsign.value),
+      callsign: soloCallsign(),
       controlMode: settings.current.controlMode,
       mission,
       difficulty,
@@ -562,7 +543,6 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
       teamSize: Number(teamSize),
     };
     saveSetting('aircraft', options.aircraftId);
-    saveSetting('callsign', options.callsign);
     saveSetting('difficulty', options.difficulty);
     handlers.onStart(options);
   };

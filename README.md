@@ -17,6 +17,13 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
   available to *develop*, which costs credits (Yastreb 8,000 up to Shade 32,000). You start with the Kestrel and the
   Kobchik and the credits your earlier matches would have paid; the two starters can always be repaired, even with no
   money.
+- **Online lobby** (2026-10-19): *Create the room* on the Online sheet opens the room's lobby with its code in big
+  letters (and *Copy code*, *Copy invite link*). Friends join with the code and wait in the lobby, where everyone sees
+  who is in and picks a jet, and may fly round meanwhile; the host presses *Start the match*. After each match the
+  room goes back to its lobby.
+- **Pilot names** (2026-10-19): flying alone needs no name, so the title screen has none. The first time you go online
+  you choose one, up to five letters (Japanese works too); it is kept and can be changed at the top of the Online
+  sheet.
 - **Online name and room world** (2026-10-16): online asks for your pilot name first (in the middle of the screen)
   and remembers it; you can change it at the top of the Online sheet. Hosts set the room on two pages: *Room* (mode,
   pilots per side, AI pilots) and *World* (map, start, time of day).
@@ -55,7 +62,7 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
   Team Objective, Free Flight or Strike; 1, 2 or 4 pilots a side, AI pilots in the empty seats) and gets a six-letter
   code; up to seven friends join with the code or the invite link (pause menu: *Copy invite link*). The match runs in
   the host's browser and the others connect straight to it (WebRTC, found through public Nostr relays), so the host
-  keeps the game open; the next match starts by itself after the results. Online the game never pauses. 7, 8, 9 and 0
+  keeps the game open; since 2026-10-19 the room waits in its lobby until the host starts each match. Online the game never pauses. 7, 8, 9 and 0
   send quick-chat lines. Some networks block direct links between browsers: then someone else has to host. The others
   in a room can see your IP address, as in most peer-to-peer games.
 - **Polish towns** (2026-10-07): the cities have old towns of pastel tenements round a market square with the town

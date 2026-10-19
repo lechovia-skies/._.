@@ -244,6 +244,58 @@ describe('online Room (revision 28)', () => {
     expect(tdm.world.environment.weather).toBe('clear');
   });
 
+  it('opens in its lobby: the pilots alone in Free Flight, jets changed at once, until the host starts (revision 33)', () => {
+    const room = new Room(options({ lobby: true, scoreLimit: 1, restartDelayS: 1 }));
+    expect(room.phase).toBe('lobby');
+    expect(room.world.mode.id).toBe('free-flight');
+    const p = joined(room, 'a', 'kobchik');
+    expect(p.last('welcome')?.phase).toBe('lobby');
+    ticks(room, 2);
+    expect(p.last('roster')?.players.filter((r) => r.isBot)).toHaveLength(0);
+    const me = room.world.getAircraft(p.last('welcome')?.you ?? -1)!;
+    room.receiveJson(p, JSON.stringify({ type: 'jet', aircraftId: 'yastreb' }));
+    expect(me.config.id).toBe('yastreb');
+    room.hostChooseJet('condor');
+    expect(room.world.getAircraft(room.hostEntityId)?.config.id).toBe('condor');
+    // Nothing ends a lobby.
+    ticks(room, 120);
+    expect(room.endedAtTick).toBeNull();
+    expect(room.startMatch()).toBe(true);
+    expect(room.startMatch()).toBe(false);
+    expect(room.phase).toBe('match');
+    const start = p.last('matchStart');
+    expect(start?.phase).toBe('match');
+    expect(room.world.mode.id).toBe('team-deathmatch');
+    expect(room.world.getAircraft(start?.you ?? -1)?.config.id).toBe('yastreb');
+    expect(room.world.getAircraft(room.hostEntityId)?.config.id).toBe('condor');
+    ticks(room, 2);
+    expect(p.last('roster')?.players.filter((r) => r.isBot)).toHaveLength(6);
+  });
+
+  it('goes back to the lobby after a match, and a pilot who joins then waits there too', () => {
+    const room = new Room(options({ lobby: true, scoreLimit: 1, restartDelayS: 1 }));
+    const p = joined(room, 'a');
+    room.startMatch();
+    const me = room.world.getAircraft(p.last('matchStart')?.you ?? -1)!;
+    room.world.applyDamage(me, 9999, null, 'cannon');
+    ticks(room, 2);
+    expect(p.last('matchEnd')?.status.winner).toBe('russia');
+    ticks(room, 70);
+    expect(room.phase).toBe('lobby');
+    expect(p.last('matchStart')?.phase).toBe('lobby');
+    expect(room.world.mode.id).toBe('free-flight');
+    expect([...room.world.aircraftList()].filter((a) => a.isBot)).toHaveLength(0);
+    const q = joined(room, 'b', 'kobchik', 'Two');
+    expect(q.last('welcome')?.phase).toBe('lobby');
+    expect(q.last('matchEnd')).toBeUndefined();
+  });
+
+  it('keeps online names to five letters', () => {
+    const room = new Room(options());
+    const p = joined(room, 'a', 'kestrel', 'Maverick');
+    expect(room.world.getAircraft(p.last('welcome')?.you ?? -1)?.callsign).toBe('Maver');
+  });
+
   it('tells everyone when the host closes the room', () => {
     const room = new Room(options());
     const p = joined(room, 'a');
