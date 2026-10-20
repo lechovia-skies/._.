@@ -399,6 +399,7 @@ export class Hud {
     else this.touchHint.forEach((line, i) => ctx.fillText(line, this.width / 2 - ctx.measureText(line).width / 2, TOUCH_TEXT_Y + i * TOUCH_LINE_PX));
     ctx.globalAlpha = 1;
     ctx.font = FONT;
+    if (f.prompt) this.drawCenterText(f.prompt, this.height - 44, AMBER, FONT);
   }
 
   private drawCenterText(text: string, y: number, color: string, font: string): void {

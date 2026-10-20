@@ -12,6 +12,8 @@ is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The
 **Current milestone: M5 "Modes & polish"** (after M1a "Fly", M1b "Fight", M1d "Strike", M1c "Website basics", M2
 "Multiplayer", M3 "Roster & weapons" and M4 "World"). Online play (M2) was taken out again on 2026-10-02 and came back
 on 2026-10-08 without any server: the game still runs entirely in the browser.
+- **No cursor in flight** (2026-10-20): on a computer the mouse cursor never shows over the flight. If the game could
+  not take the mouse (the HUD then says *Click the view to take the stick*), one click does it.
 - **Touch screens** (2026-10-20): iPads and phones fly with controls on the screen, laid out after the owner's
   picture: see [Touch screen](#touch-screen).
 - **Real aircraft names** (2026-10-20): the jets go by the real types' names: F-35A Lightning II (was Shade), F-22A

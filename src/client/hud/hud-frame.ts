@@ -31,6 +31,8 @@ export interface HudFrame {
   /** short notice, e.g. "MISSILE DECOYED" */
   banner: string | null;
   hint: string;
+  /** a standing instruction over the hint: click so the mouse steers (revision 40) */
+  prompt?: string | null;
   killFeed: readonly KillFeedLine[];
   hitMarker: boolean;
   /** the local aircraft was just hit: the HIT caption for the hit sound */

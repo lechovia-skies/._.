@@ -93,6 +93,8 @@ const HIT_TAKEN_S = 0.6;
 const BANNER_S = 1.5;
 /** A campaign mission's title shows this long at the start. */
 const MISSION_BANNER_S = 4;
+/** The mouse free this long while flying with mouse aim, the HUD says to click (revision 40): not while capture is on its way. */
+const FREE_MOUSE_PROMPT_S = 1;
 const EXPLOSION_SHAKE_RANGE_M = 1500;
 
 const HINTS: Record<ControlMode, string> = {
@@ -404,6 +406,8 @@ export async function startGame(
   let hitTakenUntil = 0;
   let settingsOpen = false;
   let banner: string | null = null;
+  /** since when the mouse has been free while flying with mouse aim (revision 40) */
+  let freeMouseSince = 0;
   let bannerUntil = 0;
   // The debug readout goes in first so every dialog covers it.
   const debug = new URLSearchParams(location.search).get('debug') === '1' ? new DebugOverlay(root) : null;
@@ -482,6 +486,8 @@ export async function startGame(
     paused = true;
     audio?.quiet();
     pause.show();
+    // P or Start: the menu needs the cursor (Esc has freed the mouse already).
+    if (input.pointerLocked) document.exitPointerLock();
   };
   // Online (revision 28): the room's code in a corner, why it closed, and a hidden tab that keeps the match going.
   const badge = onlineSession ? document.createElement('div') : null;
@@ -905,6 +911,7 @@ export async function startGame(
       } else if (paused) {
         pause.hide();
         paused = false;
+        lockMouse();
       } else {
         openPause();
       }
@@ -1011,6 +1018,14 @@ export async function startGame(
         : [];
       debug.frame(now, lines);
     }
+
+    // Revision 40: on a computer no cursor shows over the flight, captured by the game or not (a menu, the results or
+    // Free Flight's map bring it back). Mouse aim steers only once the mouse is captured, so while it is free the HUD
+    // says to click (the browser refuses to capture it without a fresh click, after a long load for one).
+    const flying = !touch.isEnabled && !paused && !matchOver && !lobbyOpen && !settingsOpen && !(freeFlight() && mapScreen.open) && connection?.visible !== true;
+    renderer.webgl.domElement.classList.toggle('no-cursor', flying);
+    if (!flying || hintInput !== false || mapper.settings.mode !== 'mouse-aim' || input.pointerLocked) freeMouseSince = nowS;
+    const clickPrompt = nowS - freeMouseSince > FREE_MOUSE_PROMPT_S;
 
     const local = session.localView();
     if (local) {
@@ -1134,6 +1149,7 @@ export async function startGame(
         message,
         deathInfo,
         banner: nowS < bannerUntil ? banner : null,
+        prompt: clickPrompt ? 'CLICK THE VIEW TO TAKE THE STICK' : null,
         hint:
           local.alive && f.onGround
             ? // Rolling out after a landing (revision 22), else on the take-off run.

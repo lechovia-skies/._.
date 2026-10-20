@@ -51,6 +51,8 @@ body {
 #app { position: fixed; inset: 0; }
 
 #app > canvas { display: block; position: absolute; inset: 0; }
+/* No cursor over the flight on a computer (revision 40), whether the game has captured the mouse or not. */
+#app > canvas.no-cursor { cursor: none; }
 
 .hud-canvas { position: absolute; inset: 0; pointer-events: none; }
 

@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 39)
+# Lechovia Skies — Design Spec (revision 40)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -157,6 +157,9 @@
     pause, scores, map, camera view and quick chat in the top left; a drag anywhere else looks round. The HUD makes
     room: the radar moves to the top right, the kill feed and the hints under the heading. Settings: touch controls
     Auto / On / Off and the stick's climb direction.
+  - Revision 40 (2026-10-20): at the owner's request no mouse cursor shows over the flight on a computer (§15.3),
+    whether the game has captured the mouse or not; menus, the results and Free Flight's map bring it back. Pausing
+    with P or Start frees the mouse so the menu can be clicked.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -1496,6 +1499,12 @@ chase views at other distances. There is no free camera.
     64); the hint, broken at its dots, and the kill feed go under the heading; the heading tape spans ±20°; speed and
     altitude sit at 38% of the height; a screen shorter than 640 px draws the HUD smaller (down to 75%). Hints name the
     touch controls (take-off, landing, spin, training).
+- **The cursor (revision 40):** on a computer no cursor shows over the flight. The game captures the mouse (pointer
+  lock) at the start and on resuming, and the browser hides it then; where the browser refuses (it needs a fresh click,
+  so after a long load it may), the view still hides it (`cursor: none` while flying: not paused, no results, lobby,
+  settings, connection notice or Free Flight map). With mouse aim and the mouse free for over a second the HUD says
+  CLICK THE VIEW TO TAKE THE STICK over the key line. Pausing with P or Start frees the mouse for the menu; P again
+  captures it.
 - No `Ctrl` bindings: browsers reserve shortcuts such as `Ctrl+W`, which would close the tab mid-flight.
 
 | Key | Action |
