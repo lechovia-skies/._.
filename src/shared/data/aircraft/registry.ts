@@ -39,6 +39,9 @@ export function sentinelFor(team: TeamId): AircraftConfig {
   return team === 'usa' ? sentinelUsa : sentinelRussia;
 }
 
+/** A jet's long name where there is room (revision 38): designation and popular name, "F-16C Fighting Falcon". */
+export const fullName = (c: Pick<AircraftConfig, 'name' | 'nickname'>): string => (c.nickname ? `${c.name} ${c.nickname}` : c.name);
+
 /** The fighters pilots and bots can fly, optionally of one team. */
 export function listAircraft(team?: TeamId): AircraftConfig[] {
   return ALL.filter((c) => team === undefined || c.team === team);

@@ -1,5 +1,5 @@
 import type { DifficultyId } from '../../shared/ai/difficulty.ts';
-import { listAircraft, TEAM_NAMES } from '../../shared/data/aircraft/registry.ts';
+import { fullName, listAircraft, TEAM_NAMES } from '../../shared/data/aircraft/registry.ts';
 import type { AircraftConfig } from '../../shared/data/aircraft/types.ts';
 import { loadoutFor } from '../../shared/data/loadout.ts';
 import { MAP_IDS, type MapId } from '../../shared/data/maps/registry.ts';
@@ -304,7 +304,8 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   const jets = choiceGroup(
     'aircraft',
     'Aircraft',
-    aircraft.map((a) => ({ value: a.id, label: a.name, ...jetBadge(hangar, a.id, progress.level) })),
+    // The real name (revision 38): the designation, with the popular name above it.
+    aircraft.map((a) => ({ value: a.id, label: a.name, kicker: a.nickname, ...jetBadge(hangar, a.id, progress.level) })),
     aircraftId,
     (id) => {
       aircraftId = id;
@@ -430,7 +431,7 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   };
   const playDialog = playSheet(
     {
-      jetName: () => aircraft.find((a) => a.id === aircraftId)?.name ?? '',
+      jetName: () => fullName(aircraft.find((a) => a.id === aircraftId) ?? aircraft[0]),
       jetProblem,
       onSoloChange: (s) => {
         world = { ...world, map: s.map, start: s.start, time: s.time };
@@ -445,7 +446,7 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
     {
       jetProblem,
       environment: (time) => environmentOf({ ...world, time }),
-      jets: () => aircraft.filter((a) => a.id === aircraftId || (isUnlocked(a.id, progress.level) && canFly(hangar, a.id))).map((a) => ({ id: a.id, name: a.name, team: a.team })),
+      jets: () => aircraft.filter((a) => a.id === aircraftId || (isUnlocked(a.id, progress.level) && canFly(hangar, a.id))).map((a) => ({ id: a.id, name: fullName(a), team: a.team })),
       jet: () => aircraftId,
       setJet: (id) => {
         const input = jets.querySelector<HTMLInputElement>(`#pick-aircraft-${id}`);

@@ -119,7 +119,10 @@ export interface PerformanceTargets {
 
 export interface AircraftConfig {
   id: string;
+  /** the real type's designation, as the HUD and lists show it (revision 38): "F-16C" */
   name: string;
+  /** its popular or NATO name, for the long form where there is room (revision 38): "Fighting Falcon" */
+  nickname?: string;
   team: TeamId;
   role: string;
   description: string;

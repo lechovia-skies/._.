@@ -1,9 +1,11 @@
 import type { AircraftConfig } from './types.ts';
 
-/** Fictional two-seat multirole fighter (design reference: a twin-engine two-seat 4th-generation multirole fighter). */
+/** The Su-30SM Flanker-H: two-seat multirole fighter. Its flight model and numbers are the game's own, tuned for play (spec §9). */
 export const sapsan: AircraftConfig = {
   id: 'sapsan',
-  name: 'Sapsan',
+  // Real names since revision 38 (at the owner's request); the game called it the Sapsan before.
+  name: 'Su-30SM',
+  nickname: 'Flanker-H',
   team: 'russia',
   role: 'Two-seat multirole fighter',
   description:

@@ -1,4 +1,4 @@
-import { getAircraft, listAircraft } from '../../shared/data/aircraft/registry.ts';
+import { fullName, getAircraft, listAircraft } from '../../shared/data/aircraft/registry.ts';
 import type { TeamId } from '../../shared/data/aircraft/types.ts';
 import { MAP_IDS, type MapId } from '../../shared/data/maps/registry.ts';
 import { ONLINE_NAME_MAX, type OnlineModeId, onlineName, parseRoomCode, ROOM_CODE_LENGTH, type RoomSettings, sanitizeAiJets, sanitizeRoomSettings } from '../../shared/net/protocol.ts';
@@ -100,7 +100,7 @@ export function multiplayerScreen(
   let error = '';
   let setup = loadSetup('online');
   let aiJets = sanitizeAiJets(loadSetting<unknown>(AI_JETS_KEY, null));
-  const allJets = listAircraft().map((a) => ({ id: a.id, name: a.name, team: a.team }));
+  const allJets = listAircraft().map((a) => ({ id: a.id, name: fullName(a), team: a.team }));
 
   const view = (): MpView => {
     const w = fixedWorld(setup);

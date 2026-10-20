@@ -1,9 +1,11 @@
 import type { AircraftConfig } from './types.ts';
 
-/** Fictional light multirole fighter (design reference: a single-engine 4th-generation lightweight fighter). */
+/** The F-16C Fighting Falcon: light multirole fighter. Its flight model and numbers are the game's own, tuned for play (spec §9). */
 export const kestrel: AircraftConfig = {
   id: 'kestrel',
-  name: 'Kestrel',
+  // Real names since revision 38 (at the owner's request); the game called it the Kestrel before.
+  name: 'F-16C',
+  nickname: 'Fighting Falcon',
   team: 'usa',
   role: 'Light multirole fighter',
   description: 'Nimble single-engine fighter with the best roll rate in the sky. Accelerates hard but is lightly built.',

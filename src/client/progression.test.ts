@@ -35,7 +35,7 @@ describe('pilot levels (revision 26)', () => {
     // One new jet per level from 2 to 7.
     const levels = Object.values(UNLOCK_LEVELS).filter((l) => l > 1).sort();
     expect(levels).toEqual([2, 3, 4, 5, 6, 7]);
-    expect(nextUnlock(1)).toEqual({ aircraftId: 'yastreb', name: 'Yastreb', level: 2 });
+    expect(nextUnlock(1)).toEqual({ aircraftId: 'yastreb', name: 'Su-35S', level: 2 });
     expect(nextUnlock(7)).toBeNull();
   });
 
@@ -44,7 +44,7 @@ describe('pilot levels (revision 26)', () => {
     const after = career({ matches: 2, wins: 1, kills: 4 });
     expect(careerXp(before)).toBe(200);
     expect(careerXp(after)).toBe(550);
-    expect(progressionLines(before, after)).toEqual(['+350 XP · Level 2 (550 / 800 XP)', 'Level up · Level 2', 'New jet to develop · Yastreb (CR 8,000)']);
+    expect(progressionLines(before, after)).toEqual(['+350 XP · Level 2 (550 / 800 XP)', 'Level up · Level 2', 'New jet to develop · Su-35S (CR 8,000)']);
     expect(progressionLines(after, career({ matches: 3, wins: 1, kills: 4 }))).toEqual(['+100 XP · Level 2 (650 / 800 XP)']);
   });
 });

@@ -1,4 +1,4 @@
-import { listAircraft } from '../../shared/data/aircraft/registry.ts';
+import { fullName, listAircraft } from '../../shared/data/aircraft/registry.ts';
 import type { TeamId } from '../../shared/data/aircraft/types.ts';
 import type { RoomSettings } from '../../shared/net/protocol.ts';
 import { START_HOURS } from '../../shared/world/time-of-day.ts';
@@ -50,7 +50,7 @@ export function lobbyLine(s: Pick<LobbyState, 'isHost' | 'hostName' | 'pilots'>)
     : `${s.pilots.length} pilots in the room. Start the game when everyone is in.`;
 }
 
-const ALL_JETS = listAircraft().map((a) => ({ id: a.id, name: a.name, team: a.team }));
+const ALL_JETS = listAircraft().map((a) => ({ id: a.id, name: fullName(a), team: a.team }));
 
 /** The Multiplayer screen's view of an open room (revision 37). */
 export function roomView(state: LobbyState): MpView {

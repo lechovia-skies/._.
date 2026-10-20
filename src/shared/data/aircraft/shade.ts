@@ -1,9 +1,11 @@
 import type { AircraftConfig } from './types.ts';
 
-/** Fictional stealth multirole fighter (design reference: a single-engine 5th-generation stealth multirole fighter). */
+/** The F-35A Lightning II: stealth multirole fighter. Its flight model and numbers are the game's own, tuned for play (spec §9). */
 export const shade: AircraftConfig = {
   id: 'shade',
-  name: 'Shade',
+  // Real names since revision 38 (at the owner's request); the game called it the Shade before.
+  name: 'F-35A',
+  nickname: 'Lightning II',
   team: 'usa',
   role: 'Stealth multirole fighter',
   description:

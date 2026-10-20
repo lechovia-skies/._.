@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 37)
+# Lechovia Skies — Design Spec (revision 38)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -147,6 +147,10 @@
     by seat and one big button on the right; BACK at the foot. In the lobby the host changes the room (mode, seats, AI
     pilots, time of day) and picks the AI seats' jets; any pilot may pick a jet of the other side there and change
     sides. Protocol 9.
+  - Revision 38 (2026-10-20): at the owner's request the jets take the real types' names (§9.2): the designation
+    (`AircraftConfig.name`, "F-16C") wherever space is short, and with the popular or NATO name (`nickname`,
+    `fullName`: "F-16C Fighting Falcon") on the title screen and the Multiplayer screen. The Sentinels are named the
+    E-3G Sentry and the A-50U Mainstay. Ids, saves and the protocol are unchanged; flight models stay the game's own.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -176,7 +180,8 @@ was built in M2 and removed again. Revision 28: online play is back, hosted in a
 | Realism | Arcade/sim hybrid: physics-based translation, fly-by-wire rotation | Q&A + brief |
 | Hosting | LAN first; Dockerfile for public deployment later | Q&A |
 | Netcode | Authoritative server + client prediction/reconciliation + snapshot interpolation + lag-compensated bullets | Q&A |
-| Aircraft | 8 fictional aircraft with fictional names and specifications, 4 per team, data-driven | Brief (supersedes real F-15C/F-16C/Su-27/MiG-29) |
+| Aircraft | 8 fictional aircraft with fictional names and specifications, 4 per team, data-driven (revision 38: the real types' names; the specifications stay the game's own) | Brief (supersedes real F-15C/F-16C/Su-27/MiG-29) |
+| Real names | The jets go by the real types' names: designation everywhere, with the popular or NATO name where there is room | Owner, 2026-10-20 (revision 38) |
 | Weapons | Cannon, short-range IR missile, medium-range radar missile, flares + chaff; behavior abstracted | Brief (supersedes guns + IR only) |
 | Real weapons | Each jet carries the real weapons of the type it is modelled on: real names, guns, missiles, rounds, flares and chaff; ranges scaled to the game's sky | Owner, 2026-10-13 (revision 30) |
 | Real looks | The six generated jets are drawn as the real types in their real paint and markings, with their stores on the pylons, after the owner's reference pictures | Owner, 2026-10-16 (revision 31) |
@@ -632,6 +637,14 @@ Each aircraft is one `AircraftConfig` data object in `src/shared/data/aircraft/<
 
 The jets' names and flight numbers are fictional. The "inspired by" column was for design reference only; since
 revision 30 each jet carries the real weapons of that type (§9.3, §10), and the game names those weapons.
+
+Revision 38 (at the owner's request): the jets go by the real types' names; the flight numbers stay the game's own.
+Shade → **F-35A Lightning II**, Tempest → **F-22A Raptor**, Kestrel → **F-16C Fighting Falcon**, Condor → **F-15C
+Eagle**, Prizrak → **Su-57 Felon**, Yastreb → **Su-35S Flanker-E**, Sapsan → **Su-30SM Flanker-H**, Kobchik →
+**MiG-29 Fulcrum**; the Sentinels (§13.4) → **E-3G Sentry** and **A-50U Mainstay**. `name` is the designation (HUD,
+scoreboard, kill cam, lists, records, hangar lines); `nickname` the popular or NATO name, shown with it by `fullName`
+on the title screen (above the designation on each jet) and on the Multiplayer screen. The ids (`kestrel` …) do not
+change, so saves, campaigns and online rooms are unaffected; the names below are the ones the spec was written with.
 
 | Team | Name | Inspired by | Role | Strengths | Weaknesses |
 |---|---|---|---|---|---|

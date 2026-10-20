@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '../../math/rng.ts';
-import { getAircraft, listAircraft, opposingTeam, randomAircraft, sentinelFor } from './registry.ts';
+import { fullName, getAircraft, listAircraft, opposingTeam, randomAircraft, sentinelFor } from './registry.ts';
 import { validateAircraftConfig } from './validate.ts';
 
 describe('aircraft registry', () => {
-  it('returns Kestrel and Kobchik by id', () => {
-    expect(getAircraft('kestrel').name).toBe('Kestrel');
-    expect(getAircraft('kobchik').name).toBe('Kobchik');
+  it('returns the jets by id, under their real names (revision 38)', () => {
+    expect(getAircraft('kestrel').name).toBe('F-16C');
+    expect(getAircraft('kobchik').name).toBe('MiG-29');
+    expect(fullName(getAircraft('kestrel'))).toBe('F-16C Fighting Falcon');
+    expect(listAircraft().map(fullName)).toEqual(['F-35A Lightning II', 'F-22A Raptor', 'F-16C Fighting Falcon', 'F-15C Eagle', 'Su-57 Felon', 'Su-35S Flanker-E', 'Su-30SM Flanker-H', 'MiG-29 Fulcrum']);
+    expect(getAircraft('sentinel-usa').name).toBe('E-3G');
   });
   it('throws for unknown ids', () => {
     expect(() => getAircraft('nope')).toThrow('Unknown aircraft: nope');

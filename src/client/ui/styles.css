@@ -211,6 +211,8 @@ body {
 .option:hover { color: var(--canopy); }
 .option-kicker { font: 500 10px/1.3 var(--mono); letter-spacing: 0.2em; text-transform: uppercase; }
 .option-name { font: 700 30px/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+/* Real aircraft designations keep their case (revision 38): Su-57 and MiG-29, not SU-57 and MIG-29. */
+.pick-aircraft .option-name, .pick-campaign-jet .option-name { text-transform: none; }
 .pick-skill .option-name,
 .pick-size .option-name,
 .sheet .option-name { font-size: 20px; letter-spacing: 0.08em; }

@@ -1,9 +1,11 @@
 import type { AircraftConfig } from './types.ts';
 
-/** Fictional supermaneuverable heavy fighter (design reference: a twin-engine 4th-generation supermaneuverable heavy fighter). */
+/** The Su-35S Flanker-E: supermaneuverable heavy fighter. Its flight model and numbers are the game's own, tuned for play (spec §9). */
 export const yastreb: AircraftConfig = {
   id: 'yastreb',
-  name: 'Yastreb',
+  // Real names since revision 38 (at the owner's request); the game called it the Yastreb before.
+  name: 'Su-35S',
+  nickname: 'Flanker-E',
   team: 'russia',
   role: 'Supermaneuverable heavy fighter',
   description:

@@ -1,7 +1,7 @@
 # Lechovia Skies
 
-A browser-based flight-combat prototype. Two teams, **USA** and **Russia**, fly **fictional** fighters inspired by
-real aircraft, armed with those aircraft's real weapons, over a fictional landscape inspired by Poland. This repository is being built in milestones (see
+A browser-based flight-combat prototype. Two teams, **USA** and **Russia**, fly real fighter types (the F-22A, F-35A,
+F-16C, F-15C, Su-57, Su-35S, Su-30SM and MiG-29) with their real weapons, over a fictional landscape inspired by Poland. This repository is being built in milestones (see
 `docs/superpowers/specs/2026-09-29-poland-dogfight-design.md`).
 
 **Play it:** https://lechovia-skies.github.io/._./ (desktop or laptop with a keyboard and mouse). The site
@@ -11,11 +11,15 @@ is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The
 **Current milestone: M5 "Modes & polish"** (after M1a "Fly", M1b "Fight", M1d "Strike", M1c "Website basics", M2
 "Multiplayer", M3 "Roster & weapons" and M4 "World"). Online play (M2) was taken out again on 2026-10-02 and came back
 on 2026-10-08 without any server: the game still runs entirely in the browser.
+- **Real aircraft names** (2026-10-20): the jets go by the real types' names: F-35A Lightning II (was Shade), F-22A
+  Raptor (Tempest), F-16C Fighting Falcon (Kestrel), F-15C Eagle (Condor), Su-57 Felon (Prizrak), Su-35S Flanker-E
+  (Yastreb), Su-30SM Flanker-H (Sapsan) and MiG-29 Fulcrum (Kobchik); the Sentinels are the E-3G Sentry and the A-50U
+  Mainstay. Lists and the HUD show the designation, the title screen and the multiplayer screen the full name.
 - **Money and the hangar** (2026-10-16): matches pay credits (CR): 1,000 per kill, 2,500 per Sentinel, 2,000 for a
   win, more against Aces and less against Rookies. Each time your jet is shot down it takes damage; after three times
   it is grounded until you repair it (the line under the jet on the title screen: *Repair*). Levels now make jets
-  available to *develop*, which costs credits (Yastreb 8,000 up to Shade 32,000). You start with the Kestrel and the
-  Kobchik and the credits your earlier matches would have paid; the two starters can always be repaired, even with no
+  available to *develop*, which costs credits (Su-35S 8,000 up to F-35A 32,000). You start with the F-16C and the
+  MiG-29 and the credits your earlier matches would have paid; the two starters can always be repaired, even with no
   money.
 - **Play** (2026-10-19): the title screen is your jet and a big **PLAY**. PLAY asks *Solo* or *Multiplayer*, then
   sets the match up: the mission (Dogfight, Air Superiority, Team Objective, Strike or Free flight), the time of day,
@@ -48,31 +52,31 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
   greys; red stars and bort numbers (07, 02, 29) on the Russian jets, the subdued star-and-bar and real unit tail codes
   (FF, LN, SW) on the US ones. Each jet's missiles and bombs hang on its rails and pylons where the real type carries
   them and disappear as you fire them (the F-16 also carries its two wing tanks; the F-22 keeps everything inside).
-  Each type has its own landing gear, and missiles and bombs keep their shapes in flight. The Shade and Prizrak keep
+  Each type has its own landing gear, and missiles and bombs keep their shapes in flight. The F-35A and Su-57 keep
   the owner's F-35A and Su-57 models.
 - **Real weapons** (2026-10-13): every jet carries the real weapons of the type it is modelled on, by their real names
   and in the real numbers, shown on the title screen and the HUD (`M61A1 511  AIM-9X 2  AIM-120D 4  FLR 30  CHF 60`):
 
   | Jet (type) | Gun, rounds | Missiles | Flares / chaff |
   |---|---|---|---|
-  | Shade (F-35A) | GAU-22/A 25 mm, 182 | 4 AIM-120D (in the bays) | 32 / 32 |
-  | Tempest (F-22A) | M61A2 20 mm, 480 | 2 AIM-9X, 6 AIM-120D (in the bays) | 24 / 24 |
-  | Kestrel (F-16C) | M61A1 20 mm, 511 | 2 AIM-9X, 4 AIM-120D | 30 / 60 |
-  | Condor (F-15C) | M61A1 20 mm, 940 | 4 AIM-9X, 4 AIM-120D | 60 / 120 |
-  | Prizrak (Su-57) | GSh-30-1 30 mm, 150 | 2 R-74M2, 4 R-77M (in the bays) | 21 / 21 |
-  | Yastreb (Su-35S) | GSh-30-1 30 mm, 150 | 2 R-73, 2 R-77-1, 2 R-37M | 48 / 48 |
-  | Sapsan (Su-30SM) | GSh-30-1 30 mm, 150 | 4 R-73, 4 R-27R | 48 / 48 |
-  | Kobchik (MiG-29) | GSh-30-1 30 mm, 150 | 4 R-73, 2 R-27R | 30 / 30 |
+  | F-35A Lightning II | GAU-22/A 25 mm, 182 | 4 AIM-120D (in the bays) | 32 / 32 |
+  | F-22A Raptor | M61A2 20 mm, 480 | 2 AIM-9X, 6 AIM-120D (in the bays) | 24 / 24 |
+  | F-16C Fighting Falcon | M61A1 20 mm, 511 | 2 AIM-9X, 4 AIM-120D | 30 / 60 |
+  | F-15C Eagle | M61A1 20 mm, 940 | 4 AIM-9X, 4 AIM-120D | 60 / 120 |
+  | Su-57 Felon | GSh-30-1 30 mm, 150 | 2 R-74M2, 4 R-77M (in the bays) | 21 / 21 |
+  | Su-35S Flanker-E | GSh-30-1 30 mm, 150 | 2 R-73, 2 R-77-1, 2 R-37M | 48 / 48 |
+  | Su-30SM Flanker-H | GSh-30-1 30 mm, 150 | 4 R-73, 4 R-27R | 48 / 48 |
+  | MiG-29 Fulcrum | GSh-30-1 30 mm, 150 | 4 R-73, 2 R-27R | 30 / 30 |
 
   Each missile behaves like its namesake, at the game's scale: the AIM-9X locks 90° off the nose and shrugs off most
   flares; the R-27R is semi-active, so its launcher must hold you on radar until it hits and your RADAR LOCK warning
   stays on to the end; the R-77M and AIM-120D reach half as far again as the R-77-1; the R-37M reaches furthest of all
-  and hits hard but turns only at 12 g. 1 and 2 step through a jet's heat-seeking and radar missiles (the Yastreb's
-  2 goes R-77-1 → R-37M); the Shade carries no heat-seeker. Flares and chaff are counted apart: X drops one of each
+  and hits hard but turns only at 12 g. 1 and 2 step through a jet's heat-seeking and radar missiles (the Su-35S's
+  2 goes R-77-1 → R-37M); the F-35A carries no heat-seeker. Flares and chaff are counted apart: X drops one of each
   while they last. In Strike the Russian jets carry their real strike load of FAB-500M-62 bombs (4 or 6) with fewer
   missiles; two bombs on a target destroy it. Team Objective no longer gives every jet the same 4 missiles. Guns,
   rounds and missile loads follow official fact sheets and published loads; flare and chaff loads are rarely
-  published, so some are the commonly cited figures and the Shade's and Tempest's are the game's earlier ones.
+  published, so some are the commonly cited figures and the F-35A's and F-22A's are the game's earlier ones.
 - **Online play** (2026-10-08): **Online** on the title screen. One of you hosts a room (Dogfight, Air Superiority,
   Team Objective, Free Flight or Strike; 1, 2 or 4 pilots a side, AI pilots in the empty seats) and gets a six-letter
   code; up to seven friends join with the code or the invite link (pause menu: *Copy invite link*). The match runs in
@@ -87,7 +91,7 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
   farmhouses, barns and a white church; in the mountains they are timber with a wooden church. Windows light up at
   night.
 - **Levels** (2026-10-07): every match earns experience (more for a win, each kill and Sentinel), and levels open the
-  jets one at a time: Kestrel and Kobchik from the start, Shade at level 7. Matches already on record count.
+  jets one at a time: F-16C and MiG-29 from the start, F-35A at level 7. Matches already on record count.
 - **Take off together** (2026-10-07): with a runway start, the AI pilots start on their runways and take off with you.
 - **Fullscreen** (2026-10-07; 2026-10-13: one click on the button in the bottom-right corner of every screen; also in
   the pause menu). The map (M) shows N, E,
@@ -136,8 +140,8 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
     downwind. Training flies in still air.
   - Too slow and stalled, a jet can depart into a spin, especially if you roll there; it yaws round and falls at
     70–100 m/s. Mouse aim recovers by itself (`SPIN` · `AUTO RECOVERY`). With keyboard steering: nose down (W),
-    rudder against the spin (Q or E, as the HUD says) and let go of the roll. Thrust-vectoring jets (Prizrak,
-    Yastreb) and hard-limited ones (Kestrel, Condor) are hard to depart; the Sapsan is the easiest.
+    rudder against the spin (Q or E, as the HUD says) and let go of the roll. Thrust-vectoring jets (Su-57,
+    Su-35S) and hard-limited ones (F-16C, F-15C) are hard to depart; the Su-30SM is the easiest.
 - **Four modes**:
   - **Dogfight** (Team Deathmatch): first to 15, or the most after 10 minutes.
   - **Air Superiority**: three zones (A, B, C) on the front, each a cylinder 4 km across from 1,000 to 7,000 m. The
@@ -180,8 +184,8 @@ Earlier milestones:
   Broken, Overcast or Rain and a clock that runs one hour per minute, and campaign missions bring their own weather.
   Clouds hide jets from your eyes and from heat-seeking missiles, not from radar. At night towns, roads and runways light up and every jet shows navigation lights.
 - A **map screen** on M.
-- **Eight aircraft**, four per team: USA Shade, Tempest, Kestrel and Condor; Russia Prizrak, Yastreb, Sapsan and
-  Kobchik, each with its own flight model, sensors, stores and strengths. The Shade and the Prizrak wear the owner's
+- **Eight aircraft**, four per team: USA F-35A, F-22A, F-16C and F-15C; Russia Su-57, Su-35S, Su-30SM and
+  MiG-29, each with its own flight model, sensors, stores and strengths. The F-35A and the Su-57 wear the owner's
   3D models (inspired by the F-35A and the Su-57); the others are generated with team paint schemes.
 - The medium-range radar missile (key 2; the "Lance" until 2026-10-13) with radar locks, chaff, and a RADAR LOCK
   warning when an enemy radar locks on to you. AI pilots fly a mix of jets and use radar missiles beyond heat-seeker
@@ -271,7 +275,7 @@ buttons (move or press each one), then **Calibrate**.
 In a fight:
 - The nearest enemy ahead is targeted automatically; R picks the next one.
 - The missile seeker growls while it tracks and gives a steady tone when locked. Then press F.
-- For targets beyond about 6 km, press 2 for your radar missile (AIM-120D, R-77-1, R-77M or R-27R; the Yastreb's
+- For targets beyond about 6 km, press 2 for your radar missile (AIM-120D, R-77-1, R-77M or R-27R; the Su-35S's
   second press selects the long-range R-37M): a diamond closes on the target box while the radar locks (quick beeps),
   then turns red with a steady tone. Press F, and keep the target inside your radar cone (roughly ahead) until the
   missile is about 10 km from it; after that it guides itself. An R-27R never does: keep the target in the cone until
@@ -290,8 +294,8 @@ In a fight:
 In Strike (choose **Strike** under Mission on the title screen):
 - The USA jets defend: keep at least two of the three targets standing for 9 minutes, or shoot Russia's jets down
   four times.
-- The Russian jets attack with their strike load of FAB-500M-62 bombs (4 for the Prizrak and Kobchik, 6 for the
-  Yastreb and Sapsan): destroy two targets, or shoot the USA's jets down four times.
+- The Russian jets attack with their strike load of FAB-500M-62 bombs (4 for the Su-57 and MiG-29, 6 for the
+  Su-35S and Su-30SM): destroy two targets, or shoot the USA's jets down four times.
 - Fly level about 1,500 m above a target. The circle on the ground shows where a bomb would land; press G as it
   crosses the target (RELEASE flashes). Two good hits destroy a target.
 - Each side has 4 aircraft. Losing the fourth loses the match.
@@ -413,7 +417,7 @@ three-view drawing, its paint and markings, its gear and hardpoints) and registe
 
 ## Content note
 
-All aircraft, places and organizations are fictional. Aircraft are only *inspired by* real types and use invented names
-and flight figures. Since 2026-10-13 they carry the real weapons of those types under their real names, with published
+Places and organizations are fictional. Since 2026-10-20 the aircraft go by the real types' names (until then they had
+invented names); their flight figures are the game's own, tuned for play, not the real aircraft's. Since 2026-10-13 they carry the real weapons of those types under their real names, with published
 loads and public figures scaled to the game; how the weapons are built or used in service is not modelled. Since
 2026-10-16 six of them are drawn as those types, with their national insignia, bort numbers and unit tail codes.

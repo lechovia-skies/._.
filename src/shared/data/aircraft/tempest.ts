@@ -1,9 +1,11 @@
 import type { AircraftConfig } from './types.ts';
 
-/** Fictional stealth air-superiority fighter (design reference: a twin-engine 5th-generation stealth air-superiority fighter). */
+/** The F-22A Raptor: stealth air-superiority fighter. Its flight model and numbers are the game's own, tuned for play (spec §9). */
 export const tempest: AircraftConfig = {
   id: 'tempest',
-  name: 'Tempest',
+  // Real names since revision 38 (at the owner's request); the game called it the Tempest before.
+  name: 'F-22A',
+  nickname: 'Raptor',
   team: 'usa',
   role: 'Stealth air-superiority fighter',
   description:

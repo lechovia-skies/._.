@@ -50,7 +50,7 @@ describe('records formatting (revision 17)', () => {
 
   it('lists bests with the jet and day, and recent matches with their setup', () => {
     const c = recordMatch(emptyCareer(), match()).career;
-    expect(bestRows(c)[0]).toEqual(['Most kills in a match', '4', 'Kestrel', '2026-10-02']);
+    expect(bestRows(c)[0]).toEqual(['Most kills in a match', '4', 'F-16C', '2026-10-02']);
     expect(bestRows(c)).toHaveLength(5);
     expect(recentLabel(c.recent[0])).toBe('Air Superiority · 4 v 4 · Ace');
   });

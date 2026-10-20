@@ -1,9 +1,11 @@
 import type { AircraftConfig } from './types.ts';
 
-/** Fictional stealth fighter (design reference: a twin-engine 5th-generation stealth fighter). */
+/** The Su-57 Felon: stealth fighter. Its flight model and numbers are the game's own, tuned for play (spec §9). */
 export const prizrak: AircraftConfig = {
   id: 'prizrak',
-  name: 'Prizrak',
+  // Real names since revision 38 (at the owner's request); the game called it the Prizrak before.
+  name: 'Su-57',
+  nickname: 'Felon',
   team: 'russia',
   role: 'Stealth fighter',
   description:

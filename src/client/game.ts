@@ -1,6 +1,6 @@
 import { Color, Quaternion, Vector2, Vector3 } from 'three';
 import { DIFFICULTIES } from '../shared/ai/difficulty.ts';
-import { getAircraft, listAircraft, opposingTeam } from '../shared/data/aircraft/registry.ts';
+import { fullName, getAircraft, listAircraft, opposingTeam } from '../shared/data/aircraft/registry.ts';
 import type { TeamId } from '../shared/data/aircraft/types.ts';
 import type { MapId } from '../shared/data/maps/registry.ts';
 import { CANNONS } from '../shared/data/weapons.ts';
@@ -468,7 +468,7 @@ export async function startGame(
         .filter((v) => !v.isBot && !v.config.support)
         .map((v) => ({ id: v.id, callsign: v.callsign, team: v.team, jet: v.config.id, host: v.id === onlineSession?.hostId, you: v.isLocal })),
       // Both sides: in the lobby a jet of the other side takes the pilot there (revision 37).
-      jets: [...changeableJets('usa'), ...changeableJets('russia')].map((j) => ({ id: j.id, name: j.name, team: j.team })),
+      jets: [...changeableJets('usa'), ...changeableJets('russia')].map((j) => ({ id: j.id, name: fullName(j), team: j.team })),
       jet: me?.config.id ?? options.aircraftId,
     };
   };

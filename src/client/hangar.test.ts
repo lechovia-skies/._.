@@ -67,7 +67,7 @@ describe('hangar (revision 32)', () => {
     const { hangar: after, lines } = settleMatch(h, bill(2));
     expect(after.wear.kestrel).toBe(100);
     expect(canFly(after, 'kestrel')).toBe(false);
-    expect(lines.some((l) => l.startsWith('Kestrel grounded'))).toBe(true);
+    expect(lines.some((l) => l.startsWith('F-16C grounded'))).toBe(true);
     // Damage brought home counts a little; a lent jet takes none; jets not owned take none.
     const home = settleMatch(hangar({}), { ...bill(0), final: { aircraftId: 'kobchik', damage: 0.5 } }).hangar;
     expect(home.wear.kobchik).toBe(WEAR.battleDamage / 2);

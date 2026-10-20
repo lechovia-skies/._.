@@ -1,9 +1,11 @@
 import type { AircraftConfig } from './types.ts';
 
-/** Fictional heavy air-superiority fighter (design reference: a twin-engine 4th-generation heavy air-superiority fighter). */
+/** The F-15C Eagle: heavy air-superiority fighter. Its flight model and numbers are the game's own, tuned for play (spec §9). */
 export const condor: AircraftConfig = {
   id: 'condor',
-  name: 'Condor',
+  // Real names since revision 38 (at the owner's request); the game called it the Condor before.
+  name: 'F-15C',
+  nickname: 'Eagle',
   team: 'usa',
   role: 'Heavy air-superiority fighter',
   description:

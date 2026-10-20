@@ -1,14 +1,17 @@
 import type { AircraftConfig } from './types.ts';
 
 /**
- * The Sentinel (spec §13, Team Objective, M5): a fictional, slow, four-engine radar aircraft with a rotating dish on
- * its back. Each team has its own, flown by the mode; nobody can choose it. It carries no weapons, only
- * countermeasures, and its all-round long-range radar feeds its team's datalink.
+ * The Sentinel (spec §13, Team Objective, M5): a slow, four-engine radar aircraft with a rotating dish on its back,
+ * named since revision 38 as the real types, the USA's E-3G Sentry and Russia's A-50U Mainstay. Each team has its own,
+ * flown by the mode; nobody can choose it. It carries no weapons, only countermeasures, and its all-round long-range
+ * radar feeds its team's datalink.
  */
 function sentinel(team: 'usa' | 'russia'): AircraftConfig {
   return {
     id: `sentinel-${team}`,
-    name: 'Sentinel',
+    // The real types' names since revision 38; Team Objective still calls them Sentinels.
+    name: team === 'usa' ? 'E-3G' : 'A-50U',
+    nickname: team === 'usa' ? 'Sentry' : 'Mainstay',
     team,
     role: 'Airborne radar',
     description: 'A slow radar aircraft that watches the whole front for its team. It cannot fight back.',

@@ -1,9 +1,11 @@
 import type { AircraftConfig } from './types.ts';
 
-/** Fictional light fighter (design reference: a twin-engine 4th-generation lightweight fighter). */
+/** The MiG-29 Fulcrum: light fighter. Its flight model and numbers are the game's own, tuned for play (spec §9). */
 export const kobchik: AircraftConfig = {
   id: 'kobchik',
-  name: 'Kobchik',
+  // Real names since revision 38 (at the owner's request); the game called it the Kobchik before.
+  name: 'MiG-29',
+  nickname: 'Fulcrum',
   team: 'russia',
   role: 'Light fighter',
   description:
