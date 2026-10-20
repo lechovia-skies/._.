@@ -27,6 +27,7 @@ import {
   type RoomPhase,
   type RoomSettings,
   type RosterEntry,
+  sanitizeRoomSettings,
   SNAPSHOT_EVERY_TICKS,
 } from './protocol.ts';
 import { ownState, sharedSnapshot } from './snapshot.ts';
@@ -84,7 +85,8 @@ interface Pilot {
   readonly callsign: string;
   /** the jet this pilot flies; a jet change also carries over to the next match */
   aircraftId: string;
-  readonly team: TeamId;
+  /** the side of that jet: in the lobby a jet of the other side takes the pilot over (revision 37) */
+  team: TeamId;
   readonly start: SpawnStart;
   /** the pilot's aircraft in the current World */
   entityId: number;
@@ -279,6 +281,11 @@ export class Room {
         // Still the AI's jet: the choice waits for the takeover.
         if (p.takingOver) {
           if (fliesFor(msg.aircraftId, p.team)) p.aircraftId = msg.aircraftId;
+        } else if (this.phase === 'lobby' && this.world.changeSideNow(p.entityId, msg.aircraftId)) {
+          // In the lobby a jet of the other side takes the pilot to that side at once (revision 37).
+          p.aircraftId = msg.aircraftId;
+          p.team = getAircraft(msg.aircraftId).team;
+          this.rosterDirty = true;
         } else if (this.world.setNextAircraft(p.entityId, msg.aircraftId)) {
           p.aircraftId = msg.aircraftId;
           if (this.phase === 'lobby') this.world.changeJetNow(p.entityId);
@@ -316,9 +323,41 @@ export class Room {
 
   /** The jet the host flies from their next respawn on (in the lobby at once), and in the next match. */
   hostChooseJet(aircraftId: string): void {
+    if (this.phase === 'lobby' && this.world.changeSideNow(this.hostEntityId, aircraftId)) {
+      this.host.aircraftId = aircraftId;
+      this.rosterDirty = true;
+      return;
+    }
     if (!this.world.setNextAircraft(this.hostEntityId, aircraftId)) return;
     this.host.aircraftId = aircraftId;
     if (this.phase === 'lobby') this.world.changeJetNow(this.hostEntityId);
+  }
+
+  /**
+   * The host changes the room in its lobby (revision 37, at the owner's request): the mode, the seats, the AI pilots,
+   * their jets and the time of day. The map stays the room's (a room on Lechovia flies no Strike), and the seats never
+   * drop below the pilots in. Everyone is told; the next match flies them. False outside the lobby or for Strike off
+   * the Test Range.
+   */
+  updateSettings(raw: unknown): boolean {
+    if (this.phase !== 'lobby') return false;
+    const next = sanitizeRoomSettings(raw);
+    if (next.map !== this.settings.map) {
+      if (next.mode === 'strike') return false;
+      next.map = this.settings.map;
+    }
+    next.teamSize = Math.max(next.teamSize, Math.ceil((this.pilots.size + 1) / 2));
+    const was = this.settings.environment;
+    const env = next.environment;
+    Object.assign(this.settings, next);
+    if (env.weather !== was.weather || env.startHour !== was.startHour || env.clockRunning !== was.clockRunning) {
+      // The lobby's sky shows the new hour now; the match starts at it.
+      const now = environmentAt(env.weather, env.startHour, env.clockRunning, this.world.tick / TICK_RATE);
+      this.world.setEnvironment(now);
+      this.broadcast({ type: 'environment', environment: now });
+    }
+    this.broadcast({ type: 'settings', settings: this.settings });
+    return true;
   }
 
   /** Free Flight: the host or any pilot sets the weather and the hour it is now, for everyone. */
@@ -478,7 +517,9 @@ export class Room {
       let missing = size - this.humansOn(team) - bots.length;
       let index = bots.length;
       while (missing-- > 0) {
-        const jet = randomAircraft(team, this.botJets);
+        // The host's choice for this AI pilot's seat (revision 37), else a random jet of the side.
+        const chosen = this.settings.aiJets?.[team][index];
+        const jet = chosen ? getAircraft(chosen) : randomAircraft(team, this.botJets);
         // They take off with the host when the host starts on the runway (revision 26).
         this.world.addAircraft({ callsign: botCallsign(team, index++), team, aircraftId: jet.id, bot: profile, firstStart: this.host.start });
       }

@@ -172,6 +172,16 @@ export class HostSession implements GameSession {
     return this.room.hostEntityId;
   }
 
+  /** The room's settings: the host may change them in the lobby (revision 37). */
+  get settings(): RoomSettings {
+    return this.room.settings;
+  }
+
+  /** The host changes the room in its lobby (revision 37); false outside it, or for what the room cannot fly. */
+  updateSettings(settings: RoomSettings): boolean {
+    return !this.closed && this.room.updateSettings(settings);
+  }
+
   /** The host starts the match from the lobby. */
   startMatch(): void {
     if (!this.closed) this.room.startMatch();

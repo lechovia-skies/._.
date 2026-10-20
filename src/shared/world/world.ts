@@ -377,6 +377,29 @@ export class World implements ModeDirector, CombatHost, BotWorld {
     return true;
   }
 
+  /**
+   * An online room's lobby (revision 37): a jet of the other side takes the pilot to that side at once, from its
+   * start. False for an unknown jet, a support aircraft, or a jet of the pilot's own side.
+   */
+  changeSideNow(id: number, aircraftId: string): boolean {
+    const a = this.aircraft.get(id);
+    if (!a || a.support) return false;
+    let config;
+    try {
+      config = getAircraft(aircraftId);
+    } catch {
+      return false;
+    }
+    if (config.support || config.team === a.team) return false;
+    let slot = 0;
+    for (const other of this.aircraft.values()) if (other !== a && other.team === config.team) slot++;
+    a.team = config.team;
+    a.spawnSlot = slot;
+    a.nextAircraftId = config.id;
+    this.respawn(a);
+    return true;
+  }
+
   launchMissileAt(shooterId: number, targetId: number): number | null {
     const shooter = this.aircraft.get(shooterId);
     const target = this.aircraft.get(targetId);

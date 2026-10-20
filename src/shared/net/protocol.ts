@@ -1,5 +1,6 @@
 import type { TeamId } from '../data/aircraft/types.ts';
 import { DIFFICULTIES, type DifficultyId } from '../ai/difficulty.ts';
+import { listAircraft } from '../data/aircraft/registry.ts';
 import { MAP_IDS, type MapId } from '../data/maps/registry.ts';
 import type { ModeStatus } from '../modes/mode.ts';
 import type { GameEvent } from '../world/events.ts';
@@ -16,9 +17,10 @@ import { WEATHER_IDS, type WeatherId } from '../world/weather.ts';
 
 /**
  * Bumped whenever a message layout changes; host and pilot must agree (7: the lobby of revision 33; 8: a pilot who
- * joins a match takes over an AI pilot's jet, revision 36).
+ * joins a match takes over an AI pilot's jet, revision 36; 9: the host changes the room in its lobby, the AI pilots'
+ * jets and a pilot changing sides there, revision 37).
  */
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 9;
 
 /** The host sends a snapshot every this many ticks (30 Hz at 60 Hz ticks). */
 export const SNAPSHOT_EVERY_TICKS = 2;
@@ -57,7 +59,12 @@ export interface RoomSettings {
   /** pilots per team: the seats no one flies are AI pilots (none in Free Flight) */
   teamSize: number;
   botSkill: DifficultyId;
+  /** the AI pilots' jets, by side in seat order; null or missing for a random one (revision 37) */
+  aiJets?: AiJets;
 }
+
+/** The jet of each AI pilot of a side, first AI pilot first; null for a random one. */
+export type AiJets = Record<TeamId, (string | null)[]>;
 
 /** A typed error for anything a peer sends that breaks the protocol. */
 export class ProtocolError extends Error {
@@ -151,6 +158,8 @@ export type HostJsonMessage =
   | { type: 'matchStart'; you: number; tick: number; seed: number; phase: RoomPhase; hostId: number }
   /** a Free Flight room's weather or clock changed */
   | { type: 'environment'; environment: EnvironmentSettings }
+  /** the host changed the room in its lobby (revision 37): the next match flies these */
+  | { type: 'settings'; settings: RoomSettings }
   /** the host is leaving: the room closes */
   | { type: 'shutdown'; reason: string };
 
@@ -185,7 +194,18 @@ export function sanitizeRoomSettings(raw: unknown): RoomSettings {
   const map = mode === 'strike' ? 'test-range' : (MAP_IDS.find((m) => m === r.map) ?? 'lechovia');
   const size = typeof r.teamSize === 'number' && Number.isFinite(r.teamSize) ? Math.round(r.teamSize) : 4;
   const botSkill = (Object.keys(DIFFICULTIES) as DifficultyId[]).find((d) => d === r.botSkill) ?? 'veteran';
-  return { mode, map, environment: sanitizeEnvironment(r.environment), teamSize: Math.min(MAX_TEAM_SIZE, Math.max(1, size)), botSkill };
+  return { mode, map, environment: sanitizeEnvironment(r.environment), teamSize: Math.min(MAX_TEAM_SIZE, Math.max(1, size)), botSkill, aiJets: sanitizeAiJets(r.aiJets) };
+}
+
+/** Each side's AI jets: fighters of that side or null, five at most. */
+export function sanitizeAiJets(raw: unknown): AiJets {
+  const r = isRecord(raw) ? raw : {};
+  const side = (team: TeamId) => {
+    const list = Array.isArray(r[team]) ? (r[team] as unknown[]).slice(0, MAX_TEAM_SIZE) : [];
+    const ids = new Set(listAircraft().filter((a) => a.team === team && !a.support).map((a) => a.id));
+    return list.map((v) => (typeof v === 'string' && ids.has(v) ? v : null));
+  };
+  return { usa: side('usa'), russia: side('russia') };
 }
 
 /** The pilots a room holds, the host included: its seats, two to ten (any number up to ten in Free Flight). */

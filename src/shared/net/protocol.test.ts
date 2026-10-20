@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_TEAM_SIZE, newRoomCode, onlineName, parseClientJson, parseRoomCode, ProtocolError, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, roomCapacity, sanitizeCallsign, sanitizeRoomSettings } from './protocol.ts';
+import { MAX_TEAM_SIZE, newRoomCode, onlineName, parseClientJson, parseRoomCode, ProtocolError, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, roomCapacity, sanitizeAiJets, sanitizeCallsign, sanitizeRoomSettings } from './protocol.ts';
 
 describe('online protocol (revision 28)', () => {
   it('parses what pilots send and folds bad values into safe ones', () => {
@@ -22,9 +22,16 @@ describe('online protocol (revision 28)', () => {
       teamSize: MAX_TEAM_SIZE,
       botSkill: 'veteran',
       environment: { weather: 'rain', startHour: 23, clockRunning: false },
+      aiJets: { usa: [], russia: [] },
     });
     expect(sanitizeRoomSettings(null)).toMatchObject({ mode: 'team-deathmatch', map: 'lechovia', teamSize: 4 });
     expect(sanitizeRoomSettings({ teamSize: 0 }).teamSize).toBe(1);
+  });
+
+  it("keeps the AI pilots' jets to fighters of their side (revision 37)", () => {
+    expect(sanitizeAiJets({ usa: ['condor', 'kobchik', 7, null], russia: 'x' })).toEqual({ usa: ['condor', null, null, null], russia: [] });
+    expect(sanitizeAiJets({ usa: Array(9).fill('kestrel') }).usa).toHaveLength(MAX_TEAM_SIZE);
+    expect(sanitizeRoomSettings(null).aiJets).toEqual({ usa: [], russia: [] });
   });
 
   it('seats 2 to 10 pilots in a room, half a side (revision 35)', () => {

@@ -336,6 +336,28 @@ describe('online play between browsers (revision 28)', () => {
     expect([...a.views()].filter((v) => v.team === 'russia').map((v) => v.isBot)).toEqual([false, false]);
   });
 
+  it('follows the room the host changes in the lobby, and a pilot changing sides there (revision 37)', async () => {
+    const h = new Harness(20, { teamSize: 2 }, 3, undefined, true);
+    const s = await join(h, 'a', 'kobchik');
+    fly(h, s, 0.5, () => neutralInput(0.8));
+    expect(h.host.updateSettings({ ...h.host.settings, mode: 'air-superiority', teamSize: 3, environment: { weather: 'clear', startHour: 20, clockRunning: false } })).toBe(true);
+    fly(h, s, 0.5, () => neutralInput(0.8));
+    expect(s.settings).toMatchObject({ mode: 'air-superiority', teamSize: 3 });
+    expect(s.hour()).toBeCloseTo(20, 1);
+    // The pilot takes a jet of the other side.
+    s.chooseNextJet('kestrel');
+    fly(h, s, 0.5, () => neutralInput(0.8));
+    expect(s.localView()).toMatchObject({ team: 'usa' });
+    expect(h.host.view(s.localId)?.team).toBe('usa');
+    h.host.startMatch();
+    fly(h, s, 1, () => neutralInput(0.8));
+    expect(s.modeId).toBe('air-superiority');
+    expect(s.modeStatus().modeId).toBe('air-superiority');
+    expect([...s.views()].filter((v) => !v.config.support)).toHaveLength(6);
+    expect(s.localView()?.team).toBe('usa');
+    expect(s.hour()).toBeCloseTo(20, 1);
+  });
+
   it('waits in the lobby with the pilots alone until the host starts the match, and goes back to it after (revision 33)', async () => {
     const h = new Harness(20, { teamSize: 2 }, 3, 1, true);
     const s = await join(h, 'a', 'kobchik');

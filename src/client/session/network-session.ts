@@ -84,7 +84,7 @@ interface Sample {
 class NetAircraft implements AircraftView {
   readonly id: number;
   callsign: string;
-  readonly team: TeamId;
+  team: TeamId;
   config: AircraftConfig;
   readonly isLocal: boolean;
   isBot: boolean;
@@ -180,8 +180,10 @@ export class NetworkSession implements GameSession {
   readonly map: MapDefinition;
   readonly terrain: Terrain;
   localId: number;
-  readonly settings: RoomSettings;
-  readonly modeId: OnlineModeId;
+  /** the room's settings; the host may change them in the lobby (revision 37), for the next match */
+  settings: RoomSettings;
+  /** the mode flown: the room's at the last match start */
+  modeId: OnlineModeId;
   readonly hostCallsign: string;
   readonly isHost = false;
   /** called once when the link ends */
@@ -198,7 +200,7 @@ export class NetworkSession implements GameSession {
 
   private readonly transport: Transport;
   private readonly now: () => number;
-  private readonly mode: GameMode;
+  private mode: GameMode;
   private readonly stepper = new FixedStepper(DT, MAX_STEPS_PER_FRAME);
   private readonly aircraft = new Map<number, NetAircraft>();
   private readonly snapshots: Snapshot[] = [];
@@ -246,7 +248,7 @@ export class NetworkSession implements GameSession {
   // Views.
   private readonly missileViews = new Map<number, MissileView>();
   private readonly bombViews = new Map<number, BombView>();
-  private readonly targetViews: GroundTargetView[];
+  private targetViews: GroundTargetView[];
   private readonly tracers: Projectile[] = [];
   private readonly tracerViews: ProjectileView[] = [];
   private nextTracerId = 1;
@@ -322,9 +324,7 @@ export class NetworkSession implements GameSession {
     this.phase = welcome.phase;
     this.hostId = welcome.hostId;
     this.wind = windFor(this.environment, this.seed);
-    const size = Math.max(1, welcome.settings.teamSize);
-    this.mode = createMode(this.modeId, { teamObjective: { fighters: { usa: size, russia: size } } });
-    this.mode.prepare?.(map);
+    this.mode = this.createMode();
     this.status = { modeId: this.modeId, label: '', scores: null, timeLeftS: null, winner: null };
     this.tickBase = welcome.tick;
     this.msBase = now();
@@ -332,10 +332,7 @@ export class NetworkSession implements GameSession {
     this.fly = { features: map.features, wind: this.wind, timeS: 0, env: { thrustScale: 1, rollScale: 1, groundM: NaN, wind: new Vector3(), fuelUsedKg: 0, gearWanted: false } };
     const anyJet = getAircraft('kestrel');
     this.jet = { team: anyJet.team, config: anyJet, flight: this.predicted, hp: anyJet.damage.hitPoints, stores: { fuelKg: anyJet.physics.fuelKg }, input: this.flown, gStrain: 0, blackoutTick: -1 };
-    this.targetViews = this.mode.groundTargets(map).map((spec) => {
-      const t = createGroundTarget(spec, terrain);
-      return { id: t.id, kind: t.kind, label: t.label, position: t.pos.clone(), maxHp: t.maxHp, hp: t.hp, destroyed: false };
-    });
+    this.targetViews = this.createTargets();
     transport.onMessage = (data) => {
       if (typeof data === 'string') this.handleJson(JSON.parse(data) as HostJsonMessage);
       else this.handleSnapshot(data);
@@ -624,7 +621,11 @@ export class NetworkSession implements GameSession {
         break;
       case 'environment':
         this.environment = msg.environment;
+        this.settings = { ...this.settings, environment: msg.environment };
         this.wind = windFor(this.environment, this.seed);
+        break;
+      case 'settings':
+        this.settings = msg.settings;
         break;
       case 'pong':
         this.applyPong(msg.t, msg.tick);
@@ -664,9 +665,11 @@ export class NetworkSession implements GameSession {
       }
       a.kills = r.kills;
       a.deaths = r.deaths;
-      // A pilot who joined the match took this AI pilot's jet over (revision 36).
+      // A pilot who joined the match took this AI pilot's jet over (revision 36); in the lobby a pilot may change
+      // sides (revision 37).
       a.callsign = r.callsign;
       a.isBot = r.isBot;
+      a.team = r.team;
       // A pilot who respawned in another jet.
       if (a.config.id !== r.aircraftId) {
         a.config = getAircraft(r.aircraftId);
@@ -679,6 +682,9 @@ export class NetworkSession implements GameSession {
   private startNewMatch(you: number, tick: number, seed: number): void {
     this.localId = you;
     this.seed = seed;
+    // The host may have changed the room in the lobby (revision 37): its mode, seats and sky fly from now on.
+    this.environment = this.settings.environment;
+    if (this.modeId !== this.settings.mode || this.phase === 'match') this.setUpMode();
     this.wind = windFor(this.environment, seed);
     this.aircraft.clear();
     this.snapshots.length = 0;
@@ -702,6 +708,29 @@ export class NetworkSession implements GameSession {
       t.destroyed = false;
     }
     this.matchStarted = true;
+  }
+
+  /** The room's mode as the settings say, for the strike loads, the ground targets and the status. */
+  private createMode(): GameMode {
+    const size = Math.max(1, this.settings.teamSize);
+    const mode = createMode(this.settings.mode, { teamObjective: { fighters: { usa: size, russia: size } } });
+    mode.prepare?.(this.map);
+    return mode;
+  }
+
+  private createTargets(): GroundTargetView[] {
+    return this.mode.groundTargets(this.map).map((spec) => {
+      const t = createGroundTarget(spec, this.terrain);
+      return { id: t.id, kind: t.kind, label: t.label, position: t.pos.clone(), maxHp: t.maxHp, hp: t.hp, destroyed: false };
+    });
+  }
+
+  /** A match in another mode, or with other seats (revision 37). */
+  private setUpMode(): void {
+    this.modeId = this.settings.mode;
+    this.mode = this.createMode();
+    this.targetViews = this.createTargets();
+    this.status = { modeId: this.modeId, label: '', scores: null, timeLeftS: null, winner: null };
   }
 
   private handleSnapshot(buf: ArrayBuffer): void {

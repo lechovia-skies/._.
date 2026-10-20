@@ -23,7 +23,8 @@ export interface AircraftView {
   readonly id: number;
   /** with `isBot`, changes when a pilot who joins a match online takes over an AI pilot's jet (revision 36) */
   callsign: string;
-  readonly team: TeamId;
+  /** changes when a pilot changes sides in an online room's lobby (revision 37) */
+  team: TeamId;
   /** changes when the pilot respawns in another jet (M5) */
   config: AircraftConfig;
   readonly isLocal: boolean;

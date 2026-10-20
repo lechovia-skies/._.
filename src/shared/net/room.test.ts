@@ -377,6 +377,58 @@ describe('online Room (revision 28)', () => {
     expect(q.last('matchEnd')).toBeUndefined();
   });
 
+  it('lets the host change the room in its lobby: mode, seats, AI pilots and their jets, the time (revision 37)', () => {
+    const room = new Room(options({ lobby: true }, { teamSize: 2 }));
+    const a = joined(room, 'a', 'kobchik');
+    joined(room, 'b', 'yastreb');
+    const next = { ...room.settings, mode: 'air-superiority' as const, teamSize: 3, botSkill: 'ace' as const, environment: { weather: 'clear' as const, startHour: 19, clockRunning: false }, aiJets: { usa: ['condor', 'nope'], russia: ['sapsan'] } };
+    expect(room.updateSettings(next)).toBe(true);
+    expect(a.last('settings')?.settings).toMatchObject({ mode: 'air-superiority', teamSize: 3, botSkill: 'ace', aiJets: { usa: ['condor', null], russia: ['sapsan'] } });
+    expect(a.last('environment')).toBeDefined();
+    expect(room.world.hour()).toBeCloseTo(19, 4);
+    // Never fewer seats than the pilots in (three: the host and two).
+    expect(room.updateSettings({ ...room.settings, teamSize: 1 })).toBe(true);
+    expect(room.settings.teamSize).toBe(2);
+    room.updateSettings({ ...room.settings, teamSize: 3 });
+    // The match flies them: the AI pilots in the seats' jets, at the hour chosen.
+    expect(room.startMatch()).toBe(true);
+    expect(room.world.mode.id).toBe('air-superiority');
+    expect(room.world.hour()).toBeCloseTo(19, 4);
+    const bots = [...room.world.aircraftList()].filter((x) => x.isBot && !x.support);
+    expect(bots.filter((x) => x.team === 'usa').map((x) => x.config.id)[0]).toBe('condor');
+    expect(bots.filter((x) => x.team === 'russia').map((x) => x.config.id)).toEqual(['sapsan']);
+    expect(bots.map((x) => x.isBot)).toHaveLength(3);
+    // Only in the lobby.
+    expect(room.updateSettings({ ...room.settings, mode: 'team-deathmatch' })).toBe(false);
+  });
+
+  it('keeps the room on its map: no Strike in a room on Lechovia', () => {
+    const room = new Room(options({ lobby: true }, { map: 'lechovia' }));
+    expect(room.updateSettings({ ...room.settings, mode: 'strike' })).toBe(false);
+    expect(room.updateSettings({ ...room.settings, mode: 'team-objective', map: 'test-range' })).toBe(true);
+    expect(room.settings).toMatchObject({ mode: 'team-objective', map: 'lechovia' });
+  });
+
+  it('takes a pilot or the host to the other side when they pick its jet in the lobby (revision 37)', () => {
+    const room = new Room(options({ lobby: true }));
+    const a = joined(room, 'a', 'kestrel');
+    const id = a.last('welcome')!.you;
+    room.receiveJson(a, JSON.stringify({ type: 'jet', aircraftId: 'yastreb' }));
+    expect(room.world.getAircraft(id)).toMatchObject({ team: 'russia', alive: true });
+    expect(room.world.getAircraft(id)?.config.id).toBe('yastreb');
+    room.hostChooseJet('sapsan');
+    expect(room.world.getAircraft(room.hostEntityId)?.team).toBe('russia');
+    ticks(room, 2);
+    expect(a.last('roster')?.players.find((r) => r.id === id)?.team).toBe('russia');
+    // The match keeps them there.
+    room.startMatch();
+    const teams = [...room.world.aircraftList()].filter((x) => !x.isBot).map((x) => `${x.callsign}:${x.team}:${x.config.id}`);
+    expect(teams.sort()).toEqual(['Ace:russia:yastreb', 'Host:russia:sapsan']);
+    // In a match, a jet of the other side is refused.
+    room.receiveJson(a, JSON.stringify({ type: 'jet', aircraftId: 'kestrel' }));
+    expect(room.world.getAircraft(a.last('matchStart')!.you)?.team).toBe('russia');
+  });
+
   it('keeps online names to five letters', () => {
     const room = new Room(options());
     const p = joined(room, 'a', 'kestrel', 'Maverick');

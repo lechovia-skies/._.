@@ -153,6 +153,7 @@ export class WorldViews {
       // A pilot who joined the match flies an AI pilot's jet from now on (revision 36).
       view.callsign = a.callsign;
       view.isBot = a.isBot;
+      view.team = a.team;
       view.config = a.config;
       view.loadout = a.loadout;
       view.alive = a.alive;
