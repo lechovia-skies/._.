@@ -221,7 +221,11 @@ export async function startGame(
   /** the match online: the host's room, or the room joined; null in single player */
   const onlineSession = hosted ?? net;
   /** what is flown: online, the room's mode */
-  const mission: MissionId = net ? net.modeId : options.mission;
+  /**
+   * What is flown: online, the room's mode for the match on (the lobby is Free Flight; the host may change the mode
+   * there, revision 37).
+   */
+  const missionNow = (): MissionId => (net ? net.modeId : hosted ? (hosted.phase === 'match' ? hosted.room.world.mode.id : hosted.settings.mode) : options.mission);
   const session: GameSession =
     onlineSession ??
     new LocalSession({
@@ -319,15 +323,18 @@ export async function startGame(
   // For the end-of-match summary (M5).
   const stats = new MatchStats();
   // Free Flight (M5): the map flies you from wherever you click; the mouse is set free while it is open.
-  const freeFlight = mission === 'free-flight';
-  const mapScreen = new MapScreen(root, map, terrain, { combatArea: !freeFlight });
-  if (freeFlight) {
-    mapScreen.onPick = (x, z) => {
-      session.flyFrom(x, z);
-      mapScreen.toggle();
-      input.requestPointerLock();
-    };
-  }
+  const freeFlight = () => missionNow() === 'free-flight';
+  const mapScreen = new MapScreen(root, map, terrain, { combatArea: !freeFlight() });
+  const flyFromMap = (x: number, z: number) => {
+    session.flyFrom(x, z);
+    mapScreen.toggle();
+    input.requestPointerLock();
+  };
+  /** Free Flight's map flies you from where you click; online the mode may change between matches. */
+  const syncMapPick = () => {
+    mapScreen.onPick = freeFlight() ? flyFromMap : null;
+  };
+  syncMapPick();
   const particleFrame: ParticleFrame = { pixelScale: 1000, fogColor: new Color(), fogDensity: 0 };
   const windAtJet = new Vector3();
   /** which fuel warnings this life has had (revision 16) */
@@ -380,7 +387,7 @@ export async function startGame(
   const lastListener = new Vector3();
   const forward = new Vector3();
   const upward = new Vector3();
-  const canChangeJet = mission !== 'training';
+  const canChangeJet = options.mission !== 'training';
   // The jets to change to: those developed and fit to fly (revision 32), and the one this match started with.
   const hangarAtStart = loadHangar(loadCareer());
   const changeableJets = (team: TeamId) => listAircraft(team).filter((j) => j.id === options.aircraftId || canFly(hangarAtStart, j.id));
@@ -401,6 +408,14 @@ export async function startGame(
       input.snapshot();
     });
   };
+  /** Free Flight's sky and drones in the pause menu, only while Free Flight is flown (online it may change). */
+  const shownInFreeFlight = (panel: { element: HTMLElement; refresh(): void }) => ({
+    element: panel.element,
+    refresh: () => {
+      panel.element.hidden = !freeFlight();
+      panel.refresh();
+    },
+  });
   const pause = new PauseMenu(root, {
     onResume: () => {
       pause.hide();
@@ -414,7 +429,7 @@ export async function startGame(
       handlers.onQuit();
     },
   }, {
-    extra: freeFlight ? freeFlightPanel(session) : undefined,
+    extra: freeFlight() || onlineSession ? shownInFreeFlight(freeFlightPanel(session)) : undefined,
     online: onlineSession ? onlinePanel(roomInfo) : undefined,
     note: onlineSession ? 'Online, the match goes on: your jet flies straight on.' : undefined,
     quitLabel: hosted ? 'Close the room' : net ? 'Leave the room' : undefined,
@@ -443,7 +458,6 @@ export async function startGame(
   let lobbyOpen = false;
   const lobbyState = (): LobbyState => {
     const me = session.localView();
-    const team = me?.team ?? getAircraft(options.aircraftId).team;
     return {
       code: roomCode,
       invite: inviteLink(roomCode, location),
@@ -452,8 +466,9 @@ export async function startGame(
       settings: hosted ? hosted.room.settings : net!.settings,
       pilots: [...session.views()]
         .filter((v) => !v.isBot && !v.config.support)
-        .map((v) => ({ id: v.id, callsign: v.callsign, team: v.team, jet: v.config.name, host: v.id === onlineSession?.hostId, you: v.isLocal })),
-      jets: changeableJets(team).map((j) => ({ id: j.id, name: j.name })),
+        .map((v) => ({ id: v.id, callsign: v.callsign, team: v.team, jet: v.config.id, host: v.id === onlineSession?.hostId, you: v.isLocal })),
+      // Both sides: in the lobby a jet of the other side takes the pilot there (revision 37).
+      jets: [...changeableJets('usa'), ...changeableJets('russia')].map((j) => ({ id: j.id, name: j.name, team: j.team })),
       jet: me?.config.id ?? options.aircraftId,
     };
   };
@@ -468,6 +483,10 @@ export async function startGame(
           showBanner('LOBBY · ESC FOR THE ROOM', performance.now() / 1000, 4);
         },
         onJet: (id) => session.chooseNextJet(id),
+        onRoom: (next) => {
+          hosted?.updateSettings(next);
+          if (lobbyOpen) lobby?.update(lobbyState());
+        },
         onSettings: () => openGameSettings(),
         onLeave: () => {
           cleanup();
@@ -536,7 +555,7 @@ export async function startGame(
   document.addEventListener('visibilitychange', onVisibility);
   // Browsers swallow Esc while the pointer is locked and release the lock instead: treat that as "pause".
   const onPointerLockChange = () => {
-    if (!running || matchOver || input.pointerLocked || paused || lobbyOpen || (freeFlight && mapScreen.open) || connection?.visible) return;
+    if (!running || matchOver || input.pointerLocked || paused || lobbyOpen || (freeFlight() && mapScreen.open) || connection?.visible) return;
     // In the lobby, Esc brings back the lobby's screen instead of the pause menu.
     if (inLobby()) openLobby();
     else openPause();
@@ -648,7 +667,7 @@ export async function startGame(
 
   const endMatch = () => {
     matchOver = true;
-    const training = mission === 'training';
+    const training = options.mission === 'training';
     audio?.quiet();
     if (input.pointerLocked) document.exitPointerLock();
     const me = session.localView();
@@ -686,7 +705,7 @@ export async function startGame(
       const before = loadCareer();
       const { career, newBests } = recordMatch(before, {
         at: new Date().toISOString(),
-        mode: mission,
+        mode: missionNow(),
         aircraftId: me.config.id,
         result: final.winner === me.team ? 'win' : final.winner === 'draw' ? 'draw' : 'loss',
         kills: me.kills,
@@ -702,8 +721,8 @@ export async function startGame(
         longestLifeS: fl.longestLifeS,
         topSpeedMs: fl.topSpeedMs,
         jets: Object.fromEntries(stats.jets),
-        teamSize,
-        difficulty: options.difficulty,
+        teamSize: hosted?.settings.teamSize ?? net?.settings.teamSize ?? teamSize,
+        difficulty: hosted?.settings.botSkill ?? net?.settings.botSkill ?? options.difficulty,
       });
       saveCareer(career);
       // Experience and levels (revision 26).
@@ -711,7 +730,7 @@ export async function startGame(
       if (career.matches === 1) bests.push('First match on record · see Records on the title screen');
       for (const id of newBests) bests.push(`New best · ${bestLine(id, career.bests[id]?.value ?? 0, me.config.id)}`);
       // The hangar (revision 32): the match's pay, and the damage to each jet flown (a campaign's lent jet takes none).
-      if (mission !== 'free-flight') {
+      if (missionNow() !== 'free-flight') {
         const settled = settleMatch(loadHangar(before), {
           result: final.winner === me.team ? 'win' : final.winner === 'draw' ? 'draw' : 'loss',
           kills: me.kills,
@@ -773,6 +792,7 @@ export async function startGame(
    * The last match's results stay up over the lobby until they are closed.
    */
   const nextMatch = () => {
+    syncMapPick();
     stats.reset();
     matchOver = false;
     spawnGen = -1;
@@ -815,7 +835,7 @@ export async function startGame(
     }
     if (!paused && !matchOver && !settingsOpen && !lobbyOpen && mapper.mapToggled(snap)) {
       mapScreen.toggle();
-      if (freeFlight && mapScreen.open && input.pointerLocked) document.exitPointerLock();
+      if (freeFlight() && mapScreen.open && input.pointerLocked) document.exitPointerLock();
     }
     // The camera view (revision 34): V steps through the cockpit and the three chase distances, and it is remembered.
     if (!paused && !matchOver && !settingsOpen && !lobbyOpen && mapper.cameraRequested(snap, padFrame)) {

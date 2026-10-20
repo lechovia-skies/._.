@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 36)
+# Lechovia Skies — Design Spec (revision 37)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -141,6 +141,12 @@
     whose match has started takes an AI pilot's place: preferably the one flying the jet the pilot chose, in that jet,
     where it is, from then on under the pilot's name (with another jet of the side, the chosen jet takes its place
     there). Protocol 8.
+  - Revision 37 (2026-10-20): the owner sent a picture of the multiplayer waiting room they want (§7.1, §15.5). The
+    Multiplayer screen and the room's lobby are now one layout after it: a header with the title over jets and the two
+    flags; HOST / JOIN, ROOM CODE and GAME SETTINGS (steppers) on the left; GAME MODES as picture cards, AIRCRAFT seat
+    by seat and one big button on the right; BACK at the foot. In the lobby the host changes the room (mode, seats, AI
+    pilots, time of day) and picks the AI seats' jets; any pilot may pick a jet of the other side there and change
+    sides. Protocol 9.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -182,6 +188,7 @@ was built in M2 and removed again. Revision 28: online play is back, hosted in a
 | Play flow | PLAY → Solo or Multiplayer → mission, time of day, AI pilots, pilots per side | Owner, 2026-10-19 (revision 34) |
 | Pilots | 2 to 10 pilots a match, half a side (1 v 1 to 5 v 5); a room seats as many, 10 at most | Owner, 2026-10-19 (revision 35) |
 | Late join | A pilot joining a running match takes over an AI pilot's jet in the air, preferably one flying the jet they chose | Owner, 2026-10-19 (revision 36) |
+| Multiplayer screen | One layout after the owner's picture for setting a room up and for its lobby; the lobby changes the room, the AI seats' jets and sides | Owner, 2026-10-20 (revision 37) |
 | Map | Fictional, procedurally generated Poland-inspired landscape with fictional locations; no real-world data download | Brief (supersedes real elevation data) |
 | Modes | Team Deathmatch, Air Superiority, Team Objective, Free Flight | Brief |
 | Environment | Clouds, weather presets, day/night cycle | Brief |
@@ -435,11 +442,12 @@ browser hosts the room and runs the match, and the others connect to it directly
     their seat back to an AI pilot. When the host leaves, the room closes and the pilots are told why.
   - A hidden host tab gets no frames: a tiny worker's timer keeps stepping the match (`BackgroundTicker`), so a host who
     switches tabs does not freeze the room; pilots' pages do the same, so they are not timed out.
-- **Protocol 8 (`shared/net/protocol.ts`, `codec.ts`):** M2's layout, brought up to date (5 in revision 28; 6 since
+- **Protocol 9 (`shared/net/protocol.ts`, `codec.ts`):** M2's layout, brought up to date (5 in revision 28; 6 since
   revision 30: the input's weapon is the selected missile slot, 3 bits; a missile in flight names its type from
   `MISSILE_IDS`; the pilot's own section counts missiles per type of its load, flares and chaff; 7 since revision 33:
   the lobby; 8 since revision 36: a joining pilot can take over an AI pilot's jet, so a jet's callsign and AI flag can
-  change, and the `takeover` event).
+  change, and the `takeover` event; 9 since revision 37: the `settings` message, the AI seats' jets in the room's
+  settings, and a pilot's side changing in the lobby).
   - `hello` carries the callsign, jet and start; the `welcome` carries the room's settings (mode, map, weather and
     clock, seats, AI skill), the match seed (the wind comes from it), the tick, the host's callsign, the phase (lobby
     or match) and the host's aircraft id. `matchStart` (a new World: the match, or the lobby again) carries the phase
@@ -467,6 +475,19 @@ browser hosts the room and runs the match, and the others connect to it directly
     HUD's mode reads LOBBY and Esc brings the screen back (instead of the pause menu). When the match starts the
     screen goes; a pilot whose mouse is not captured is told to click. After a match the results stay up until
     *Back to the lobby* is pressed, then the lobby shows again.
+  - Revision 37 (at the owner's request, after their picture): the lobby is the Multiplayer screen's layout
+    (`ui/multiplayer.ts` `MultiplayerLayout`, `roomView`): the header (MULTIPLAYER over jets at dusk, the USA and
+    Russian flags); HOST / JOIN with the pilot's role lit; ROOM CODE with a copy button, *Copy invite link* and the
+    line; GAME SETTINGS as ‹ value › steppers: *Players* (1v1 … 5v5, never fewer a side than half the pilots in),
+    *Play mode*, *Time of day*, *AI pilots*, *Map* (the room's, fixed); GAME MODES, five cards with a picture taken in
+    the game (Strike only in a room on the Test Range); AIRCRAFT, seat by seat in two columns, USA then Russia: the
+    pilots (host first) and the AI seats up to the seats a side, numbered. Your own seat has a list of your jets of
+    both sides: one of the other side takes you there at once (`World.changeSideNow`). The host's AI seats have a
+    list, *Random jet* or a jet of the side (`RoomSettings.aiJets`, the k-th AI pilot of a side flies `aiJets[side][k]`).
+    The host's settings and modes go to `Room.updateSettings` (lobby only; the map stays; a `settings` message tells
+    everyone, and the lobby's sky shows a new hour at once); the next match flies them, and pilots' sessions set the
+    new mode up at its start. *START GAME* (host) or *Waiting for …*; at the foot *Close the room* / *Leave the room*,
+    *Fly while you wait* and *Settings*.
   - Online, the match never pauses: with the pause menu or the results up, the jet flies on with the stick centred and
     the throttle held. The pause menu shows the room's code, who hosts it and *Copy invite link*; its last button is
     *Close the room* (host) or *Leave the room*.
@@ -1589,7 +1610,13 @@ chase views at other distances. There is no free camera.
     (the code). *Back* returns to the two cards. Solo keeps the keys the title screen used (`mission`, `timeOfDay`,
     `difficulty`, `teamSize`, `map`, `start`; Free Flight is now one of the missions), online its own (`onlineMode`,
     `onlineSeats`, `onlineSkill`, `onlineWorld`, starting from the solo world). The sky behind the title screen follows
-    the solo time of day. An invite link opens Play on Multiplayer with the code filled in. The mission choice, the
+    the solo time of day. An invite link opens Play on Multiplayer with the code filled in. Revision 37: Multiplayer
+    is its own full screen after the owner's picture (`multiplayerScreen` in `online-sheet.ts`, the lobby's layout):
+    HOST or JOIN; the pilot name at the top (needed online, up to five letters); ROOM CODE shows dashes and "The code
+    is generated when you host a room" (HOST) or takes the code or invite link (JOIN); GAME SETTINGS (players, mode,
+    time, AI pilots, map, your start; JOIN only your start); GAME MODES; AIRCRAFT with your seat (your jet, either
+    side, chosen on the title screen too) and the AI seats with their jets (kept as `onlineAiJets`); CREATE ROOM or
+    JOIN ROOM; BACK to the Play cards. An invite link opens it on JOIN with the code filled in. The mission choice, the
     opponent, pilots and world rows (below) and the Online and Free flight buttons left the title screen for it.
   - The scenery photos load while the start screen is up and the game reuses them, so a match starts without a
     loading wait. Until they are ready the title shows over a dark background.

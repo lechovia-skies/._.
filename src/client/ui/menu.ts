@@ -15,7 +15,7 @@ import { canFly, develop, formatCredits, type Hangar, jetState, loadHangar, repa
 import { isTouchOnly } from './device.ts';
 import { campaignSheet } from './campaign-sheet.ts';
 import { fixedWorld, loadSetup, type MatchSetup } from './match-setup.ts';
-import { type OnlineStart, soloCallsign } from './online-sheet.ts';
+import { multiplayerScreen, type OnlineStart, soloCallsign } from './online-sheet.ts';
 import { playSheet } from './play-sheet.ts';
 import { recordsSheet } from './records-sheet.ts';
 import { choiceGroup, el } from './choice-group.ts';
@@ -432,16 +432,30 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
     {
       jetName: () => aircraft.find((a) => a.id === aircraftId)?.name ?? '',
       jetProblem,
-      environment: (time) => environmentOf({ ...world, time }),
       onSoloChange: (s) => {
         world = { ...world, map: s.map, start: s.start, time: s.time };
         handlers.onWorld?.(environmentOf(world));
       },
     },
     startSolo,
-    startOnline,
+    () => multiplayer.open(),
   );
-  screen.append(form, sheet, records.dialog, campaign.dialog, playDialog.dialog);
+  // Multiplayer (revision 37): its own screen, after the owner's picture; its jet choice is the title screen's.
+  const multiplayer = multiplayerScreen(
+    {
+      jetProblem,
+      environment: (time) => environmentOf({ ...world, time }),
+      jets: () => aircraft.filter((a) => a.id === aircraftId || (isUnlocked(a.id, progress.level) && canFly(hangar, a.id))).map((a) => ({ id: a.id, name: a.name, team: a.team })),
+      jet: () => aircraftId,
+      setJet: (id) => {
+        const input = jets.querySelector<HTMLInputElement>(`#pick-aircraft-${id}`);
+        if (input && !input.disabled) input.click();
+      },
+    },
+    startOnline,
+    () => playDialog.open(),
+  );
+  screen.append(form, sheet, records.dialog, campaign.dialog, playDialog.dialog, multiplayer.dialog);
 
   /** Training flies the Test Range from the air, at noon. */
   const startTraining = () => {
@@ -473,7 +487,7 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   handlers.onPreview(aircraftId);
   handlers.onWorld?.(environmentOf(world));
   play.focus();
-  if (online) playDialog.open('online', online.code, online.error);
+  if (online) multiplayer.open(online.code, online.error);
   return () => {
     screen.remove();
   };

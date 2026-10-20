@@ -1,29 +1,26 @@
 import { el } from './choice-group.ts';
 import { type MatchSetup, matchSetupForm } from './match-setup.ts';
-import { onlineSection, type OnlinePilot, type OnlineStart } from './online-sheet.ts';
 
-export type PlayStep = 'choose' | 'solo' | 'online';
+export type PlayStep = 'choose' | 'solo';
 
 /** What the Play sheet needs from the title screen. */
-export interface PlayDeps extends OnlinePilot {
+export interface PlayDeps {
+  /** why the chosen jet cannot fly (not developed, grounded), or null */
+  jetProblem(): string | null;
   /** the jet chosen on the title screen, for the line above FLY */
   jetName(): string;
   /** a solo setting changed (the title screen's sky follows the time of day) */
   onSoloChange?(s: MatchSetup): void;
 }
 
-const TITLES: Record<PlayStep, string> = { choose: 'Play', solo: 'Solo', online: 'Multiplayer' };
+const TITLES: Record<PlayStep, string> = { choose: 'Play', solo: 'Solo' };
 
 /**
  * The Play sheet (revision 34, at the owner's request): PLAY on the title screen opens it on a choice between Solo and
- * Multiplayer; then the match is set up: the mission, the time of day, the AI pilots and the pilots per side (and the
- * map and start). Solo flies from here; Multiplayer creates a room with the same settings or joins one with its code.
+ * Multiplayer. Solo sets the match up (the mission, the time of day, the AI pilots, the pilots, the map and start) and
+ * flies from here; Multiplayer opens the Multiplayer screen (revision 37).
  */
-export function playSheet(
-  deps: PlayDeps,
-  onSolo: (setup: MatchSetup) => void,
-  onOnline: (start: OnlineStart) => void,
-): { dialog: HTMLDialogElement; open(step?: PlayStep, code?: string, error?: string): void } {
+export function playSheet(deps: PlayDeps, onSolo: (setup: MatchSetup) => void, onMultiplayer: () => void): { dialog: HTMLDialogElement; open(step?: PlayStep): void } {
   const dialog = el('dialog', 'sheet play-sheet');
   dialog.setAttribute('aria-labelledby', 'play-title');
   const form = el('form');
@@ -57,17 +54,9 @@ export function playSheet(
   fly.type = 'button';
   solo.append(setup.element, jetLine, fly);
 
-  // Multiplayer: create or join.
-  const online = onlineSection(deps, (start) => {
-    dialog.close();
-    onOnline(start);
-  });
-  const multi = el('div', 'play-step');
-  multi.appendChild(online.element);
-
   const close = el('button', 'link', 'Close');
   close.value = 'close';
-  form.append(head, choose, solo, multi, close);
+  form.append(head, choose, solo, close);
   dialog.appendChild(form);
 
   let step: PlayStep = 'choose';
@@ -77,7 +66,6 @@ export function playSheet(
     back.hidden = s === 'choose';
     choose.hidden = s !== 'choose';
     solo.hidden = s !== 'solo';
-    multi.hidden = s !== 'online';
     if (s === 'solo') {
       const problem = deps.jetProblem();
       jetLine.textContent = problem ?? `Your jet: ${deps.jetName()} (change it on the title screen).`;
@@ -90,8 +78,8 @@ export function playSheet(
     fly.focus();
   });
   onlineCard.addEventListener('click', () => {
-    show('online');
-    online.open();
+    dialog.close();
+    onMultiplayer();
   });
   back.addEventListener('click', () => {
     show('choose');
@@ -105,11 +93,10 @@ export function playSheet(
 
   return {
     dialog,
-    open(s: PlayStep = 'choose', code?: string, error?: string) {
+    open(s: PlayStep = 'choose') {
       show(s);
       dialog.showModal();
-      if (s === 'online') online.open(code, error);
-      else if (s === 'solo') fly.focus();
+      if (s === 'solo') fly.focus();
       else soloCard.focus();
     },
   };

@@ -24,6 +24,11 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
 - **Camera views** (2026-10-19): **V** steps through the cockpit (first person, inside a modelled cockpit: glare
   shield, HUD glass, displays and gauges, consoles, stick, seat; look round with C or the right mouse) and the chase
   camera close, normal and far. The view is remembered (Settings → Display → Camera).
+- **Multiplayer screen** (2026-10-20): laid out after the owner's picture. PLAY → Multiplayer: HOST or JOIN, the
+  room code, the game settings (players, mode, time of day, AI pilots, map, your start), the modes as picture cards
+  and the aircraft seat by seat (your jet, and the AI seats' jets), then CREATE ROOM or JOIN ROOM. The room's lobby is
+  the same screen: there the host changes the room and the AI jets, anyone can switch sides by picking a jet of the
+  other side, and the host presses START GAME.
 - **Joining a match under way** (2026-10-19): join a room whose match has started and you take an AI pilot's place
   at once, in the air where it is: preferably the AI pilot flying the jet you chose, else another of your side, whose
   jet becomes yours there. Everyone sees "… takes over from [BOT] …".

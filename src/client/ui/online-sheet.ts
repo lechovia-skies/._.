@@ -1,9 +1,12 @@
-import type { MapId } from '../../shared/data/maps/registry.ts';
-import { ONLINE_NAME_MAX, type OnlineModeId, onlineName, parseRoomCode, ROOM_CODE_LENGTH, type RoomSettings, sanitizeRoomSettings } from '../../shared/net/protocol.ts';
+import { getAircraft, listAircraft } from '../../shared/data/aircraft/registry.ts';
+import type { TeamId } from '../../shared/data/aircraft/types.ts';
+import { MAP_IDS, type MapId } from '../../shared/data/maps/registry.ts';
+import { ONLINE_NAME_MAX, type OnlineModeId, onlineName, parseRoomCode, ROOM_CODE_LENGTH, type RoomSettings, sanitizeAiJets, sanitizeRoomSettings } from '../../shared/net/protocol.ts';
 import type { SpawnStart } from '../../shared/world/spawns.ts';
 import type { EnvironmentSettings, TimeOfDayId } from '../../shared/world/time-of-day.ts';
 import { el } from './choice-group.ts';
-import { fixedWorld, matchSetupForm } from './match-setup.ts';
+import { fixedWorld, flies, loadSetup, PLAY_MISSIONS, saveSetup, type Seats } from './match-setup.ts';
+import { type MpView, MultiplayerLayout, seatRows, withAiJet } from './multiplayer.ts';
 import { loadSetting, saveSetting } from './storage.ts';
 
 /** The world a hosted room flies in (revision 32: set on the sheet's World page). */
@@ -19,10 +22,14 @@ export interface OnlineWorld {
  */
 export type OnlineStart = ({ role: 'host'; settings: RoomSettings; start: SpawnStart } | { role: 'join'; code: string }) & { name: string };
 
-/** What the online part needs from the title screen. */
+/** What the Multiplayer screen needs from the title screen. */
 export interface OnlinePilot {
   /** why the chosen jet cannot fly (not developed, grounded), or null */
   jetProblem(): string | null;
+  /** the jets this pilot may fly, both sides, and the one chosen; choosing one there chooses it on the title screen */
+  jets(): { id: string; name: string; team: TeamId }[];
+  jet(): string;
+  setJet(id: string): void;
   /** the weather and clock for a time of day, as matches from the title screen fly */
   environment(time: TimeOfDayId): EnvironmentSettings;
 }
@@ -38,6 +45,8 @@ export const nameIsSet = (name: string) => name !== '' && name !== DEFAULT_CALLS
  * The first time the pilot goes online the sheet asks for one, up to five letters; it is kept from then on.
  */
 const NAME_KEY = 'onlineName';
+/** The AI seats' jets for a room set up here (revision 37). */
+const AI_JETS_KEY = 'onlineAiJets';
 
 /** The name saved for online play, or '' before the pilot's first time online. */
 export function loadOnlineName(): string {
@@ -73,200 +82,165 @@ export function roomWorld(w: OnlineWorld, mode: OnlineModeId): OnlineWorld {
 }
 
 /**
- * Multiplayer in the Play sheet (revision 28's Online sheet; revision 34 moved it there): create a room or join one
- * with its code; `?join=CODE` opens it with the code filled in. Revision 32: online the pilot needs a name: without
- * one it first asks for it in the middle; once set it is kept and can be changed at the top. Revision 33: the name is
- * asked for the first time online, up to five letters; a room opens in its lobby. Revision 34: the room is set up with
- * the same form as a solo match (mission, time of day, AI pilots, pilots per side, map and start).
+ * The Multiplayer screen (revision 37, laid out after the owner's picture; revision 28's Online sheet, in the Play
+ * sheet since revision 34): HOST sets the room up (players, mode, time of day, AI pilots, map, your start; the mode
+ * cards; your jet and the AI seats' jets) and creates it; JOIN takes a code. Online the pilot needs a name, up to five
+ * letters (revision 33), typed at the top. `?join=CODE` opens it on JOIN with the code filled in.
  */
-export function onlineSection(pilot: OnlinePilot, onGo: (start: OnlineStart) => void): { element: HTMLElement; open(code?: string, error?: string): void } {
-  const section = el('div', 'online-section');
-  const note = el(
-    'p',
-    'sheet-note',
-    "Fly with friends: one of you creates a room and gets its code, the others join with the code and wait in the room's lobby until the host starts the match. The match runs in the host's browser, so the host keeps the game open in front. Empty seats are flown by AI pilots.",
-  );
-  const error = el('p', 'notice online-error');
-  error.setAttribute('role', 'alert');
-  error.hidden = true;
+export function multiplayerScreen(
+  pilot: OnlinePilot,
+  onGo: (start: OnlineStart) => void,
+  onBack: () => void,
+): { dialog: HTMLDialogElement; open(code?: string, error?: string): void } {
+  const dialog = el('dialog', 'mp-dialog');
+  dialog.setAttribute('aria-labelledby', 'mp-title');
+  let role: 'host' | 'join' = 'host';
+  let name = '';
+  let code = '';
+  let error = '';
+  let setup = loadSetup('online');
+  let aiJets = sanitizeAiJets(loadSetting<unknown>(AI_JETS_KEY, null));
+  const allJets = listAircraft().map((a) => ({ id: a.id, name: a.name, team: a.team }));
 
-  // The pilot name: asked for first when it is not set, then shown (and editable) at the top.
-  const nameStep = el('div', 'name-step');
-  nameStep.setAttribute('role', 'alertdialog');
-  nameStep.setAttribute('aria-labelledby', 'name-step-title');
-  const stepTitle = el('h3', 'name-step-title', 'Choose your pilot name');
-  stepTitle.id = 'name-step-title';
-  const stepInput = el('input', 'pilot-input name-step-input');
-  stepInput.maxLength = ONLINE_NAME_MAX;
-  stepInput.autocomplete = 'off';
-  stepInput.spellcheck = false;
-  stepInput.placeholder = 'YOUR NAME';
-  stepInput.setAttribute('aria-label', 'Pilot name');
-  const stepGo = el('button', 'button', 'Continue');
-  stepGo.type = 'button';
-  const stepHint = el('p', 'name-step-hint');
-  const firstHint = `First time online: the others in the room see this name. ${NAME_RULE}.`;
-  nameStep.append(el('p', 'name-step-warn', '⚠ No pilot name'), stepTitle, stepInput, stepHint, stepGo);
-
-  const nameRow = el('label', 'online-name');
-  nameRow.appendChild(el('span', 'eyebrow', 'Pilot name'));
-  const nameInput = el('input', 'pilot-input');
-  nameInput.maxLength = ONLINE_NAME_MAX;
-  nameInput.autocomplete = 'off';
-  nameInput.spellcheck = false;
-  nameRow.appendChild(nameInput);
-
-  // Create or join: two pages.
-  const tabs = el('div', 'online-tabs');
-  tabs.setAttribute('role', 'tablist');
-  const pages: { tab: HTMLButtonElement; page: HTMLElement }[] = [];
-  const page = (label: string, id: string) => {
-    const tab = el('button', 'online-tab', label);
-    tab.type = 'button';
-    tab.id = `online-tab-${id}`;
-    tab.setAttribute('role', 'tab');
-    const panel = el('div', 'online-page');
-    panel.id = `online-page-${id}`;
-    panel.setAttribute('role', 'tabpanel');
-    panel.setAttribute('aria-labelledby', tab.id);
-    tab.setAttribute('aria-controls', panel.id);
-    tabs.appendChild(tab);
-    pages.push({ tab, page: panel });
-    tab.addEventListener('click', () => showPage(pages.findIndex((p) => p.tab === tab)));
-    return panel;
+  const view = (): MpView => {
+    const w = fixedWorld(setup);
+    const jet = pilot.jet();
+    const team = getAircraft(jet).team;
+    const host = role === 'host';
+    const you = { callsign: onlineName(name) || 'You', team, jet, host, you: true };
+    return {
+      stage: 'setup',
+      role,
+      name,
+      code,
+      invite: '',
+      status: host ? 'Share this code with your friends to join.' : `Type the ${ROOM_CODE_LENGTH}-letter code your friend gave you.`,
+      error,
+      settings: { mode: setup.mission, teamSize: Number(setup.seats), time: setup.time, skill: setup.skill, map: w.map, aiJets },
+      start: w.start,
+      runway: w.map === 'lechovia',
+      edit: host,
+      minSeats: 1,
+      modes: PLAY_MISSIONS,
+      maps: setup.mission === 'strike' ? ['test-range'] : MAP_IDS,
+      seats: host ? seatRows(Number(setup.seats), [you], aiJets, flies(setup.mission)) : seatRows(1, [you], undefined, false),
+      jets: pilot.jets(),
+      allJets,
+      action: { label: host ? 'Create room' : 'Join room', enabled: true },
+      back: 'Back',
+    };
   };
-  const showPage = (i: number) => {
-    pages.forEach((p, k) => {
-      p.page.hidden = k !== i;
-      p.tab.setAttribute('aria-selected', String(k === i));
-      p.tab.classList.toggle('is-active', k === i);
-    });
-  };
+  const render = () => layout.update(view());
 
-  const createPage = page('Create a room', 'create');
-  const setup = matchSetupForm('online');
-  const hostButton = el('button', 'button', 'Create the room');
-  hostButton.type = 'button';
-  createPage.append(setup.element, el('p', 'sheet-note', 'Your jet: the one chosen on the title screen. The room opens in its lobby with its code.'), hostButton);
-
-  const joinPage = page('Join a room', 'join');
-  const codeLabel = el('label', 'online-code');
-  codeLabel.appendChild(el('span', 'sr-only', 'Room code'));
-  const code = el('input', 'online-code-input');
-  code.placeholder = 'ROOM CODE';
-  code.maxLength = 64;
-  code.autocomplete = 'off';
-  code.spellcheck = false;
-  code.setAttribute('autocapitalize', 'characters');
-  codeLabel.appendChild(code);
-  const joinButton = el('button', 'button', 'Join');
-  joinButton.type = 'button';
-  const joinRow = el('div', 'online-join-row');
-  joinRow.append(codeLabel, joinButton);
-  joinPage.append(joinRow, el('p', 'sheet-note', `The ${ROOM_CODE_LENGTH}-letter code the host gives you, or their invite link.`));
-
-  const privacy = el(
-    'p',
-    'sheet-note',
-    'Online play links the browsers in a room directly (WebRTC): they meet through public relays, and the others can see your IP address, as in most peer-to-peer games. Some networks do not allow direct links.',
-  );
-  const body = el('div', 'online-body');
-  body.append(nameRow, tabs, ...pages.map((p) => p.page), privacy);
-  section.append(note, error, nameStep, body);
-
-  const showError = (text: string | undefined) => {
-    error.textContent = text ?? '';
-    error.hidden = !text;
-  };
-  /** Shows the name step until there is a name, then the rest. */
-  const showStep = () => {
-    const name = loadOnlineName();
-    const set = name !== '';
-    nameStep.hidden = set;
-    body.hidden = !set;
-    note.hidden = !set;
-    nameInput.value = name;
-    stepInput.value = set ? name : suggestedName();
-  };
-  const confirmName = () => {
-    if (!saveOnlineName(stepInput.value)) {
-      stepHint.textContent = `Choose a name other than "${DEFAULT_CALLSIGN}". ${NAME_RULE}.`;
-      stepHint.classList.add('is-error');
-      stepInput.focus();
-      return;
-    }
-    showStep();
-    pages.find((p) => !p.page.hidden)?.tab.focus();
-  };
-  stepGo.addEventListener('click', confirmName);
-  stepInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      confirmName();
-    }
-  });
-  nameInput.addEventListener('change', () => {
-    // Cleared or back to the default: the name kept stays.
-    saveOnlineName(nameInput.value);
-    nameInput.value = loadOnlineName();
-  });
-
-  /** Online needs a name and a jet fit to fly. */
   const ready = (): boolean => {
-    saveOnlineName(nameInput.value);
-    if (loadOnlineName() === '') {
-      showStep();
-      stepInput.focus();
+    if (!saveOnlineName(name)) {
+      error = `Choose a pilot name first: ${NAME_RULE}, not "${DEFAULT_CALLSIGN}".`;
+      render();
+      layout.focusName();
       return false;
     }
+    name = loadOnlineName();
     const problem = pilot.jetProblem();
     if (problem) {
-      showError(problem);
+      error = problem;
+      render();
       return false;
     }
     return true;
   };
-  const tryJoin = () => {
-    const parsed = parseRoomCode(code.value);
-    if (!parsed) {
-      showError(`A room code is ${ROOM_CODE_LENGTH} letters and digits, like K7QF3M.`);
-      code.focus();
+  const go = () => {
+    if (role === 'join') {
+      const parsed = parseRoomCode(code);
+      if (!parsed) {
+        error = `A room code is ${ROOM_CODE_LENGTH} letters and digits, like K7QF3M.`;
+        render();
+        layout.focusCode();
+        return;
+      }
+      if (!ready()) return;
+      dialog.close();
+      onGo({ role: 'join', code: parsed, name });
       return;
     }
     if (!ready()) return;
-    onGo({ role: 'join', code: parsed, name: loadOnlineName() });
-  };
-  hostButton.addEventListener('click', () => {
-    if (!ready()) return;
-    const s = setup.value();
-    const w = fixedWorld(s);
+    const w = fixedWorld(setup);
+    dialog.close();
     onGo({
       role: 'host',
       start: w.start,
-      name: loadOnlineName(),
-      settings: sanitizeRoomSettings({ mode: s.mission, map: w.map, environment: pilot.environment(s.time), teamSize: Number(s.seats), botSkill: s.skill }),
+      name,
+      settings: sanitizeRoomSettings({ mode: setup.mission, map: w.map, environment: pilot.environment(setup.time), teamSize: Number(setup.seats), botSkill: setup.skill, aiJets }),
     });
+  };
+  const back = () => {
+    dialog.close();
+    onBack();
+  };
+
+  const layout = new MultiplayerLayout({
+    onRole: (r) => {
+      role = r;
+      error = '';
+      render();
+      if (r === 'join') layout.focusCode();
+    },
+    onName: (v) => {
+      name = v;
+      if (error) {
+        error = '';
+        render();
+      }
+    },
+    onCode: (v) => {
+      code = v;
+      if (error) {
+        error = '';
+        render();
+      }
+    },
+    onSettings: (next) => {
+      setup = { ...setup, mission: next.mode, seats: String(next.teamSize) as Seats, time: next.time, skill: next.skill, map: next.mode === 'strike' ? setup.map : next.map };
+      saveSetup('online', setup);
+      render();
+    },
+    onStart: (start) => {
+      setup = { ...setup, start };
+      saveSetup('online', setup);
+      render();
+    },
+    onJet: (id) => {
+      pilot.setJet(id);
+      error = '';
+      render();
+    },
+    onAiJet: (team, index, jet) => {
+      aiJets = withAiJet(aiJets, team, index, jet);
+      saveSetting(AI_JETS_KEY, aiJets);
+      render();
+    },
+    onAction: go,
+    onBack: back,
   });
-  joinButton.addEventListener('click', tryJoin);
-  code.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      tryJoin();
-    }
+  dialog.appendChild(layout.element);
+  dialog.addEventListener('cancel', (e) => {
+    e.preventDefault();
+    back();
   });
-  code.addEventListener('input', () => showError(undefined));
 
   return {
-    element: section,
+    dialog,
     open(prefill?: string, message?: string) {
-      if (prefill) code.value = prefill;
-      showError(message);
-      showPage(prefill ? 1 : 0);
-      showStep();
-      stepHint.textContent = firstHint;
-      stepHint.classList.remove('is-error');
-      if (loadOnlineName() === '') stepInput.focus();
-      else if (prefill) joinButton.focus();
+      setup = loadSetup('online');
+      name = loadOnlineName() || suggestedName();
+      if (prefill) {
+        role = 'join';
+        code = prefill;
+      }
+      error = message ?? '';
+      render();
+      dialog.showModal();
+      if (loadOnlineName() === '') layout.focusName();
+      else layout.focusAction();
     },
   };
 }
