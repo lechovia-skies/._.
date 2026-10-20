@@ -160,6 +160,9 @@ const NAMED_KEYS: Readonly<Record<string, string>> = {
   Slash: '/',
 };
 
+/** What the hints name the controls of: the keyboard and mouse (false), a gamepad (true) or the touch screen (revision 39). */
+export type HintInput = boolean | 'touch';
+
 /** "KeyW" → "W", "Digit1" → "1", "ArrowUp" → "↑", "Numpad4" → "Num 4". */
 export function keyLabel(code: string): string {
   if (code in NAMED_KEYS) return NAMED_KEYS[code];

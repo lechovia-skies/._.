@@ -6,7 +6,9 @@ import {
   DEFAULT_PAD_SETTINGS,
   firstNewButton,
   GamepadReader,
+  mergePadFrames,
   mostMovedAxis,
+  type PadFrame,
   type PadState,
 } from './gamepad.ts';
 
@@ -101,5 +103,26 @@ describe('gamepad', () => {
     expect(firstNewButton(pad([], [1]), pad([], [1]))).toBe(-1);
     expect(mostMovedAxis(pad([0, 0, 0]), pad([0.1, -0.9, 0.3]), 0.5)).toBe(1);
     expect(mostMovedAxis(pad([0, 0, 0]), pad([0.1, 0.2, 0.3]), 0.5)).toBe(-1);
+  });
+});
+
+describe('two inputs at once (revision 39: a gamepad and the touch controls)', () => {
+  const frame = (over: Partial<PadFrame>): PadFrame => ({ active: true, pitch: 0, roll: 0, yaw: 0, throttle: null, throttleRate: 0, lookX: 0, lookY: 0, down: new Set(), pressed: new Set(), ...over });
+
+  it('takes the axis pushed further and the buttons of both', () => {
+    const out = mergePadFrames(frame({ pitch: 0.2, roll: -0.9, down: new Set(['cannon']) }), frame({ pitch: -0.6, roll: 0.3, lookX: 0.5, pressed: new Set(['missile']) }));
+    expect(out.pitch).toBe(-0.6);
+    expect(out.roll).toBe(-0.9);
+    expect(out.lookX).toBe(0.5);
+    expect([...out.down]).toEqual(['cannon']);
+    expect([...out.pressed]).toEqual(['missile']);
+  });
+
+  it('passes one through when the other is not there', () => {
+    const touch = frame({ roll: 0.4 });
+    expect(mergePadFrames(frame({ active: false }), touch)).toBe(touch);
+    const pad = frame({ roll: 0.1, throttle: 0.7 });
+    expect(mergePadFrames(pad, frame({ active: false }))).toBe(pad);
+    expect(mergePadFrames(pad, frame({ throttleRate: 1 })).throttle).toBe(0.7);
   });
 });

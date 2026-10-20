@@ -161,6 +161,9 @@ export function openSettings(root: HTMLElement, store: SettingsStore, tab: Setti
           el('p', 'sheet-note', 'Mouse aim: point where you want to go and the jet flies there. Keyboard: fly the stick yourself with the pitch and roll keys.'),
           slider('Mouse sensitivity', MOUSE_SENSITIVITY_RANGE.min, MOUSE_SENSITIVITY_RANGE.max, 0.05, s.mouseSensitivity, percent, (v) => store.update({ mouseSensitivity: v })),
           checkbox('Invert mouse (mouse up = nose down)', s.invertY, (v) => store.update({ invertY: v })),
+          radios('Touch controls', [['auto', 'Auto'], ['on', 'On'], ['off', 'Off']] as const, s.touchControls, (t) => store.update({ touchControls: t })),
+          radios('Touch stick', [['pull', 'Pull to climb'], ['push', 'Push to climb']] as const, s.touchClimb, (c) => store.update({ touchClimb: c })),
+          el('p', 'sheet-note', 'On a tablet or phone the stick, throttle and weapon buttons are on the screen; Auto shows them when the screen is touched. Drag anywhere else to look round.'),
         ];
       case 'keys':
         return renderKeys();

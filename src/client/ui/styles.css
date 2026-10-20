@@ -804,6 +804,128 @@ input:focus-visible + .option { color: var(--hud); }
 .mp-foot-note { margin: 0; font: 600 13px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: rgb(201 215 234 / 0.6); white-space: pre; }
 .mp :is(button, input, select, output):focus-visible { outline: 2px solid var(--hud); outline-offset: 2px; }
 
+/*
+ * Touch controls (revision 39), laid out after the owner's picture: pause and the small buttons top left, the throttle
+ * up the left edge with the stick beside it, the weapon buttons in an arc round a big FIRE bottom right, the stores
+ * along the bottom between them. Dark glass with white icons; the chosen weapon in the HUD green.
+ */
+.touch {
+  --t-pad: 14px;
+  --t-small: 42px;
+  --t-throttle-w: 52px;
+  --t-stick: clamp(118px, 34vh, 180px);
+  --t-fire: clamp(88px, 25vh, 120px);
+  --t-round: clamp(52px, 14.5vh, 68px);
+  /* the arc's radius: the four buttons 30° apart without touching */
+  --t-arc: calc((var(--t-round) + 8px) * 1.93);
+  --t-left: env(safe-area-inset-left, 0px);
+  --t-right: env(safe-area-inset-right, 0px);
+  --t-bottom: env(safe-area-inset-bottom, 0px);
+  position: absolute;
+  inset: 0;
+  color: var(--canopy);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.touch.is-suspended { display: none; }
+.touch-look { position: absolute; inset: 0; }
+.touch-btn { appearance: none; margin: 0; padding: 0; border: 0; font: inherit; color: inherit; background: rgb(8 16 24 / 0.42); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3); touch-action: none; cursor: pointer; }
+.touch-btn.is-down { background: rgb(99 255 149 / 0.3); }
+.touch-icon { display: block; width: 24px; height: 24px; pointer-events: none; }
+.touch-icon svg { display: block; width: 100%; height: 100%; }
+.touch-label { font: 700 11px/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; pointer-events: none; }
+
+.touch-top { position: absolute; z-index: 3; top: calc(8px + env(safe-area-inset-top, 0px)); left: calc(8px + var(--t-left)); display: flex; gap: 6px; }
+/* The page's fullscreen button moves into the row, first. */
+.touch-top.has-fullscreen { left: calc(56px + var(--t-left)); }
+body.touch-on .fullscreen-corner { top: calc(8px + env(safe-area-inset-top, 0px)); left: calc(8px + env(safe-area-inset-left, 0px)); right: auto; bottom: auto; width: 42px; height: 42px; }
+body.touch-on .room-badge { top: 144px; }
+.touch-small { display: grid; place-items: center; width: var(--t-small); height: var(--t-small); border-radius: 8px; }
+.touch-small .touch-icon { width: 20px; height: 20px; }
+.touch-small.is-on { color: var(--hud); box-shadow: inset 0 0 0 2px var(--hud); }
+.touch-chat-menu { position: absolute; top: calc(100% + 6px); right: 0; display: grid; gap: 4px; min-width: 180px; }
+.touch-chat-line { padding: 10px 14px; font: 700 15px/1 var(--display); letter-spacing: 0.06em; text-align: left; color: var(--canopy); background: rgb(8 16 24 / 0.82); border: 0; border-radius: 6px; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3); }
+.touch-chat-line.is-down { background: rgb(99 255 149 / 0.3); }
+
+.touch-throttle-box { position: absolute; left: calc(var(--t-pad) + var(--t-left)); bottom: calc(var(--t-pad) + var(--t-bottom)); display: flex; flex-direction: column; align-items: center; gap: 6px; width: var(--t-throttle-w); }
+.touch-throttle-text { font: 700 14px/1 var(--mono); color: var(--hud); text-shadow: 0 1px 2px rgb(0 0 0 / 0.7); }
+.touch-throttle { position: relative; width: 44px; height: clamp(96px, 30vh, 250px); border-radius: 10px; background: rgb(8 16 24 / 0.42); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3); }
+/* the afterburner detent at 90 % */
+.touch-throttle::after { content: ''; position: absolute; left: 4px; right: 4px; bottom: 90%; border-top: 1px dashed rgb(255 255 255 / 0.65); pointer-events: none; }
+.touch-throttle-fill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 10px; background: rgb(99 255 149 / 0.32); pointer-events: none; }
+.touch-throttle.is-ab .touch-throttle-fill { background: rgb(255 193 77 / 0.5); }
+.touch-throttle-thumb { position: absolute; left: -3px; right: -3px; height: 10px; margin-bottom: -5px; border-radius: 3px; background: var(--canopy); box-shadow: 0 1px 4px rgb(0 0 0 / 0.5); pointer-events: none; }
+.touch-fuel { font: 600 10px/1 var(--mono); color: var(--ghost); white-space: nowrap; text-shadow: 0 1px 2px rgb(0 0 0 / 0.7); }
+.touch-fuel.is-low { color: var(--warn); }
+.touch-brake { display: grid; place-items: center; gap: 2px; width: var(--t-throttle-w); height: 42px; padding-top: 3px; border-radius: 8px; }
+.touch-brake .touch-icon { width: 18px; height: 18px; }
+
+.touch-stick { position: absolute; left: calc(var(--t-pad) + var(--t-throttle-w) + 14px + var(--t-left)); bottom: calc(var(--t-pad) + var(--t-bottom)); width: var(--t-stick); height: var(--t-stick); border-radius: 50%; background: radial-gradient(circle, rgb(8 16 24 / 0.2) 0 40%, rgb(8 16 24 / 0.45) 41%); box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.3); touch-action: none; }
+.touch-stick::before { content: ''; position: absolute; inset: 50% 12% auto; border-top: 1px solid rgb(255 255 255 / 0.18); pointer-events: none; }
+.touch-knob { position: absolute; left: 29%; top: 29%; width: 42%; height: 42%; border-radius: 50%; background: rgb(242 245 247 / 0.55); box-shadow: 0 2px 8px rgb(0 0 0 / 0.45), inset 0 0 0 2px rgb(255 255 255 / 0.6); pointer-events: none; }
+
+.touch-weapons { position: absolute; right: calc(var(--t-pad) + var(--t-right)); bottom: calc(var(--t-pad) + var(--t-bottom)); width: var(--t-fire); height: var(--t-fire); }
+.touch-round { position: absolute; display: grid; place-items: center; align-content: center; gap: 3px; width: var(--t-round); height: var(--t-round); border-radius: 50%; right: calc(var(--t-fire) / 2 - var(--t-round) / 2 + var(--x) * var(--t-arc)); bottom: calc(var(--t-fire) / 2 - var(--t-round) / 2 + var(--y) * var(--t-arc)); }
+.touch-round .touch-icon { width: 22px; height: 22px; }
+.touch-round .touch-label { font-size: 10px; }
+.touch-missile { --x: 1; --y: 0; }
+.touch-gun { --x: 0.866; --y: 0.5; }
+.touch-lock { --x: 0.5; --y: 0.866; }
+.touch-flare { --x: 0; --y: 1; }
+.touch-round.is-selected { color: var(--hud); box-shadow: inset 0 0 0 2px var(--hud); }
+.touch-badge { position: absolute; top: -4px; right: -6px; min-width: 22px; padding: 3px 5px; font: 700 11px/1 var(--mono); text-align: center; color: var(--ink); background: var(--canopy); border-radius: 9px; pointer-events: none; }
+.touch-fire { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 4px; border-radius: 50%; color: #fff; background: rgb(207 35 48 / 0.55); box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.45), 0 2px 12px rgb(0 0 0 / 0.35); }
+.touch-fire.is-down { background: rgb(255 70 80 / 0.8); }
+.touch-fire .touch-icon { width: 30px; height: 30px; }
+.touch-fire-label { font: 700 13px/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; pointer-events: none; }
+
+/* The stores, between the stick and the weapon arc. */
+.touch-stores-box {
+  position: absolute;
+  left: calc(var(--t-pad) + var(--t-throttle-w) + 14px + var(--t-stick) + 10px + var(--t-left));
+  right: calc(var(--t-pad) + var(--t-fire) / 2 + var(--t-arc) + var(--t-round) / 2 + 10px + var(--t-right));
+  bottom: calc(6px + var(--t-bottom));
+  display: grid;
+  justify-content: center;
+  grid-template-columns: minmax(0, auto);
+  gap: 4px;
+  pointer-events: none;
+}
+.touch-jet { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 4px; font: 700 12px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; text-shadow: 0 1px 2px rgb(0 0 0 / 0.7); }
+.touch-jet-name { white-space: nowrap; }
+.touch-hp { position: relative; flex: 1 1 60px; min-width: 40px; max-width: 120px; height: 6px; border-radius: 3px; background: rgb(8 16 24 / 0.5); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3); overflow: hidden; }
+.touch-hp-fill { position: absolute; inset: 0 auto 0 0; background: var(--hud); }
+.touch-hp-fill.is-low { background: #ff5a4f; }
+.touch-lock-state { min-height: 12px; padding: 0 4px; font: 700 11px/1 var(--mono); color: var(--hud); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgb(0 0 0 / 0.7); }
+.touch-lock-state[data-tone='amber'] { color: var(--warn); }
+.touch-lock-state[data-tone='red'] { color: #ff5a4f; }
+.touch-stores { display: flex; gap: 4px; min-width: 0; pointer-events: auto; }
+.touch-store { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: 5px; row-gap: 2px; min-width: 0; padding: 6px 9px; text-align: left; color: var(--canopy); background: rgb(8 16 24 / 0.55); border: 0; border-radius: 6px; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25); touch-action: none; }
+.touch-store.is-selected { color: var(--hud); box-shadow: inset 0 0 0 2px var(--hud); }
+.touch-store.is-empty { opacity: 0.45; }
+.touch-store.is-down { background: rgb(99 255 149 / 0.3); }
+.touch-store-name { grid-column: 1 / -1; font: 700 11px/1 var(--display); letter-spacing: 0.06em; white-space: nowrap; pointer-events: none; }
+.touch-store-count { font: 700 17px/1 var(--mono); pointer-events: none; }
+.touch-store-range { font: 600 10px/1 var(--mono); color: var(--ghost); white-space: nowrap; pointer-events: none; }
+
+/* Waiting to respawn: the stick switches the pilot watched; the arrows the jet to fly next. */
+.touch.is-dead :is(.touch-throttle-box, .touch-weapons, .touch-stores-box) { display: none; }
+.touch-jet-row { position: absolute; left: 50%; bottom: calc(var(--t-pad) + var(--t-bottom)); display: flex; align-items: center; gap: 10px; transform: translateX(-50%); white-space: nowrap; }
+.touch-jet-row .touch-label { font-size: 14px; text-shadow: 0 1px 2px rgb(0 0 0 / 0.7); }
+.touch-jet-arrow { width: 52px; height: 44px; border-radius: 8px; font: 700 18px/1 var(--display); }
+/* With the map open only the small buttons stay, above it. */
+.touch.is-map > :not(.touch-top) { display: none; }
+.touch-rotate { display: none; position: absolute; left: 50%; top: 40%; width: min(80vw, 320px); margin: 0; padding: 14px 18px; font: 700 18px/1.3 var(--display); letter-spacing: 0.06em; text-align: center; text-transform: uppercase; background: rgb(8 16 24 / 0.8); border-radius: 8px; transform: translate(-50%, -50%); pointer-events: none; }
+/* A phone held upright: only the small buttons, and a word to turn it (a tablet flies either way). */
+@media (orientation: portrait) and (max-width: 600px) {
+  .touch > :not(.touch-top, .touch-rotate) { display: none; }
+  .touch-rotate { display: block; }
+}
+.touch-notice { color: var(--ghost); }
+
 @media (max-width: 1180px) {
   .mp-grid { grid-template-columns: 1fr; }
   .mp-modes { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }

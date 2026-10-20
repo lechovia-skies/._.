@@ -4,13 +4,16 @@ A browser-based flight-combat prototype. Two teams, **USA** and **Russia**, fly 
 F-16C, F-15C, Su-57, Su-35S, Su-30SM and MiG-29) with their real weapons, over a fictional landscape inspired by Poland. This repository is being built in milestones (see
 `docs/superpowers/specs/2026-09-29-poland-dogfight-design.md`).
 
-**Play it:** https://lechovia-skies.github.io/._./ (desktop or laptop with a keyboard and mouse). The site
+**Play it:** https://lechovia-skies.github.io/._./ (a computer with a keyboard and mouse, or an iPad or phone held
+sideways). The site
 is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The game was called Contested Skies until
 2026-10-03; settings, records and campaign progress saved under that name carry over.
 
 **Current milestone: M5 "Modes & polish"** (after M1a "Fly", M1b "Fight", M1d "Strike", M1c "Website basics", M2
 "Multiplayer", M3 "Roster & weapons" and M4 "World"). Online play (M2) was taken out again on 2026-10-02 and came back
 on 2026-10-08 without any server: the game still runs entirely in the browser.
+- **Touch screens** (2026-10-20): iPads and phones fly with controls on the screen, laid out after the owner's
+  picture: see [Touch screen](#touch-screen).
 - **Real aircraft names** (2026-10-20): the jets go by the real types' names: F-35A Lightning II (was Shade), F-22A
   Raptor (Tempest), F-16C Fighting Falcon (Kestrel), F-15C Eagle (Condor), Su-57 Felon (Prizrak), Su-35S Flanker-E
   (Yastreb), Su-30SM Flanker-H (Sapsan) and MiG-29 Fulcrum (Kobchik); the Sentinels are the E-3G Sentry and the A-50U
@@ -272,6 +275,26 @@ A pad with the standard layout (Xbox, PlayStation and most others) works straigh
 Flight sticks and other devices: open **Settings → Gamepad**, assign the roll, pitch, rudder and throttle axes and the
 buttons (move or press each one), then **Calibrate**.
 
+### Touch screen
+
+On an iPad or a phone, held sideways, the controls are on the screen:
+
+| Control | Action |
+|---|---|
+| Stick (bottom left) | Pitch and roll: pull down to climb (Settings → Controls → Touch stick: *Push to climb* turns it round). Let go and the jet holds its heading |
+| Throttle (left edge) | Slide up and down; above the dashed line is the afterburner. **BRAKE** under it: airbrake (hold) |
+| **FIRE** (bottom right) | Fires what is picked: the gun while held, or one missile (with a lock) or bomb per tap |
+| MISSILE · GUN | Pick a missile (tap again for the next type) or the gun |
+| LOCK · FLARE | Next target · flares and chaff |
+| Stores (bottom) | Each missile type with its count and range, the gun's rounds, the bombs: tap one to pick it |
+| Drag anywhere else | Look around |
+| Top left | Pause · scores · map · camera view · quick chat (online) |
+| While waiting to respawn | Stick ← / → watch another pilot · ◀ ▶ pick the next jet |
+
+The HUD makes room for them: the radar is in the top right corner. On a computer with a touch screen they show once
+the screen is touched and go when the mouse, a key or a gamepad is used (Settings → Controls → Touch controls: Auto,
+On or Off). Adding the page to the home screen gives it the whole screen on an iPhone.
+
 In a fight:
 - The nearest enemy ahead is targeted automatically; R picks the next one.
 - The missile seeker growls while it tracks and gives a steady tone when locked. Then press F.
@@ -363,7 +386,7 @@ To switch it on (once): on GitHub open the repository's **Settings** → **Pages
 choose Source **Deploy from a branch**, branch **gh-pages**, folder **/ (root)**, then **Save**. The `gh-pages` branch
 appears after the workflow's first run.
 
-Visitors need a desktop or laptop with a keyboard and mouse; phones and tablets see a notice.
+Visitors need a computer with a keyboard and mouse, or a tablet or phone (touch controls, revision 39).
 
 ### One-file build
 

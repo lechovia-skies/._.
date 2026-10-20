@@ -199,3 +199,25 @@ describe('ControlMapper with rebound keys and a gamepad', () => {
     expect(m.scoresHeld(emptySnapshot(), { ...idlePad(), down: new Set(['scores'] as const) })).toBe(true);
   });
 });
+
+describe('ControlMapper and the touch controls (revision 39)', () => {
+  it('sets the throttle outright from the slider, and keeps it when the finger lifts', () => {
+    const m = new ControlMapper();
+    m.setThrottle(1.4);
+    expect(m.map(emptySnapshot(), northbound(), 1 / 60, idlePad()).throttle).toBe(1);
+    m.setThrottle(0.35);
+    expect(m.map(emptySnapshot(), northbound(), 1 / 60, idlePad()).throttle).toBeCloseTo(0.35, 6);
+    expect(m.map(emptySnapshot(), northbound(), 1 / 60, idlePad()).throttle).toBeCloseTo(0.35, 6);
+  });
+
+  it('selects a missile type of the load outright, and ignores one it does not carry', () => {
+    const m = new ControlMapper();
+    const yastreb = loadoutFor(getAircraft('yastreb'), false);
+    const weapon = () => m.map(emptySnapshot(), northbound(), 1 / 60, null, yastreb).weapon;
+    expect(weapon()).toBe(0);
+    m.selectSlot(2);
+    expect(weapon()).toBe(2);
+    m.selectSlot(5);
+    expect(weapon()).toBe(2);
+  });
+});

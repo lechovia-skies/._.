@@ -1,6 +1,6 @@
 import type { UnitSystem } from '../../shared/data/aircraft/types.ts';
 import { RAD } from '../../shared/math/units.ts';
-import { type Bindings, keyLabel } from '../input/bindings.ts';
+import { type Bindings, type HintInput, keyLabel } from '../input/bindings.ts';
 import type { ControlMode } from '../input/control-mapper.ts';
 import { speedLabel, speedValue } from './format.ts';
 
@@ -29,7 +29,9 @@ export function formatWind(x: number, z: number, units: UnitSystem): string {
  * What to do in a spin (revision 16): mouse aim recovers by itself; with the keyboard, push the nose down and press
  * the rudder against the spin (`spin` +1 = spinning right). Gamepad: left stick forward, the opposite bumper.
  */
-export function spinHint(mode: ControlMode, spin: number, bindings: Bindings, gamepad: boolean): string {
+export function spinHint(mode: ControlMode, spin: number, bindings: Bindings, gamepad: HintInput): string {
+  // The touch stick has no rudder: let go and mouse aim recovers, or push the nose down with the wings level.
+  if (gamepad === 'touch') return mode === 'mouse-aim' ? 'LET GO OF THE STICK · AUTO RECOVERY' : 'NOSE DOWN · WINGS LEVEL';
   if (mode === 'mouse-aim') return 'AUTO RECOVERY';
   if (gamepad) return `STICK FORWARD · ${spin > 0 ? 'LB' : 'RB'} RUDDER`;
   const rudder = spin > 0 ? bindings.yawLeft[0] : bindings.yawRight[0];

@@ -1,5 +1,5 @@
 import type { TrainingStatus, TrainingStepId } from '../../shared/modes/mode.ts';
-import { type Bindings, type KeyAction, keyLabel } from '../input/bindings.ts';
+import { type Bindings, type HintInput, type KeyAction, keyLabel } from '../input/bindings.ts';
 import type { ControlMode } from '../input/control-mapper.ts';
 
 export interface TrainingPrompt {
@@ -12,25 +12,28 @@ export interface TrainingPrompt {
 const STEP_NAMES: Readonly<Record<TrainingStepId, string>> = { fly: 'FLY', gun: 'GUN', missile: 'MISSILE', defend: 'DEFEND', done: 'DONE' };
 
 /** What the training panel says for this lesson, with the keys (or pad buttons) the player really uses. */
-export function trainingPrompt(s: TrainingStatus, bindings: Bindings, mode: ControlMode, gamepad: boolean): TrainingPrompt {
+export function trainingPrompt(s: TrainingStatus, bindings: Bindings, mode: ControlMode, gamepad: HintInput): TrainingPrompt {
   const key = (a: KeyAction) => keyLabel(bindings[a][0]);
   const retry = s.attempt > 1 && s.step !== 'fly' ? ' · TRY AGAIN' : '';
   const title = s.step === 'done' ? 'TRAINING COMPLETE' : `LESSON ${s.index}/${s.total} · ${STEP_NAMES[s.step]}${retry}`;
-  const fire = gamepad ? 'X' : key('cannon');
-  const missile = gamepad ? 'A' : key('missile');
-  const flares = gamepad ? 'B' : key('flares');
+  const touch = gamepad === 'touch';
+  const fire = touch ? 'FIRE with GUN picked' : gamepad ? 'X' : key('cannon');
+  const missile = touch ? 'FIRE with MISSILE picked' : gamepad ? 'A' : key('missile');
+  const flares = touch ? 'FLARE' : gamepad ? 'B' : key('flares');
   const throttle = gamepad ? 'RT' : key('throttleUp');
   switch (s.step) {
     case 'fly':
       return {
         title,
         lines: [
-          gamepad
+          touch
+            ? 'Steer with the stick on the left: up and down for the nose, sideways to roll and turn.'
+            : gamepad
             ? 'Steer with the left stick: push to dive, pull to climb, sideways to roll and turn.'
             : mode === 'mouse-aim'
               ? 'Point the mouse at the ring: the jet turns to follow the white circle.'
               : `Fly with ${key('pitchDown')} ${key('pitchUp')} (nose down / up) and ${key('rollLeft')} ${key('rollRight')} (roll), then pull to turn.`,
-          `Fly through the green rings. Hold ${throttle} for more speed.`,
+          touch ? 'Fly through the green rings. Slide the throttle up for more speed.' : `Fly through the green rings. Hold ${throttle} for more speed.`,
         ],
         progress: `RINGS ${s.ringsPassed}/${s.ringsTotal}`,
       };

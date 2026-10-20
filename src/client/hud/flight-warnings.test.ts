@@ -25,5 +25,8 @@ describe('fuel, wind and spin on the HUD (revision 16)', () => {
     expect(spinHint('direct', 1, DEFAULT_BINDINGS, false)).toBe('W NOSE DOWN · Q RUDDER · LET GO OF THE ROLL');
     expect(spinHint('direct', -1, DEFAULT_BINDINGS, false)).toContain('E RUDDER');
     expect(spinHint('direct', 1, DEFAULT_BINDINGS, true)).toBe('STICK FORWARD · LB RUDDER');
+    // The touch stick has no rudder (revision 39).
+    expect(spinHint('mouse-aim', 1, DEFAULT_BINDINGS, 'touch')).toBe('LET GO OF THE STICK · AUTO RECOVERY');
+    expect(spinHint('direct', 1, DEFAULT_BINDINGS, 'touch')).toBe('NOSE DOWN · WINGS LEVEL');
   });
 });

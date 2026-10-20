@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 38)
+# Lechovia Skies — Design Spec (revision 39)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -151,6 +151,12 @@
     (`AircraftConfig.name`, "F-16C") wherever space is short, and with the popular or NATO name (`nickname`,
     `fullName`: "F-16C Fighting Falcon") on the title screen and the Multiplayer screen. The Sentinels are named the
     E-3G Sentry and the A-50U Mainstay. Ids, saves and the protocol are unchanged; flight models stay the game's own.
+  - Revision 39 (2026-10-20): the owner sent a picture of a phone HUD and asked for touch controls for iPads and
+    phones (§15.3). A touch screen gets a stick, a throttle slider with the airbrake, LOCK / MISSILE / GUN / FLARE
+    round a big FIRE, the stores along the bottom (each missile type with its count and range, the gun, the bombs),
+    pause, scores, map, camera view and quick chat in the top left; a drag anywhere else looks round. The HUD makes
+    room: the radar moves to the top right, the kill feed and the hints under the heading. Settings: touch controls
+    Auto / On / Off and the stick's climb direction.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -182,6 +188,7 @@ was built in M2 and removed again. Revision 28: online play is back, hosted in a
 | Netcode | Authoritative server + client prediction/reconciliation + snapshot interpolation + lag-compensated bullets | Q&A |
 | Aircraft | 8 fictional aircraft with fictional names and specifications, 4 per team, data-driven (revision 38: the real types' names; the specifications stay the game's own) | Brief (supersedes real F-15C/F-16C/Su-27/MiG-29) |
 | Real names | The jets go by the real types' names: designation everywhere, with the popular or NATO name where there is room | Owner, 2026-10-20 (revision 38) |
+| Touch screens | iPads and phones fly with on-screen controls after the owner's picture: stick, throttle, weapon buttons round FIRE, the stores along the bottom | Owner, 2026-10-20 (revision 39) |
 | Weapons | Cannon, short-range IR missile, medium-range radar missile, flares + chaff; behavior abstracted | Brief (supersedes guns + IR only) |
 | Real weapons | Each jet carries the real weapons of the type it is modelled on: real names, guns, missiles, rounds, flares and chaff; ranges scaled to the game's sky | Owner, 2026-10-13 (revision 30) |
 | Real looks | The six generated jets are drawn as the real types in their real paint and markings, with their stores on the pylons, after the owner's reference pictures | Owner, 2026-10-16 (revision 31) |
@@ -1463,6 +1470,32 @@ chase views at other distances. There is no free camera.
     buttons; calibration records each axis's travel and rest position (levers use mid-travel); 0.08 dead zone.
   - Stick input overrides the mouse aim like the keyboard; in mouse-aim mode the aim follows the nose while the pad
     stick is deflected, so letting go holds the heading.
+- **Touch screens (revision 39):** `ui/touch-controls.ts`, after the owner's picture of a phone HUD. The controls
+  make a `PadFrame` each frame (merged with a real gamepad's by `mergePadFrames`), so they fly like a pad: the stick
+  overrides the mouse aim, which holds the heading when it is let go and recovers from spins by itself.
+  - Layout, landscape: pause, scores (toggle), map, camera view and quick chat (online) top left, after the page's
+    fullscreen button; the throttle up the left edge (drag; the dashed line is the afterburner detent at 90%; fuel
+    under it; BRAKE held under that); the stick beside it (dead zone 6%, a curve gentle near the centre, full at the
+    rim; pulled down climbs by default, "Push to climb" in the settings); MISSILE, GUN, LOCK and FLARE in an arc round
+    a big FIRE bottom right; between them the jet with its health bar, the stores (each missile type with its count
+    and range, the gun, the bombs on a Strike sortie; tap one to pick it) and the lock state.
+  - FIRE fires what is picked: the gun while held, or one missile or bomb per tap. MISSILE picks a missile; tapped
+    again it steps to the next type. LOCK cycles the target, FLARE drops flares and chaff.
+  - A one-finger drag anywhere else turns the head (30% of the shorter screen side is the full turn); letting go
+    brings it back. Several fingers work at once (each control follows its own pointer).
+  - The throttle slider sets the throttle outright while held (`ControlMapper.setThrottle`) and leaves it there; the
+    stores and MISSILE pick with `ControlMapper.selectSlot`.
+  - Waiting to respawn: the stick switches the pilot watched, ◀ ▶ under it the jet to fly next. With the map open only
+    the top buttons stay. Under the pause menu, the lobby and the results the controls are put away. A phone held
+    upright shows only the top buttons and "Turn your device sideways to fly"; a tablet flies either way.
+  - Settings, Controls: Touch controls Auto (default: shown once the screen is touched, put away when the mouse, a key
+    or a gamepad is used; a phone or tablet without a mouse starts with them), On, Off; Touch stick: Pull / Push to
+    climb. The mouse is never captured while they show.
+  - The HUD on a touch screen: the throttle gauge, the jet's name and health and the weapons line are left out (the
+    controls show them); the left column starts under the top buttons; the radar is in the top right corner (radius
+    64); the hint, broken at its dots, and the kill feed go under the heading; the heading tape spans ±20°; speed and
+    altitude sit at 38% of the height; a screen shorter than 640 px draws the HUD smaller (down to 75%). Hints name the
+    touch controls (take-off, landing, spin, training).
 - No `Ctrl` bindings: browsers reserve shortcuts such as `Ctrl+W`, which would close the tab mid-flight.
 
 | Key | Action |

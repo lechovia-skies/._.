@@ -1,5 +1,5 @@
 import type { UnitSystem } from '../../shared/data/aircraft/types.ts';
-import { type Bindings, keyLabel } from '../input/bindings.ts';
+import { type Bindings, type HintInput, keyLabel } from '../input/bindings.ts';
 import type { ControlMode } from '../input/control-mapper.ts';
 import { speedLabel, speedValue } from './format.ts';
 
@@ -7,8 +7,9 @@ import { speedLabel, speedValue } from './format.ts';
 export const ROTATE_SPEED_MS = 85;
 
 /** The hint line on the take-off run (M4): power, rotation speed and how to pull, with the player's own keys. */
-export function takeoffHint(mode: ControlMode, units: UnitSystem, bindings: Bindings, gamepad: boolean): string {
+export function takeoffHint(mode: ControlMode, units: UnitSystem, bindings: Bindings, gamepad: HintInput): string {
   const speed = `${Math.round(speedValue(ROTATE_SPEED_MS, units) / 10) * 10} ${speedLabel(units)}`;
+  if (gamepad === 'touch') return `TAKE-OFF · throttle up to AB · above ${speed} raise the nose with the stick · hold BRAKE to stop`;
   const power = gamepad ? 'RT' : keyLabel(bindings.throttleUp[0]);
   const pull = gamepad ? 'pull the left stick' : mode === 'mouse-aim' ? 'move the mouse up' : `hold ${keyLabel(bindings.pitchUp[0])}`;
   const brakes = gamepad ? 'D-pad up' : keyLabel(bindings.airbrake[0]);

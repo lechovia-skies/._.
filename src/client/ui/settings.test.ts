@@ -31,6 +31,15 @@ describe('settings', () => {
     expect(s.controlMode).toBe('direct');
   });
 
+  it('shows the touch controls on a touch, climbing with the stick pulled, unless set otherwise (revision 39)', () => {
+    expect(DEFAULT_SETTINGS.touchControls).toBe('auto');
+    expect(DEFAULT_SETTINGS.touchClimb).toBe('pull');
+    const s = sanitizeSettings({ touchControls: 'on', touchClimb: 'push' });
+    expect([s.touchControls, s.touchClimb]).toEqual(['on', 'push']);
+    const bad = sanitizeSettings({ touchControls: 'always', touchClimb: 3 });
+    expect([bad.touchControls, bad.touchClimb]).toEqual(['auto', 'pull']);
+  });
+
   it('repairs gamepad assignments and calibration', () => {
     const s = sanitizeSettings({ gamepad: { custom: { axes: { roll: 5, pitch: 'x' }, buttons: { cannon: 3, missile: 999 } }, calibration: [{ center: 0.2, min: 0.5, max: 2 }, 'bad'] } });
     expect(s.gamepad.custom.axes.roll).toBe(5);

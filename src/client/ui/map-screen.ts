@@ -333,7 +333,7 @@ export class MapScreen {
       this.marker(ctx, p, headingRad(v.flight), color, 6 * s, false, enemy && !known.has(v.id));
     }
     if (me && me.alive) this.marker(ctx, at(me.position.x, me.position.z), headingRad(me.flight), '#63ff95', 9 * s, true);
-    if (this.pick) label('CLICK TO FLY FROM THERE · AN AIRFIELD STARTS ON ITS RUNWAY', px / 2, px - 40 * s, `700 ${Math.round(13 * s)}px system-ui, sans-serif`, '#63ff95');
+    if (this.pick) label('CLICK OR TAP TO FLY FROM THERE · AN AIRFIELD STARTS ON ITS RUNWAY', px / 2, px - 40 * s, `700 ${Math.round(13 * s)}px system-ui, sans-serif`, '#63ff95');
     // The compass (revision 26): a rose in the corner and the four points on the map's edges; then the scale.
     compassRose(ctx, 46 * s, 46 * s, 30 * s, s);
     for (const m of cardinalMarks(px, s)) label(m.label, m.u, m.v, `800 ${Math.round(18 * s)}px system-ui, sans-serif`, m.label === 'N' ? '#ff6b6b' : '#fff');

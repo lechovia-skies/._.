@@ -70,6 +70,29 @@ export interface PadFrame {
 export const DEAD_ZONE = 0.08;
 
 /**
+ * Two inputs as one (revision 39: a gamepad and the touch controls): on each axis the one pushed further, the buttons
+ * of both, the throttle lever of whichever has one.
+ */
+export function mergePadFrames(a: PadFrame, b: PadFrame): PadFrame {
+  if (!b.active) return a;
+  if (!a.active) return b;
+  const further = (x: number, y: number) => (Math.abs(x) >= Math.abs(y) ? x : y);
+  const lookA = a.lookX !== 0 || a.lookY !== 0;
+  return {
+    active: true,
+    pitch: further(a.pitch, b.pitch),
+    roll: further(a.roll, b.roll),
+    yaw: further(a.yaw, b.yaw),
+    throttle: a.throttle ?? b.throttle,
+    throttleRate: Math.max(-1, Math.min(1, a.throttleRate + b.throttleRate)),
+    lookX: lookA ? a.lookX : b.lookX,
+    lookY: lookA ? a.lookY : b.lookY,
+    down: new Set([...a.down, ...b.down]),
+    pressed: new Set([...a.pressed, ...b.pressed]),
+  };
+}
+
+/**
  * A typical flight stick (X roll, Y pitch, twist rudder, slider throttle; trigger fires the gun). Players reassign
  * anything else in the settings screen.
  */

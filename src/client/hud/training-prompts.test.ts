@@ -39,6 +39,15 @@ describe('training prompts', () => {
     expect(trainingPrompt(status({}), DEFAULT_BINDINGS, 'mouse-aim', true).lines.join(' ')).toMatch(/left stick/i);
   });
 
+  it('speaks to touch pilots of the buttons on the screen (revision 39)', () => {
+    const fly = trainingPrompt(status({}), DEFAULT_BINDINGS, 'mouse-aim', 'touch').lines.join(' ');
+    expect(fly).toMatch(/stick on the left/);
+    expect(fly).toMatch(/Slide the throttle up/);
+    expect(trainingPrompt(status({ step: 'gun', index: 2 }), DEFAULT_BINDINGS, 'mouse-aim', 'touch').lines.join(' ')).toContain('hold FIRE with GUN picked');
+    expect(trainingPrompt(status({ step: 'missile', index: 3 }), DEFAULT_BINDINGS, 'mouse-aim', 'touch').lines.join(' ')).toContain('FIRE with MISSILE picked');
+    expect(trainingPrompt(status({ step: 'defend', index: 4 }), DEFAULT_BINDINGS, 'mouse-aim', 'touch').lines.join(' ')).toContain('Press FLARE');
+  });
+
   it('encourages a retry', () => {
     expect(trainingPrompt(status({ step: 'defend', index: 4, attempt: 2 }), DEFAULT_BINDINGS, 'direct', false).title).toContain('TRY AGAIN');
   });

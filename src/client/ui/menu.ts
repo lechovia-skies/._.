@@ -282,7 +282,8 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
   const brand = el('header', 'brand');
   brand.append(titleLockup(), el('p', 'brand-tag', 'Jet dogfight against AI pilots'));
   if (typeof window.matchMedia === 'function' && isTouchOnly((q) => window.matchMedia(q))) {
-    const notice = el('p', 'notice', 'This game needs a keyboard and mouse. Open it on a desktop or laptop computer.');
+    // Revision 39: tablets and phones fly with the touch controls.
+    const notice = el('p', 'notice touch-notice', 'Touch screen: fly with the stick and buttons on the screen, the device held sideways.');
     notice.setAttribute('role', 'status');
     brand.appendChild(notice);
   }

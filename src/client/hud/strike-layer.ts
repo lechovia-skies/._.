@@ -16,7 +16,7 @@ const fpm: ScreenPoint = { x: 0, y: 0 };
 const dir = new Vector3();
 
 /** Clock, targets standing and aircraft left, where Team Deathmatch shows its score (spec §15.2). */
-export function drawStrikeStatus(ctx: CanvasRenderingContext2D, f: HudFrame, s: StrikeStatus): void {
+export function drawStrikeStatus(ctx: CanvasRenderingContext2D, f: HudFrame, s: StrikeStatus, top = 0): void {
   const standing = f.groundTargets.filter((t) => !t.destroyed).length;
   ctx.save();
   ctx.font = FONT;
@@ -24,7 +24,7 @@ export function drawStrikeStatus(ctx: CanvasRenderingContext2D, f: HudFrame, s: 
     let x = 16;
     for (const [text, side] of line) {
       ctx.fillStyle = side === 'mine' ? FRIEND : side === 'theirs' ? FOE : WHITE;
-      ctx.fillText(text, x, 44 + i * 20);
+      ctx.fillText(text, x, 44 + top + i * 20);
       x += ctx.measureText(text).width;
     }
   });

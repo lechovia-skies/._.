@@ -4,7 +4,7 @@ import { type Airfield, airfieldWorld, type MapFeatures } from '../../shared/map
 import { TOUCHDOWN_MAX_SINK_MS } from '../../shared/physics/ground.ts';
 import { missilesLeft } from '../../shared/world/entities.ts';
 import { nearestFriendlyAirfield, SUPPLY_PASS_HEIGHT_M, SUPPLY_PASS_SPEED_MS } from '../../shared/world/supply.ts';
-import { type Bindings, keyLabel } from '../input/bindings.ts';
+import { type Bindings, type HintInput, keyLabel } from '../input/bindings.ts';
 import type { AircraftView } from '../session/game-session.ts';
 import { drawEdgeArrow } from './combat-layer.ts';
 import { BINGO_SHARE } from './flight-warnings.ts';
@@ -67,7 +67,8 @@ export function supplyLimits(units: UnitSystem): { speed: string; height: string
 }
 
 /** The hint line on the roll-out after a landing: brake to a stop on the airfield to be repaired. */
-export function landingHint(bindings: Bindings, gamepad: boolean): string {
+export function landingHint(bindings: Bindings, gamepad: HintInput): string {
+  if (gamepad === 'touch') return 'LANDED · hold BRAKE · stop to repair, then full throttle to take off';
   const brakes = gamepad ? 'D-pad up' : keyLabel(bindings.airbrake[0]);
   return `LANDED · ${brakes} brakes · stop to repair, then full power to take off`;
 }

@@ -14,7 +14,7 @@ import {
   verticalSpeedLabel,
   verticalSpeedValue,
 } from './format.ts';
-import { drawGameLayer } from './game-layer.ts';
+import { type CornerLayout, DESKTOP_CORNERS, drawGameLayer } from './game-layer.ts';
 import { createGVision, gVision } from './g-vision.ts';
 import { BINGO_SHARE, formatFuel, formatWind } from './flight-warnings.ts';
 import { drawDatalink, drawObjective, drawZones } from './objective-layer.ts';
@@ -30,6 +30,32 @@ export type { HudFrame } from './hud-frame.ts';
 
 const RADAR_ALT_SHOW_M = 1500;
 const SCOPE_RADIUS_PX = 80;
+/** Touch screens (revision 39): the radar in the top right corner, a little smaller */
+const TOUCH_SCOPE_RADIUS_PX = 64;
+/** the touch buttons along the top left, CSS pixels: the HUD's left column starts under them */
+const TOUCH_TOP_PX = 56;
+/** a touch screen this tall (CSS pixels) or taller shows the HUD at its set size; shorter ones, phones held sideways, smaller */
+const TOUCH_FULL_HEIGHT_PX = 640;
+const TOUCH_MIN_SCALE = 0.75;
+/** touch screens: the hint's first line and then the kill feed, under the heading box */
+const TOUCH_TEXT_Y = 98;
+const TOUCH_LINE_PX = 17;
+
+/** A hint broken into lines no wider than `maxWidth`, at its " · " separators (a single part is never split). */
+export function hintLines(hint: string, maxWidth: number, measure: (text: string) => number): string[] {
+  if (!hint) return [];
+  const lines: string[] = [];
+  let line = '';
+  for (const part of hint.split(' · ')) {
+    const next = line ? `${line} · ${part}` : part;
+    if (line && measure(next) > maxWidth) {
+      lines.push(line);
+      line = part;
+    } else line = next;
+  }
+  lines.push(line);
+  return lines;
+}
 
 /** Canvas 2-D fighter HUD overlay. */
 export class Hud {
@@ -40,6 +66,11 @@ export class Hud {
   private width = 0;
   private height = 0;
   private scale = 1;
+  private touch = false;
+  private corners: CornerLayout = DESKTOP_CORNERS;
+  private readonly touchCorners: CornerLayout = { top: 0, feedCenterY: 0 };
+  /** the hint as drawn on a touch screen: lines under the heading */
+  private touchHint: string[] = [];
   private maxG = 1;
   private clock = 0;
   /** steady warnings instead of blinking ones (M5) */
@@ -71,6 +102,17 @@ export class Hud {
     this.resize();
   }
 
+  /**
+   * Touch screens (revision 39): the touch panel shows the throttle, the jet and its stores, so the HUD leaves them
+   * out; the left column starts under the touch buttons, the radar moves to the top right corner and the kill feed
+   * under the heading; and on a phone held sideways everything is drawn smaller.
+   */
+  setTouch(on: boolean): void {
+    if (on === this.touch) return;
+    this.touch = on;
+    this.resize();
+  }
+
   /** Dims the HUD at night so it does not dazzle (spec §12.3): 0 day … 1 night. */
   setNight(night: number): void {
     const brightness = (1 - 0.35 * Math.max(0, Math.min(1, night))).toFixed(2);
@@ -99,6 +141,15 @@ export class Hud {
     ctx.lineWidth = 1.6;
     ctx.shadowColor = SHADOW;
     ctx.shadowBlur = 3;
+    const top = this.corners.top;
+    if (this.touch) {
+      // The bottom is the touch panel's: the hint goes under the heading, broken at its dots to fit between the
+      // corners, and the kill feed under it (the radar has its corner).
+      ctx.font = FONT_SMALL;
+      this.touchHint = hintLines(f.hint, this.width * 0.6, (t) => ctx.measureText(t).width);
+      ctx.font = FONT;
+      this.touchCorners.feedCenterY = TOUCH_TEXT_Y + this.touchHint.length * TOUCH_LINE_PX;
+    }
     if (f.view.alive && conscious) {
       this.drawBoresight(f);
       this.drawFlightPathMarker(f);
@@ -106,21 +157,24 @@ export class Hud {
       this.drawHeadingTape(f);
       this.drawSpeed(f);
       this.drawAltitude(f);
-      this.drawThrottle(f);
-      this.drawStatus(f);
+      if (!this.touch) {
+        this.drawThrottle(f);
+        this.drawStatus(f);
+      }
       this.drawWarnings(f, blink);
       drawSupply(ctx, this.projector, f);
       if (f.status.modeId !== 'free-flight' || f.status.drones) {
         drawDatalink(ctx, this.projector, f);
-        drawCombatLayer(ctx, this.projector, f, blink);
-        drawRadarScope(ctx, 100 + SCOPE_RADIUS_PX, this.height - 40 - SCOPE_RADIUS_PX, SCOPE_RADIUS_PX, f);
+        drawCombatLayer(ctx, this.projector, f, blink, !this.touch);
+        if (this.touch) drawRadarScope(ctx, this.width - 16 - TOUCH_SCOPE_RADIUS_PX, 16 + TOUCH_SCOPE_RADIUS_PX, TOUCH_SCOPE_RADIUS_PX, f);
+        else drawRadarScope(ctx, 100 + SCOPE_RADIUS_PX, this.height - 40 - SCOPE_RADIUS_PX, SCOPE_RADIUS_PX, f);
         if (f.status.strike) drawStrikeMarkers(ctx, this.projector, f, f.status.strike, blink);
       }
     }
-    drawGameLayer(ctx, this.width, this.height, f);
-    if (f.status.strike) drawStrikeStatus(ctx, f, f.status.strike);
-    if (f.status.zones) drawZones(ctx, this.projector, f, f.status.zones, this.width);
-    if (f.status.objective) drawObjective(ctx, this.projector, f, f.status.objective);
+    drawGameLayer(ctx, this.width, this.height, f, this.corners);
+    if (f.status.strike) drawStrikeStatus(ctx, f, f.status.strike, top);
+    if (f.status.zones) drawZones(ctx, this.projector, f, f.status.zones, this.width, top);
+    if (f.status.objective) drawObjective(ctx, this.projector, f, f.status.objective, top);
     if (f.training) drawTrainingLayer(ctx, this.projector, f, f.training, this.width);
     // The G takes the view over the scene and everything above, but the messages stay readable.
     if (f.view.alive) this.drawGEffects(f);
@@ -135,14 +189,17 @@ export class Hud {
     const dpr = Math.min(window.devicePixelRatio, 2);
     const cssW = window.innerWidth;
     const cssH = window.innerHeight;
-    this.width = cssW / this.scale;
-    this.height = cssH / this.scale;
+    const scale = this.scale * (this.touch ? clamp(cssH / TOUCH_FULL_HEIGHT_PX, TOUCH_MIN_SCALE, 1) : 1);
+    this.width = cssW / scale;
+    this.height = cssH / scale;
     this.projector.setSize(this.width, this.height);
     this.canvas.width = Math.round(cssW * dpr);
     this.canvas.height = Math.round(cssH * dpr);
     this.canvas.style.width = `${cssW}px`;
     this.canvas.style.height = `${cssH}px`;
-    this.ctx.setTransform(dpr * this.scale, 0, 0, dpr * this.scale, 0, 0);
+    this.ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+    this.touchCorners.top = TOUCH_TOP_PX / scale;
+    this.corners = this.touch ? this.touchCorners : DESKTOP_CORNERS;
   }
 
   private drawBoresight(f: HudFrame): void {
@@ -199,8 +256,10 @@ export class Hud {
     const cx = this.width / 2;
     const y = 46;
     const pxPerDeg = 7;
+    // Narrower on a touch screen, clear of the touch buttons in the corner.
+    const span = this.touch ? 20 : 30;
     ctx.beginPath();
-    for (let d = Math.ceil((heading - 30) / 5) * 5; d <= heading + 30; d += 5) {
+    for (let d = Math.ceil((heading - span) / 5) * 5; d <= heading + span; d += 5) {
       const x = cx + (d - heading) * pxPerDeg;
       const major = ((d % 10) + 10) % 10 === 0;
       ctx.moveTo(x, y);
@@ -222,9 +281,9 @@ export class Hud {
   private drawSpeed(f: HudFrame): void {
     const units = f.view.config.hudUnits;
     const flight = f.view.flight;
-    // Stay on screen in narrow windows.
+    // Stay on screen in narrow windows; on a touch screen, above the stick.
     const x = Math.max(16, this.width / 2 - 290);
-    const y = this.height / 2;
+    const y = this.touch ? this.height * 0.38 : this.height / 2;
     this.drawValueBox(x, y, String(Math.round(speedValue(flight.airspeed, units))), speedLabel(units));
     const ctx = this.ctx;
     ctx.fillText(formatMach(flight.mach), x, y + 44);
@@ -243,7 +302,7 @@ export class Hud {
     const units = f.view.config.hudUnits;
     const flight = f.view.flight;
     const x = Math.min(this.width - 120, this.width / 2 + 200);
-    const y = this.height / 2;
+    const y = this.touch ? this.height * 0.38 : this.height / 2;
     const alt = altitudeValue(flight.pos.y, units);
     this.drawValueBox(x, y, String(Math.round(alt / 10) * 10), altitudeLabel(units));
     const ctx = this.ctx;
@@ -334,9 +393,10 @@ export class Hud {
   private drawModeAndHint(f: HudFrame): void {
     const ctx = this.ctx;
     ctx.font = FONT_SMALL;
-    ctx.fillText(`${f.status.label.toUpperCase()}  ·  ${f.view.callsign}${f.localTime ? `  ·  ${f.localTime}` : ''}`, 16, 22);
+    ctx.fillText(`${f.status.label.toUpperCase()}  ·  ${f.view.callsign}${f.localTime ? `  ·  ${f.localTime}` : ''}`, 16, 22 + this.corners.top);
     ctx.globalAlpha = 0.75;
-    ctx.fillText(f.hint, this.width / 2 - ctx.measureText(f.hint).width / 2, this.height - 16);
+    if (!this.touch) ctx.fillText(f.hint, this.width / 2 - ctx.measureText(f.hint).width / 2, this.height - 16);
+    else this.touchHint.forEach((line, i) => ctx.fillText(line, this.width / 2 - ctx.measureText(line).width / 2, TOUCH_TEXT_Y + i * TOUCH_LINE_PX));
     ctx.globalAlpha = 1;
     ctx.font = FONT;
   }

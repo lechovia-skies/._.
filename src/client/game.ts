@@ -35,9 +35,9 @@ import { homeCue, landingHint, REARM_ROUNDS } from './hud/supply-hud.ts';
 import { takeoffHint } from './hud/takeoff.ts';
 import { trainingPrompt } from './hud/training-prompts.ts';
 import { BASE_MOUSE_SENSITIVITY, ControlMapper, type ControlMode } from './input/control-mapper.ts';
-import { keyLabel } from './input/bindings.ts';
+import { type HintInput, keyLabel } from './input/bindings.ts';
 import { capturedKeys, DomInput } from './input/dom-input.ts';
-import { GamepadReader, pollGamepad } from './input/gamepad.ts';
+import { GamepadReader, mergePadFrames, pollGamepad } from './input/gamepad.ts';
 import { type AircraftMeshes, aircraftModelFor } from './render/aircraft-meshes.ts';
 import { type SceneryTextures, setSceneryAnisotropy } from './render/assets.ts';
 import { Effects } from './render/effects/effects.ts';
@@ -78,6 +78,8 @@ import { PauseMenu } from './ui/pause.ts';
 import { onlinePanel, type RoomInfo } from './ui/online-panel.ts';
 import { ConnectionOverlay } from './ui/connection-overlay.ts';
 import { type LobbyState, LobbyScreen } from './ui/lobby-screen.ts';
+import { isTouchOnly } from './ui/device.ts';
+import { TouchControls } from './ui/touch-controls.ts';
 import { neutralInput } from '../shared/physics/controls.ts';
 import { freeFlightPanel } from './ui/free-flight-panel.ts';
 import { openSettings } from './ui/settings-screen.ts';
@@ -282,6 +284,46 @@ export async function startGame(
   input.attach();
   const mapper = new ControlMapper({ mode: options.controlMode });
   const pad = new GamepadReader();
+  // Touch screens (revision 39): the stick, throttle and weapon buttons on the screen, read like a gamepad. Under the
+  // map and every menu (they come later in the page).
+  let mapTapped = false;
+  const touch = new TouchControls(root, {
+    onSelectMissile: (slot) => mapper.selectSlot(slot),
+    onMap: () => {
+      mapTapped = true;
+    },
+    onChat: (i) => onlineSession?.sendChat(i),
+  });
+  /** Auto: the touch controls come up when the screen is touched, and go when the mouse, a key or a gamepad is used. */
+  let touchUsed = typeof window.matchMedia === 'function' && isTouchOnly((q) => window.matchMedia(q));
+  const syncTouch = () => {
+    const s = settings.current;
+    touch.climb = s.touchClimb;
+    const on = s.touchControls === 'on' || (s.touchControls === 'auto' && touchUsed);
+    if (on === touch.isEnabled) return;
+    touch.setEnabled(on);
+    hud.setTouch(on);
+    if (on && input.pointerLocked) document.exitPointerLock();
+  };
+  const onInputKind = (e: Event) => {
+    if (e instanceof KeyboardEvent && e.repeat) return;
+    if (e.type === 'pointermove' && (e as PointerEvent).pointerType !== 'mouse') return;
+    const touched = e.type === 'pointerdown' && (e as PointerEvent).pointerType === 'touch';
+    if (touched === touchUsed) return;
+    touchUsed = touched;
+    if (settings.current.touchControls !== 'auto') return;
+    syncTouch();
+    // The touch that brings the controls up does nothing else.
+    if (touched && touch.isEnabled) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+  for (const type of ['pointerdown', 'pointermove', 'keydown']) window.addEventListener(type, onInputKind, true);
+  /** Captures the mouse to steer, except on a touch screen. */
+  const lockMouse = () => {
+    if (!touch.isEnabled) input.requestPointerLock();
+  };
   const governor = s0.graphics === 'auto' ? new QualityGovernor(quality) : null;
 
   const applyQuality = (level: QualityLevel) => {
@@ -314,6 +356,7 @@ export async function startGame(
     setHudColor(s.hudColor);
     setTeamColors(s.teamColors);
     hud.setScale(s.hudScale);
+    syncTouch();
     if (s.graphics !== 'auto' && s.graphics !== quality) applyQuality(s.graphics);
   };
   applySettings(s0);
@@ -328,7 +371,7 @@ export async function startGame(
   const flyFromMap = (x: number, z: number) => {
     session.flyFrom(x, z);
     mapScreen.toggle();
-    input.requestPointerLock();
+    lockMouse();
   };
   /** Free Flight's map flies you from where you click; online the mode may change between matches. */
   const syncMapPick = () => {
@@ -421,7 +464,7 @@ export async function startGame(
       pause.hide();
       paused = false;
       last = performance.now();
-      input.requestPointerLock();
+      lockMouse();
     },
     onSettings: () => openGameSettings(),
     onQuit: () => {
@@ -508,7 +551,7 @@ export async function startGame(
     lobbyOpen = false;
     lobby.hide();
     last = performance.now();
-    input.requestPointerLock();
+    lockMouse();
   };
   let lobbyAt = -Infinity;
   const connection = net ? new ConnectionOverlay(root) : null;
@@ -555,14 +598,16 @@ export async function startGame(
   document.addEventListener('visibilitychange', onVisibility);
   // Browsers swallow Esc while the pointer is locked and release the lock instead: treat that as "pause".
   const onPointerLockChange = () => {
-    if (!running || matchOver || input.pointerLocked || paused || lobbyOpen || (freeFlight() && mapScreen.open) || connection?.visible) return;
+    if (!running || matchOver || input.pointerLocked || paused || lobbyOpen || touch.isEnabled || (freeFlight() && mapScreen.open) || connection?.visible) return;
     // In the lobby, Esc brings back the lobby's screen instead of the pause menu.
     if (inLobby()) openLobby();
     else openPause();
   };
   document.addEventListener('pointerlockchange', onPointerLockChange);
+  // Sound may start only on a click or a touch (iPhones and iPads take it on the finger lifting).
   const onPointerDown = () => audio?.resume();
-  root.addEventListener('pointerdown', onPointerDown);
+  const soundStarts = ['pointerdown', 'pointerup', 'touchend'] as const;
+  for (const type of soundStarts) root.addEventListener(type, onPointerDown);
 
   const showBanner = (text: string, nowS: number, seconds = BANNER_S) => {
     banner = text;
@@ -810,8 +855,8 @@ export async function startGame(
       lobbyOpen = false;
       lobby?.hide();
     }
-    showBanner(input.pointerLocked || hosted ? 'THE MATCH IS ON' : 'THE MATCH IS ON · CLICK TO TAKE THE STICK', performance.now() / 1000, 4);
-    if (!paused) input.requestPointerLock();
+    showBanner(input.pointerLocked || hosted || touch.isEnabled ? 'THE MATCH IS ON' : 'THE MATCH IS ON · CLICK TO TAKE THE STICK', performance.now() / 1000, 4);
+    if (!paused) lockMouse();
   };
 
   const frame = (now: number) => {
@@ -824,8 +869,16 @@ export async function startGame(
     const stepS = onlineSession ? clamp((now - last) / 1000, 0, 0.25) : dt;
     last = now;
     const snap = input.snapshot();
-    const padFrame = pad.read(pollGamepad(), settings.current.gamepad);
-    if (padFrame.active) audio?.resume();
+    const gamepadFrame = pad.read(pollGamepad(), settings.current.gamepad);
+    if (gamepadFrame.active) audio?.resume();
+    // A gamepad in use puts the touch controls away (Auto).
+    if (touchUsed && gamepadFrame.active && (gamepadFrame.pressed.size > 0 || Math.abs(gamepadFrame.pitch) + Math.abs(gamepadFrame.roll) > 0.5)) {
+      touchUsed = false;
+      syncTouch();
+    }
+    const padFrame = touch.isEnabled ? mergePadFrames(gamepadFrame, touch.frame()) : gamepadFrame;
+    /** whose controls the hints name */
+    const hintInput: HintInput = gamepadFrame.active ? true : touch.isEnabled ? 'touch' : false;
     if (governor && !paused && !matchOver) {
       const lower = governor.frame(dt);
       if (lower) {
@@ -833,7 +886,9 @@ export async function startGame(
         settings.update({ autoGraphics: lower });
       }
     }
-    if (!paused && !matchOver && !settingsOpen && !lobbyOpen && mapper.mapToggled(snap)) {
+    const mapWanted = mapTapped;
+    mapTapped = false;
+    if (!paused && !matchOver && !settingsOpen && !lobbyOpen && (mapper.mapToggled(snap) || mapWanted)) {
       mapScreen.toggle();
       if (freeFlight() && mapScreen.open && input.pointerLocked) document.exitPointerLock();
     }
@@ -883,6 +938,9 @@ export async function startGame(
       if (me && me.alive && ((me.flight.gear < 1 && lastGear >= 1) || (me.flight.gear > 0 && lastGear <= 0))) audio?.gearMotor();
       lastGear = me?.flight.gear ?? 0;
       if (!active && me) idle.throttle = me.flight.throttle;
+      // The touch throttle sets the throttle outright while a finger is on it.
+      const held = active ? touch.throttleTarget() : null;
+      if (held !== null) mapper.setThrottle(held);
       const controls = active ? mapper.map(snap, me && me.alive ? me.flight : null, dt, padFrame, me?.loadout ?? null) : idle;
       session.update(stepS, controls);
       for (const e of session.drainEvents()) handleEvent(e, nowS);
@@ -1041,14 +1099,15 @@ export async function startGame(
       const deathInfo: string[] = [];
       if (message && !local.alive) {
         const keys = settings.current.keys;
-        const pad = padFrame.active;
+        const pad = hintInput !== false;
         if (deathCam.phase === 'killcam' && deathCam.killerId !== null) {
           const k = session.view(deathCam.killerId);
           if (k) deathInfo.push(`${k.callsign} · ${k.config.name} · ${Math.round((100 * k.hp) / k.config.damage.hitPoints)}% HP left`);
         } else if (watched) {
           deathInfo.push(`WATCHING ${watched.callsign} · ${watched.config.name}   ${pad ? 'stick' : `${keyLabel(keys.rollLeft[0])} / ${keyLabel(keys.rollRight[0])}`} to switch`);
         }
-        if (canChangeJet && nextJet) {
+        // A touch screen shows the next jet on its own buttons.
+        if (canChangeJet && nextJet && hintInput !== 'touch') {
           const name = listAircraft(local.team).find((j) => j.id === nextJet)?.name ?? '';
           deathInfo.push(`NEXT JET  ◀ ${pad ? 'LB' : keyLabel(keys.yawLeft[0])}  ${name.toUpperCase()}  ${pad ? 'RB' : keyLabel(keys.yawRight[0])} ▶`);
         }
@@ -1079,9 +1138,11 @@ export async function startGame(
           local.alive && f.onGround
             ? // Rolling out after a landing (revision 22), else on the take-off run.
               rollingOut
-              ? landingHint(settings.current.keys, padFrame.active)
-              : takeoffHint(mapper.settings.mode, local.config.hudUnits, settings.current.keys, padFrame.active)
-            : `${HINTS[mapper.settings.mode]}${local.loadout.bombs > 0 ? ' · G bomb' : ''}`,
+              ? landingHint(settings.current.keys, hintInput)
+              : takeoffHint(mapper.settings.mode, local.config.hudUnits, settings.current.keys, hintInput)
+            : hintInput === 'touch'
+              ? ''
+              : `${HINTS[mapper.settings.mode]}${local.loadout.bombs > 0 ? ' · G bomb' : ''}`,
         killFeed: killFeed.lines,
         hitMarker: nowS < hitMarkerUntil,
         hitTaken: nowS < hitTakenUntil,
@@ -1090,10 +1151,10 @@ export async function startGame(
         groundTargets: targets,
         bombImpact,
         releaseCue: releaseCue(bombImpact, targets),
-        training: status.training ? trainingPrompt(status.training, settings.current.keys, mapper.settings.mode, padFrame.active) : null,
+        training: status.training ? trainingPrompt(status.training, settings.current.keys, mapper.settings.mode, hintInput) : null,
         localTime: formatTimeOfDay(session.hour()),
         wind: session.wind.steadyAt(f.pos.y, windAtJet),
-        spinHint: f.spin !== 0 ? spinHint(mapper.settings.mode, f.spin, settings.current.keys, padFrame.active) : undefined,
+        spinHint: f.spin !== 0 ? spinHint(mapper.settings.mode, f.spin, settings.current.keys, hintInput) : undefined,
         home: homeCue(map.features, local),
       });
       if (audio && active) {
@@ -1127,6 +1188,19 @@ export async function startGame(
       hud.draw(null);
     }
     mapScreen.draw(session.localView(), session.views(), session.groundTargets(), session.modeStatus());
+    if (touch.isEnabled) {
+      // Put away under the menus and the results; with the jet to fly next while waiting to respawn.
+      touch.setSuspended(paused || matchOver || lobbyOpen || settingsOpen || connection?.visible === true);
+      const me = session.localView();
+      const jetId = canChangeJet && me && !me.alive ? (nextJet ?? me.config.id) : null;
+      touch.update({
+        view: me,
+        slot: mapper.selectedWeapon,
+        chat: onlineSession !== null,
+        mapOpen: mapScreen.open,
+        nextJet: jetId && me ? (listAircraft(me.team).find((j) => j.id === jetId)?.name ?? null) : null,
+      });
+    }
     updateBadge(nowS);
     if (lobby?.visible && nowS - lobbyAt >= 0.5) {
       lobbyAt = nowS;
@@ -1136,7 +1210,7 @@ export async function startGame(
   };
   rafId = requestAnimationFrame(frame);
   if (inLobby()) openLobby();
-  else input.requestPointerLock();
+  else lockMouse();
 
   function cleanup(): void {
     running = false;
@@ -1149,7 +1223,9 @@ export async function startGame(
     stopSettings();
     debug?.dispose();
     document.removeEventListener('pointerlockchange', onPointerLockChange);
-    root.removeEventListener('pointerdown', onPointerDown);
+    for (const type of soundStarts) root.removeEventListener(type, onPointerDown);
+    for (const type of ['pointerdown', 'pointermove', 'keydown']) window.removeEventListener(type, onInputKind, true);
+    touch.dispose();
     input.detach();
     pause.dispose();
     closeEndScreen?.();

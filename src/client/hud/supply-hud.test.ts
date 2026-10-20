@@ -42,5 +42,6 @@ describe('the way home (revision 22)', () => {
     expect(supplyLimits('metric')).toEqual({ speed: '460 KM/H', height: '150 M' });
     expect(landingHint(DEFAULT_BINDINGS, false)).toContain('B brakes · stop to repair');
     expect(landingHint(DEFAULT_BINDINGS, true)).toContain('D-pad up brakes');
+    expect(landingHint(DEFAULT_BINDINGS, 'touch')).toContain('hold BRAKE');
   });
 });

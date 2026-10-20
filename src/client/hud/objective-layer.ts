@@ -17,14 +17,14 @@ const SENTINEL_PX = 14;
 const sideColor = (side: Side) => (side === 'mine' ? FRIEND : side === 'theirs' ? FOE : WHITE);
 
 /** Air Superiority (M5): the zone strip under the score, zone markers in the view, and what is happening in yours. */
-export function drawZones(ctx: CanvasRenderingContext2D, p: Projector, f: HudFrame, zones: readonly ZoneStatus[], width: number): void {
+export function drawZones(ctx: CanvasRenderingContext2D, p: Projector, f: HudFrame, zones: readonly ZoneStatus[], width: number, top = 0): void {
   const me = f.view;
   ctx.save();
   // Strip: one box per zone, filled by owner, with the capture progress as a bar.
   ctx.font = FONT;
   zones.forEach((z, i) => {
     const x = 16 + i * 46;
-    const y = 54;
+    const y = 54 + top;
     const color = sideColor(zoneSide(z.owner, me.team));
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
@@ -90,7 +90,7 @@ export function drawZones(ctx: CanvasRenderingContext2D, p: Projector, f: HudFra
 }
 
 /** Team Objective (M5): Sentinels under the score, and Sentinel markers (own always, the enemy's when known). */
-export function drawObjective(ctx: CanvasRenderingContext2D, p: Projector, f: HudFrame, o: ObjectiveStatus): void {
+export function drawObjective(ctx: CanvasRenderingContext2D, p: Projector, f: HudFrame, o: ObjectiveStatus, top = 0): void {
   const me = f.view;
   ctx.save();
   ctx.font = FONT;
@@ -98,7 +98,7 @@ export function drawObjective(ctx: CanvasRenderingContext2D, p: Projector, f: Hu
     let x = 16;
     for (const [text, side] of line) {
       ctx.fillStyle = side === 'neutral' ? WHITE : sideColor(side);
-      ctx.fillText(text, x, 66 + i * 20);
+      ctx.fillText(text, x, 66 + top + i * 20);
       x += ctx.measureText(text).width;
     }
   });

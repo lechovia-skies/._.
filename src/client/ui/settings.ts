@@ -11,12 +11,17 @@ import {
 } from '../input/gamepad.ts';
 import { QUALITY_LEVELS, type QualityLevel } from '../render/quality.ts';
 import type { TeamColorScheme } from '../hud/palette.ts';
+import type { TouchClimb } from './touch-controls.ts';
 import { loadSetting, saveSetting } from './storage.ts';
 
 export type HudColor = 'green' | 'amber' | 'white';
 export const HUD_COLORS: readonly HudColor[] = ['green', 'amber', 'white'];
 export type GraphicsSetting = 'auto' | QualityLevel;
 export const GRAPHICS_SETTINGS: readonly GraphicsSetting[] = ['auto', ...QUALITY_LEVELS];
+/** The touch controls (revision 39): shown on a touch, always, or never. */
+export type TouchSetting = 'auto' | 'on' | 'off';
+export const TOUCH_SETTINGS: readonly TouchSetting[] = ['auto', 'on', 'off'];
+export const TOUCH_CLIMBS: readonly TouchClimb[] = ['pull', 'push'];
 
 /** Everything the settings screen changes (spec §24, M1c). Persisted in localStorage. */
 export interface Settings {
@@ -33,6 +38,10 @@ export interface Settings {
   mouseSensitivity: number;
   /** mouse up = nose down (mouse-aim and look) */
   invertY: boolean;
+  /** the on-screen stick and buttons (revision 39): Auto shows them when the screen is touched */
+  touchControls: TouchSetting;
+  /** the on-screen stick climbs pulled down (like a real stick) or pushed up */
+  touchClimb: TouchClimb;
   keys: Bindings;
   hudColor: HudColor;
   /** 0.8..1.4 */
@@ -61,6 +70,8 @@ export const DEFAULT_SETTINGS: Settings = {
   controlMode: 'mouse-aim',
   mouseSensitivity: 1,
   invertY: false,
+  touchControls: 'auto',
+  touchClimb: 'pull',
   keys: DEFAULT_BINDINGS,
   hudColor: 'green',
   hudScale: 1,
@@ -124,6 +135,8 @@ export function sanitizeSettings(stored: unknown): Settings {
     controlMode: oneOf(raw.controlMode, ['mouse-aim', 'direct'] as const, d.controlMode),
     mouseSensitivity: number(raw.mouseSensitivity, d.mouseSensitivity, MOUSE_SENSITIVITY_RANGE.min, MOUSE_SENSITIVITY_RANGE.max),
     invertY: bool(raw.invertY, d.invertY),
+    touchControls: oneOf(raw.touchControls, TOUCH_SETTINGS, d.touchControls),
+    touchClimb: oneOf(raw.touchClimb, TOUCH_CLIMBS, d.touchClimb),
     keys: sanitizeBindings(raw.keys),
     hudColor: oneOf(raw.hudColor, HUD_COLORS, d.hudColor),
     hudScale: number(raw.hudScale, d.hudScale, HUD_SCALE_RANGE.min, HUD_SCALE_RANGE.max),

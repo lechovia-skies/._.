@@ -81,6 +81,16 @@ export class ControlMapper {
     return this.weapon;
   }
 
+  /** Sets the throttle outright (0..1): the touch screen's throttle slider while a finger is on it (revision 39). */
+  setThrottle(value: number): void {
+    this.throttle = clamp(value, 0, 1);
+  }
+
+  /** Selects a missile slot of the current load outright: a missile type tapped on the touch screen (revision 39). */
+  selectSlot(slot: number): void {
+    if (this.loadout && slot >= 0 && slot < this.loadout.missiles.length) this.weapon = slot;
+  }
+
   /** Points the aim along the aircraft's nose (call on spawn). */
   resetAim(flight: FlightState): void {
     this.aimAlongNose(flight);

@@ -3,15 +3,26 @@ import { formatClock } from './format.ts';
 import type { HudFrame } from './hud-frame.ts';
 import { FONT, FONT_BIG, FONT_SMALL, FOE, FRIEND, PANEL, WHITE } from './palette.ts';
 
+/**
+ * Where the top-left column starts (`top`, HUD units below the usual place) and where the kill feed goes: the top
+ * right corner, or centred from `feedCenterY` down (touch screens, revision 39, where the radar takes that corner).
+ */
+export interface CornerLayout {
+  top: number;
+  feedCenterY: number | null;
+}
+
+export const DESKTOP_CORNERS: CornerLayout = { top: 0, feedCenterY: null };
+
 /** Score and clock, kill feed, hit marker and the scoreboard. */
-export function drawGameLayer(ctx: CanvasRenderingContext2D, width: number, height: number, f: HudFrame): void {
-  drawScore(ctx, f);
-  drawKillFeed(ctx, width, f);
+export function drawGameLayer(ctx: CanvasRenderingContext2D, width: number, height: number, f: HudFrame, corners: CornerLayout = DESKTOP_CORNERS): void {
+  drawScore(ctx, f, corners.top);
+  drawKillFeed(ctx, width, f, corners.feedCenterY);
   if (f.hitMarker) drawHitMarker(ctx, width / 2, height / 2);
   if (f.showScoreboard) drawScoreboard(ctx, width, height, f);
 }
 
-function drawScore(ctx: CanvasRenderingContext2D, f: HudFrame): void {
+function drawScore(ctx: CanvasRenderingContext2D, f: HudFrame, top: number): void {
   const s = f.status;
   if (!s.scores) return;
   const mine = f.view.team;
@@ -27,19 +38,21 @@ function drawScore(ctx: CanvasRenderingContext2D, f: HudFrame): void {
   let x = 16;
   for (const [text, color] of parts) {
     ctx.fillStyle = color;
-    ctx.fillText(text, x, 44);
+    ctx.fillText(text, x, 44 + top);
     x += ctx.measureText(text).width;
   }
   ctx.restore();
 }
 
-function drawKillFeed(ctx: CanvasRenderingContext2D, width: number, f: HudFrame): void {
+function drawKillFeed(ctx: CanvasRenderingContext2D, width: number, f: HudFrame, centerY: number | null): void {
   ctx.save();
   ctx.font = FONT_SMALL;
   f.killFeed.forEach((line, i) => {
     ctx.globalAlpha = Math.min(1, 6 - line.ageS);
     ctx.fillStyle = line.involvesLocal ? WHITE : line.team === f.view.team ? FRIEND : FOE;
-    ctx.fillText(line.text, width - 16 - ctx.measureText(line.text).width, 24 + i * 18);
+    const w = ctx.measureText(line.text).width;
+    if (centerY === null) ctx.fillText(line.text, width - 16 - w, 24 + i * 18);
+    else ctx.fillText(line.text, width / 2 - w / 2, centerY + i * 17);
   });
   ctx.restore();
 }

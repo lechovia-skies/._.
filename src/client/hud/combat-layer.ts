@@ -28,8 +28,11 @@ const pt: ScreenPoint = { x: 0, y: 0 };
 const edge: EdgeMarker = { x: 0, y: 0, angle: 0 };
 const cam = new Vector3();
 
-/** Target markers, target box and info, gun lead, seeker, weapons status and the missile warning. */
-export function drawCombatLayer(ctx: CanvasRenderingContext2D, p: Projector, f: HudFrame, clock: number): void {
+/**
+ * Target markers, target box and info, gun lead, seeker, weapons status and the missile warning. A touch screen shows
+ * the weapons on its own panel (`weaponsStatus` false, revision 39).
+ */
+export function drawCombatLayer(ctx: CanvasRenderingContext2D, p: Projector, f: HudFrame, clock: number, weaponsStatus = true): void {
   const me = f.view;
   if (!me.alive) return;
   const known = new Set(me.contacts.map((c) => c.id));
@@ -50,7 +53,7 @@ export function drawCombatLayer(ctx: CanvasRenderingContext2D, p: Projector, f: 
   drawMissileMarkers(ctx, p, f, clock);
   if (f.leadDirection && p.direction(f.camera, f.leadDirection, pt)) drawPipper(ctx, f.gunAssist ?? 0);
   drawSeeker(ctx, p, f, clock);
-  drawWeaponsStatus(ctx, p, f);
+  if (weaponsStatus) drawWeaponsStatus(ctx, p, f);
   drawRadarWarning(ctx, p, f, clock);
   drawMissileWarning(ctx, p, f, clock);
 }
