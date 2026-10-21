@@ -4,7 +4,7 @@ import { kobchik } from '../../shared/data/aircraft/kobchik.ts';
 import { STRIKE_DEFAULTS } from '../../shared/modes/strike.ts';
 import { DEFAULT_BINDINGS, rebind } from '../input/bindings.ts';
 import { controlsHelp } from './controls-help.ts';
-import { aircraftSummary, effectiveWorld, environmentOf, hangarLine, jetBadge, loadWorldChoice, pickValid, strikeRole, type WorldChoice } from './menu.ts';
+import { effectiveWorld, environmentOf, hangarLine, jetBadge, loadWorldChoice, pickValid, strikeRole, type WorldChoice } from './menu.ts';
 import { loadOnlineName, nameIsSet, roomWorld, saveOnlineName, soloCallsign, suggestedName } from './online-sheet.ts';
 
 describe('start menu helpers', () => {
@@ -12,11 +12,6 @@ describe('start menu helpers', () => {
     expect(pickValid('kobchik', ['kestrel', 'kobchik'], 'kestrel')).toBe('kobchik');
     expect(pickValid('f-16', ['kestrel', 'kobchik'], 'kestrel')).toBe('kestrel');
     expect(pickValid('', ['rookie', 'ace'], 'rookie')).toBe('rookie');
-  });
-
-  it('sums an aircraft up in the first sentence of its description', () => {
-    expect(aircraftSummary({ ...kestrel, description: 'Rolls faster than anything. Lightly built.' })).toBe('Light multirole fighter · Rolls faster than anything.');
-    expect(aircraftSummary({ ...kestrel, description: 'A test jet' })).toBe('Light multirole fighter · A test jet');
   });
 });
 

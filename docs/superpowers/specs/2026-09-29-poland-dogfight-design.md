@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 40)
+# Lechovia Skies — Design Spec (revision 41)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -160,6 +160,8 @@
   - Revision 40 (2026-10-20): at the owner's request no mouse cursor shows over the flight on a computer (§15.3),
     whether the game has captured the mouse or not; menus, the results and Free Flight's map bring it back. Pausing
     with P or Start frees the mouse so the menu can be clicked.
+  - Revision 41 (2026-10-21): at the owner's request the title screen no longer shows the chosen jet's role and
+    description under the jets; what it carries and its condition stay. (`description` stays in the data.)
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 

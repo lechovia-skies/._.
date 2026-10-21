@@ -281,18 +281,10 @@ input:focus-visible + .option { color: var(--hud); }
 .world-clock { display: inline-flex; gap: 6px; align-items: center; font: 500 11px/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ghost); cursor: pointer; }
 .world-clock input { accent-color: var(--hud); margin: 0; }
 
-.pick-note {
-  margin: 10px 0 0;
-  max-width: 56ch;
-  min-height: 2.9em;
-  font-size: 14px;
-  line-height: 1.45;
-  color: var(--ghost);
-}
 /* What the selected jet carries (revision 30): its real gun, missiles, flares and chaff. */
 .pick-arms {
   max-width: 64ch;
-  margin: 6px 0 0;
+  margin: 10px 0 0;
   font: 500 11px/1.5 var(--mono);
   letter-spacing: 0.06em;
   color: var(--canopy);
@@ -958,7 +950,6 @@ body.touch-on .room-badge { top: 144px; }
   .brand-word { font-size: clamp(56px, min(12vw, 11vh), 150px); }
   .brand-tag { margin-top: 8px; }
   .pick > legend { margin-bottom: 4px; }
-  .pick-note { min-height: 0; margin-top: 6px; }
   .launch { gap: 12px; }
 }
 

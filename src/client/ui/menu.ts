@@ -88,11 +88,6 @@ export function armamentLine(c: AircraftConfig, strike: boolean): string {
   return parts.filter((p) => p.length > 0).join(' · ');
 }
 
-export function aircraftSummary(c: AircraftConfig): string {
-  const end = c.description.indexOf('. ');
-  return `${c.role} · ${end < 0 ? c.description : c.description.slice(0, end + 1)}`;
-}
-
 /** The world the next match flies in (M4): map, start, time of day, clock and weather. */
 export interface WorldChoice {
   map: MapId;
@@ -288,18 +283,17 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
     brand.appendChild(notice);
   }
 
-  const summary = el('p', 'pick-note');
-  summary.setAttribute('aria-live', 'polite');
+  // Under the jets, what the chosen one carries (revision 41: no role or description line, at the owner's request).
   const arms = el('p', 'pick-arms');
+  arms.setAttribute('aria-live', 'polite');
   const hangarRow = el('div', 'hangar-row');
   const hangarText = el('p', 'hangar-text');
   hangarText.setAttribute('aria-live', 'polite');
   const hangarAction = el('button', 'button secondary hangar-action');
   hangarAction.type = 'button';
   hangarRow.append(hangarText, hangarAction);
-  const showSummary = () => {
+  const showArms = () => {
     const a = aircraft.find((x) => x.id === aircraftId) ?? aircraft[0];
-    summary.textContent = aircraftSummary(a);
     arms.textContent = armamentLine(a, false);
   };
   const jets = choiceGroup(
@@ -311,14 +305,14 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
     (id) => {
       aircraftId = id;
       saveSetting('aircraft', id);
-      showSummary();
+      showArms();
       refreshHangar();
       handlers.onPreview(id);
     },
     (c) => TEAM_NAMES[aircraft.find((a) => a.id === c.value)?.team ?? 'usa'],
   );
-  jets.append(summary, arms, hangarRow);
-  showSummary();
+  jets.append(arms, hangarRow);
+  showArms();
 
   // The sky behind the title screen follows the solo match's time of day.
   const soloSetup = loadSetup('solo');
