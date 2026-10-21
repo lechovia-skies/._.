@@ -1,7 +1,6 @@
 import type { DifficultyId } from '../../shared/ai/difficulty.ts';
 import { fullName, listAircraft, TEAM_NAMES } from '../../shared/data/aircraft/registry.ts';
 import type { AircraftConfig } from '../../shared/data/aircraft/types.ts';
-import { loadoutFor } from '../../shared/data/loadout.ts';
 import { MAP_IDS, type MapId } from '../../shared/data/maps/registry.ts';
 import { SPAWN_STARTS, type SpawnStart } from '../../shared/world/spawns.ts';
 import { type EnvironmentSettings, START_HOURS, TIME_OF_DAY_IDS, type TimeOfDayId } from '../../shared/world/time-of-day.ts';
@@ -72,20 +71,6 @@ export function strikeRole(c: AircraftConfig): string {
   return c.team === STRIKE_DEFENDER
     ? `${c.name} · ${TEAM_NAMES[c.team]}: hold all three targets for ${STRIKE_DEFAULTS.timeLimitS / 60} minutes`
     : `${c.name} · ${TEAM_NAMES[c.team]}: destroy two of the three targets`;
-}
-
-/**
- * What the jet carries (revision 30), as the real jet does: "M61A1 gun, 511 rounds · 2 AIM-9X, 4 AIM-120D · 30 flares,
- * 60 chaff". A Strike attacker's line shows its strike load.
- */
-export function armamentLine(c: AircraftConfig, strike: boolean): string {
-  const s = c.stores;
-  const l = loadoutFor(c, strike);
-  const parts = [`${s.cannon} gun, ${s.cannonRounds} rounds`];
-  if (l.bomb && l.bombs > 0) parts.push(`${l.bombs} ${l.bomb.name}`);
-  parts.push(l.missiles.map((m) => `${m.count} ${m.missile}`).join(', '));
-  parts.push(`${s.flares} flares, ${s.chaff} chaff`);
-  return parts.filter((p) => p.length > 0).join(' · ');
 }
 
 /** The world the next match flies in (M4): map, start, time of day, clock and weather. */
@@ -283,19 +268,13 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
     brand.appendChild(notice);
   }
 
-  // Under the jets, what the chosen one carries (revision 41: no role or description line, at the owner's request).
-  const arms = el('p', 'pick-arms');
-  arms.setAttribute('aria-live', 'polite');
+  // Under the jets only Develop or Repair, when the chosen jet needs it (at the owner's request no description,
+  // weapons or condition lines: revisions 41 and 43). The jet buttons' badges show the cost, the condition or
+  // Grounded, and the button names its price.
   const hangarRow = el('div', 'hangar-row');
-  const hangarText = el('p', 'hangar-text');
-  hangarText.setAttribute('aria-live', 'polite');
   const hangarAction = el('button', 'button secondary hangar-action');
   hangarAction.type = 'button';
-  hangarRow.append(hangarText, hangarAction);
-  const showArms = () => {
-    const a = aircraft.find((x) => x.id === aircraftId) ?? aircraft[0];
-    arms.textContent = armamentLine(a, false);
-  };
+  hangarRow.appendChild(hangarAction);
   const jets = choiceGroup(
     'aircraft',
     'Aircraft',
@@ -305,14 +284,12 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
     (id) => {
       aircraftId = id;
       saveSetting('aircraft', id);
-      showArms();
       refreshHangar();
       handlers.onPreview(id);
     },
     (c) => TEAM_NAMES[aircraft.find((a) => a.id === c.value)?.team ?? 'usa'],
   );
-  jets.append(arms, hangarRow);
-  showArms();
+  jets.appendChild(hangarRow);
 
   // The sky behind the title screen follows the solo match's time of day.
   const soloSetup = loadSetup('solo');
@@ -364,11 +341,13 @@ export function showStartMenu(root: HTMLElement, handlers: StartMenuHandlers, se
       label.title = b.title ?? '';
     }
     const line = hangarLine(hangar, aircraftId, progress.level);
-    hangarText.textContent = line.text;
-    hangarAction.hidden = !line.action;
+    hangarRow.hidden = !line.action;
     if (line.action) {
       hangarAction.textContent = line.action.label;
       hangarAction.disabled = !line.action.enabled;
+      // What the line under the jet used to say (the funds, the condition), on hover and for screen readers.
+      hangarAction.title = line.text;
+      hangarAction.setAttribute('aria-description', line.text);
     }
     training.disabled = !canFly(hangar, aircraftId);
   };

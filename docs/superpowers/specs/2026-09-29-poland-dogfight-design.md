@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 42)
+# Lechovia Skies — Design Spec (revision 43)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -165,6 +165,9 @@
   - Revision 42 (2026-10-21): the owner asked for compass directions on the radar and airplane marks (§15.2). The
     heading-up scope shows N / E / S / W just outside its rim, turning with the jet, and every aircraft on it (the
     pilot's own jet in the middle too) is a small jet seen from above, pointing the way it flies.
+  - Revision 43 (2026-10-21): at the owner's request the title screen's weapons and condition lines under the jets go
+    too. Only *Develop · CR …* or *Repair · CR …* shows there, when the chosen jet needs it (its tooltip holds what the
+    line said); the jet buttons' badges still show each jet's price, condition or Grounded.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -1663,7 +1666,8 @@ chase views at other distances. There is no free camera.
     Controls (control scheme and key list), the callsign in a corner, and one line of image credits. Revision 33: no
     callsign any more (flying alone needs no name; single player calls the pilot by the online name if there is one,
     else "Pilot"); the level and the funds are in the corner.
-  - Revision 34 (at the owner's request): the title screen is the jets with the hangar line, a large PLAY and
+  - Revision 34 (at the owner's request): the title screen is the jets with the hangar line (revision 43: only its
+    Develop / Repair button, when needed), a large PLAY and
     *Campaign*, and the links Training, Controls, Settings and Records. PLAY opens the **Play sheet**
     (`play-sheet.ts`): first two cards, *Solo* and *Multiplayer*; then the match settings (`match-setup.ts`, the same
     form for both): *Mission* (Dogfight, Air Superiority, Team Objective, Strike, Free flight, with a line on what it

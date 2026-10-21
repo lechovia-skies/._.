@@ -281,18 +281,8 @@ input:focus-visible + .option { color: var(--hud); }
 .world-clock { display: inline-flex; gap: 6px; align-items: center; font: 500 11px/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ghost); cursor: pointer; }
 .world-clock input { accent-color: var(--hud); margin: 0; }
 
-/* What the selected jet carries (revision 30): its real gun, missiles, flares and chaff. */
-.pick-arms {
-  max-width: 64ch;
-  margin: 10px 0 0;
-  font: 500 11px/1.5 var(--mono);
-  letter-spacing: 0.06em;
-  color: var(--canopy);
-  opacity: 0.85;
-}
-/* The chosen jet in the hangar (revision 32): its condition or price, and Develop / Repair. */
+/* The chosen jet in the hangar (revision 32): Develop / Repair, shown only when needed (revision 43). */
 .hangar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 8px; max-width: 64ch; }
-.hangar-text { margin: 0; font: 500 11px/1.5 var(--mono); letter-spacing: 0.06em; color: var(--ghost); }
 .hangar-action { padding: 6px 12px; font-size: 13px; }
 .option-badge.is-grounded { color: #ff6b5e; }
 

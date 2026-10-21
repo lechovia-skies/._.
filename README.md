@@ -25,7 +25,7 @@ on 2026-10-08 without any server: the game still runs entirely in the browser.
   Mainstay. Lists and the HUD show the designation, the title screen and the multiplayer screen the full name.
 - **Money and the hangar** (2026-10-16): matches pay credits (CR): 1,000 per kill, 2,500 per Sentinel, 2,000 for a
   win, more against Aces and less against Rookies. Each time your jet is shot down it takes damage; after three times
-  it is grounded until you repair it (the line under the jet on the title screen: *Repair*). Levels now make jets
+  it is grounded until you repair it (the *Repair* button under the jets on the title screen). Levels now make jets
   available to *develop*, which costs credits (Su-35S 8,000 up to F-35A 32,000). You start with the F-16C and the
   MiG-29 and the credits your earlier matches would have paid; the two starters can always be repaired, even with no
   money.
