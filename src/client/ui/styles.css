@@ -35,6 +35,13 @@
 
 * { box-sizing: border-box; }
 
+/*
+ * No zoom on a double tap (revision 44: iPads, at the owner's request), on every element, since scrolling panels start
+ * the browser's count afresh: two quick taps are two taps. Scrolling stays; the flight controls take no gesture at all
+ * (`touch-action: none` on their own rules, which win over this one).
+ */
+* { touch-action: manipulation; }
+
 /* Author rules like `.overlay { display: grid }` would otherwise override the browser's [hidden] rule. */
 [hidden] { display: none !important; }
 
@@ -815,6 +822,8 @@ input:focus-visible + .option { color: var(--hud); }
   -webkit-tap-highlight-color: transparent;
 }
 .touch.is-suspended { display: none; }
+/* Every part of the controls, not only the layer: no browser gesture at all (revision 44). */
+.touch * { touch-action: none; }
 .touch-look { position: absolute; inset: 0; }
 .touch-btn { appearance: none; margin: 0; padding: 0; border: 0; font: inherit; color: inherit; background: rgb(8 16 24 / 0.42); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.3); touch-action: none; cursor: pointer; }
 .touch-btn.is-down { background: rgb(99 255 149 / 0.3); }

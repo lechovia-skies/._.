@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 43)
+# Lechovia Skies — Design Spec (revision 44)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -168,6 +168,8 @@
   - Revision 43 (2026-10-21): at the owner's request the title screen's weapons and condition lines under the jets go
     too. Only *Develop · CR …* or *Repair · CR …* shows there, when the chosen jet needs it (its tooltip holds what the
     line said); the jet buttons' badges still show each jet's price, condition or Grounded.
+  - Revision 44 (2026-10-21): at the owner's request two quick taps never zoom the page on an iPad (§15.3):
+    `touch-action: manipulation` on every element (menus still scroll), `none` on the touch controls and all inside.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -1505,6 +1507,9 @@ chase views at other distances. There is no free camera.
   - Waiting to respawn: the stick switches the pilot watched, ◀ ▶ under it the jet to fly next. With the map open only
     the top buttons stay. Under the pause menu, the lobby and the results the controls are put away. A phone held
     upright shows only the top buttons and "Turn your device sideways to fly"; a tablet flies either way.
+  - No zoom on a double tap anywhere (revision 44): every element has `touch-action: manipulation` (each scrolling
+    panel counts taps afresh, so the rule is on all of them, not only the page); the controls and everything in them
+    have `none`, so no browser gesture (pinch, scroll, double tap) starts while flying.
   - Settings, Controls: Touch controls Auto (default: shown once the screen is touched, put away when the mouse, a key
     or a gamepad is used; a phone or tablet without a mouse starts with them), On, Off; Touch stick: Pull / Push to
     climb. The mouse is never captured while they show.

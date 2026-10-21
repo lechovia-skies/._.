@@ -17,6 +17,12 @@ describe('styles.css', () => {
     expect(css).toMatch(/\.map-screen canvas\.pickable\s*\{[^}]*pointer-events:\s*auto/);
   });
 
+  it('never zooms on a double tap, while the flight controls take no gesture at all (revision 44)', () => {
+    const css = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
+    expect(css).toMatch(/(^|\n)\*\s*\{\s*touch-action:\s*manipulation;?\s*\}/);
+    expect(css).toMatch(/\.touch\s*\{[^}]*touch-action:\s*none/);
+  });
+
   it('styles every class the client code puts on an element', () => {
     // Regression: dropping the title screen's "Clock runs" (revision 19) also dropped `.world-clock`, which Free
     // Flight's pause panel still used for its check boxes.

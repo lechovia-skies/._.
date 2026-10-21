@@ -282,7 +282,8 @@ buttons (move or press each one), then **Calibrate**.
 
 ### Touch screen
 
-On an iPad or a phone, held sideways, the controls are on the screen:
+On an iPad or a phone, held sideways, the controls are on the screen (and tapping twice quickly never zooms the
+page):
 
 | Control | Action |
 |---|---|
