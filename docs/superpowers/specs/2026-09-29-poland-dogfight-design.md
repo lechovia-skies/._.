@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 41)
+# Lechovia Skies — Design Spec (revision 42)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -162,6 +162,9 @@
     with P or Start frees the mouse so the menu can be clicked.
   - Revision 41 (2026-10-21): at the owner's request the title screen no longer shows the chosen jet's role and
     description under the jets; what it carries and its condition stay. (`description` stays in the data.)
+  - Revision 42 (2026-10-21): the owner asked for compass directions on the radar and airplane marks (§15.2). The
+    heading-up scope shows N / E / S / W just outside its rim, turning with the jet, and every aircraft on it (the
+    pilot's own jet in the middle too) is a small jet seen from above, pointing the way it flies.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -844,8 +847,8 @@ range AI pilots fire it in (§14). `MISSILE_IDS` lists them for the wire (§7.1)
   - Detects aircraft inside the radar cone within `radarRange × (1 − 0.7·targetStealth)`.
   - Contacts appear on the radar display. Teammates' radar contacts are shared via team datalink (shown distinctly,
     and not lockable). As built (M5): every scan, each team's radar contacts are pooled; a pilot's datalink list holds
-    those it does not detect itself. They show as hollow diamonds on the radar display and the HUD and as hollow
-    markers on the map. Team Objective can take a team's datalink down.
+    those it does not detect itself. They show as faint solid jets on the radar display (revision 42; hollow diamonds
+    before), hollow diamonds on the HUD and hollow markers on the map. Team Objective can take a team's datalink down.
 - **Designation:** the target-cycle key cycles through spotted and radar contacts ahead, sorted by angle and range.
   The designated target gets the target box and the target-info readout (type, range, closure, aspect).
   - When nothing is designated, the contact closest to the nose (within 60°) is designated automatically at each
@@ -1418,6 +1421,12 @@ chase views at other distances. There is no free camera.
   impact.
 - **Radar display:** a top-down scope, heading-up, with range scales 10 / 20 / 40 / 80 km. It shows own-radar contacts,
   datalink contacts and missiles in flight.
+  - Revision 42: N, E, S and W just outside the rim (north in the HUD colour), with a tick every 30°, turning as the
+    jet turns. Every aircraft is a small jet from above (`drawJet`, 7.5 px from the middle to the nose) turned to its
+    heading, the pilot's own one in the middle pointing up. Friend and foe still differ in more than colour: friends
+    outlined, enemies solid; datalink-only enemies solid at half strength; the designated target boxed; Sentinels
+    larger with a dark-centred dome. Missiles stay dots. On a touch screen the scope sits 30 / 26 px in from the
+    corner so the letters fit.
 - **Game:** mode status (scores, zones, time), kill feed, hit markers, scoreboard (Tab), map (M), respawn countdown.
 - **Strike (M1d):**
   - **Status:** time left, targets standing, and aircraft left per team.
@@ -1919,4 +1928,4 @@ its milestone.
 | Safety | Server authority for all hits (§7); callsign filter; preset quick-chat messages only; rate limits; a short privacy note (no accounts, no tracking) | M2 |
 | Updates | A page/server version check that asks players to reload; browser error reporting; a server health check; one automated browser smoke test (load the site, fly 10 s) before each deploy. (Revision 14: all removed with the server; the publish workflow runs the unit tests before each deploy) | M2 |
 | Feedback | Hit markers, kill confirmation and kill feed (M1b); kill cam, spectating while respawning, changing jets on respawn (M5, built) | M1b, M5 |
-| Accessibility | Team markers that differ in shape as well as color; HUD color and size options; every sound warning also shown as text; reduce-motion also covers G-force effects; reduce flashing and colour-blind team colours (M5, built) | M1c, M5 |
+| Accessibility | Team markers that differ in shape (on the radar since revision 42: outlined or solid) as well as color; HUD color and size options; every sound warning also shown as text; reduce-motion also covers G-force effects; reduce flashing and colour-blind team colours (M5, built) | M1c, M5 |

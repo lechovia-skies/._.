@@ -48,6 +48,29 @@ export function scopePoint(dx: number, dz: number, headingRad: number, scaleM: n
   return ahead * ahead + right * right <= scaleM * scaleM;
 }
 
+/** The compass points round the scope's rim (revision 42): each label with its bearing, clockwise from north. */
+export const COMPASS_POINTS: readonly (readonly [string, number])[] = [
+  ['N', 0],
+  ['E', Math.PI / 2],
+  ['S', Math.PI],
+  ['W', (3 * Math.PI) / 2],
+];
+
+/**
+ * Where a bearing (or another aircraft's heading) lies on the heading-up scope: the angle clockwise from straight up.
+ * Also how far to turn an aircraft's mark so it points the way that aircraft flies (revision 42).
+ */
+export function scopeAngle(bearingRad: number, headingRad: number): number {
+  return bearingRad - headingRad;
+}
+
+/** The point `r` pixels from the scope centre at `angle` clockwise from straight up (y down). */
+export function scopeRim(angle: number, r: number, out: { x: number; y: number }): { x: number; y: number } {
+  out.x = r * Math.sin(angle);
+  out.y = -r * Math.cos(angle);
+  return out;
+}
+
 /** Rate at which the range to a target shrinks (m/s, + = closing). */
 export function closureRate(myPos: Vector3, myVel: Vector3, targetPos: Vector3, targetVel: Vector3): number {
   const rx = targetPos.x - myPos.x;

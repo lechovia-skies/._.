@@ -1,7 +1,7 @@
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { DEG } from '../../shared/math/units.ts';
-import { closureRate, edgeMarker, scopePoint, scopeScale } from './hud-geometry.ts';
+import { closureRate, COMPASS_POINTS, edgeMarker, scopeAngle, scopePoint, scopeRim, scopeScale } from './hud-geometry.ts';
 
 describe('HUD geometry', () => {
   it('pins off-screen arrows to the screen edge in the right direction', () => {
@@ -22,6 +22,25 @@ describe('HUD geometry', () => {
     expect(scopeScale(8500)).toBe(10000);
     expect(scopeScale(9000)).toBe(20000);
     expect(scopeScale(200000)).toBe(80000);
+  });
+
+  it('turns the compass round the heading-up scope, and points each mark the way its aircraft flies (revision 42)', () => {
+    const out = { x: 0, y: 0 };
+    const at = (label: string, headingDeg: number) => {
+      const bearing = COMPASS_POINTS.find(([l]) => l === label)?.[1] ?? NaN;
+      scopeRim(scopeAngle(bearing, headingDeg * DEG), 100, out);
+      return [Math.round(out.x) + 0, Math.round(out.y) + 0];
+    };
+    // Flying north: N at the top, E on the right.
+    expect(at('N', 0)).toEqual([0, -100]);
+    expect(at('E', 0)).toEqual([100, 0]);
+    // Flying east: E at the top, N on the left, S on the right.
+    expect(at('E', 90)).toEqual([0, -100]);
+    expect(at('N', 90)).toEqual([-100, 0]);
+    expect(at('S', 90)).toEqual([100, 0]);
+    // Another jet flying east while we fly north points right; one flying our way points up.
+    expect(scopeAngle(90 * DEG, 0)).toBeCloseTo(Math.PI / 2, 9);
+    expect(scopeAngle(200 * DEG, 200 * DEG)).toBe(0);
   });
 
   it('draws the scope heading-up', () => {

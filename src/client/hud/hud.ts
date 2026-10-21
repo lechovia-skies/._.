@@ -166,7 +166,8 @@ export class Hud {
       if (f.status.modeId !== 'free-flight' || f.status.drones) {
         drawDatalink(ctx, this.projector, f);
         drawCombatLayer(ctx, this.projector, f, blink, !this.touch);
-        if (this.touch) drawRadarScope(ctx, this.width - 16 - TOUCH_SCOPE_RADIUS_PX, 16 + TOUCH_SCOPE_RADIUS_PX, TOUCH_SCOPE_RADIUS_PX, f);
+        // Room round it for the compass letters (revision 42).
+        if (this.touch) drawRadarScope(ctx, this.width - 30 - TOUCH_SCOPE_RADIUS_PX, 26 + TOUCH_SCOPE_RADIUS_PX, TOUCH_SCOPE_RADIUS_PX, f);
         else drawRadarScope(ctx, 100 + SCOPE_RADIUS_PX, this.height - 40 - SCOPE_RADIUS_PX, SCOPE_RADIUS_PX, f);
         if (f.status.strike) drawStrikeMarkers(ctx, this.projector, f, f.status.strike, blink);
       }
