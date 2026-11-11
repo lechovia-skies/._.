@@ -188,6 +188,9 @@ export class WorldFeatures {
     for (const [key, geometry] of mesh.geometries()) {
       const part = new Mesh(geometry, materials[key]);
       part.name = `${group.name}-${key}`;
+      // Buildings throw shadows on the streets and each other (revision 46).
+      part.castShadow = true;
+      part.receiveShadow = true;
       group.add(part);
     }
     group.position.set(town.center.x, 0, town.center.z);
@@ -234,6 +237,7 @@ export class WorldFeatures {
     mesh.material.side = DoubleSide;
     mesh.position.set(cx, 0, cz);
     mesh.name = highway ? 'highway' : 'road';
+    mesh.receiveShadow = true;
     const sphere = g.boundingSphere!;
     this.track(mesh, cx + sphere.center.x, sphere.center.y, cz + sphere.center.z, (highway ? HIGHWAY_RANGE_M : LOCAL_ROAD_RANGE_M) + sphere.radius);
   }
@@ -252,6 +256,7 @@ export class WorldFeatures {
       const mesh = new Mesh(plane, material);
       mesh.position.copy(at(p.u, p.v, PAVED_LIFT_M + (p.kind === 'runway' ? 0.1 : 0)));
       mesh.name = p.kind;
+      mesh.receiveShadow = true;
       field.add(mesh);
     }
     for (const h of layout.hangars) {
@@ -271,6 +276,10 @@ export class WorldFeatures {
     const roof = new Mesh(new BoxGeometry(12, 0.8, 12).translate(0, 22.4, 0), towerMaterial);
     roof.position.copy(tower.position);
     field.add(tower, cab, roof);
+    // Hangars and the tower throw shadows across the apron (revision 46).
+    field.traverse((o) => {
+      if (o instanceof Mesh && o.name !== 'runway' && o.name !== 'taxiway' && o.name !== 'apron') o.castShadow = true;
+    });
     this.track(field, a.x, a.elevationM, a.z, AIRFIELD_RANGE_M);
 
     const add = (list: [number, number][], r: number, g: number, b: number) => {

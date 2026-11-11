@@ -1,4 +1,4 @@
-import type { Group, Object3D, Scene, Vector3 } from 'three';
+import type { Group, Mesh, Object3D, Scene, Vector3 } from 'three';
 import type { AircraftConfig } from '../../shared/data/aircraft/types.ts';
 import { DEG } from '../../shared/math/units.ts';
 import type { AircraftView } from '../session/game-session.ts';
@@ -45,6 +45,13 @@ export class SceneSync {
         const model = this.build(v.config);
         const gear = landingGear(v.config.visual, airframeGear(v.config));
         model.root.add(navLights(v.config.visual), gear);
+        // Jets throw shadows on the ground and the runway (revision 46), but not on themselves (it would speckle).
+        model.root.traverse((o) => {
+          const m = o as Mesh;
+          if (!m.isMesh) return;
+          const mats = Array.isArray(m.material) ? m.material : [m.material];
+          m.castShadow = mats.every((mat) => !mat.transparent);
+        });
         entry = { model, configId: v.config.id, gear, dome: model.root.getObjectByName('rotodome') ?? null };
         this.entries.set(v.id, entry);
         this.scene.add(entry.model.root);

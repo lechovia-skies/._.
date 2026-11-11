@@ -12,6 +12,9 @@ is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The
 **Current milestone: M5 "Modes & polish"** (after M1a "Fly", M1b "Fight", M1d "Strike", M1c "Website basics", M2
 "Multiplayer", M3 "Roster & weapons" and M4 "World"). Online play (M2) was taken out again on 2026-10-02 and came back
 on 2026-10-08 without any server: the game still runs entirely in the browser.
+- **Shadows, grass and fuller clouds** (2026-11-11): the sun casts shadows from trees, jets and buildings; flying
+  low, grass sways on the meadows and fields; the clouds are fuller, stylized cumulus. Settings → Display → Graphics:
+  Low has no shadows and less grass.
 - **Sharper ground and 3-D trees** (2026-11-11): flying low, the ground shows grass, ploughed fields, forest floor,
   rock and sand in detail, and stylized 3-D trees fill the forests and dot the fields; the colours are brighter.
   Settings → Display → Graphics sets how far and how many (Low, Medium, High).
@@ -412,8 +415,8 @@ on social sites, build with the site's address: `SITE_URL=https://example.org/ n
 
 The ground uses real Sentinel-2 satellite imagery of Polish farmland, forest and the Tatra mountains (EOX, CC BY 4.0),
 tiled across the fictional map by land type. Close up, the game's own ground materials take over (grass, ploughed
-soil, forest floor, rock and sand, with relief; drawn by `node tools/make-ground-textures.ts`), and 3-D trees stand in
-the forests and fields around you. See `CREDITS.md`.
+soil, forest floor, rock and sand, with relief; drawn by `node tools/make-ground-textures.ts`), 3-D trees stand in
+the forests and fields around you, and grass grows on the meadows when you fly low. See `CREDITS.md`.
 `node tools/fetch-assets.ts` re-creates the photos in `src/client/assets/` from the original sources. The sky, the
 clouds and the light are computed from the time of day and the weather (until M4 the sky was a photo).
 

@@ -1,4 +1,4 @@
-import { Color, Quaternion, Vector2, Vector3 } from 'three';
+import { Color, PCFShadowMap, Quaternion, Vector2, Vector3 } from 'three';
 import { DIFFICULTIES } from '../shared/ai/difficulty.ts';
 import { fullName, getAircraft, listAircraft, opposingTeam } from '../shared/data/aircraft/registry.ts';
 import type { TeamId } from '../shared/data/aircraft/types.ts';
@@ -51,6 +51,7 @@ import { Sea } from './render/sea.ts';
 import { type LoadedMap, loadMap } from './render/terrain/map-loader.ts';
 import { TerrainLod } from './render/terrain/terrain-lod.ts';
 import { WorldFeatures } from './render/world/world-features.ts';
+import { Grass, mapGrassGround } from './render/world/grass.ts';
 import { mapTreeGround, Trees } from './render/world/trees.ts';
 import { Environment } from './render/environment/environment.ts';
 import { createTerrainMaterial, setGroundDetail } from './render/terrain-material.ts';
@@ -259,6 +260,9 @@ export async function startGame(
   // Trees (revision 45): in the forests, copses and fields around the camera.
   const trees = new Trees(mapTreeGround(map, terrain), QUALITY_PRESETS[quality].trees);
   renderer.scene.add(trees.group);
+  // Grass (revision 46): tufts round the camera when it is low.
+  const grass = new Grass(mapGrassGround(map, terrain), QUALITY_PRESETS[quality].grass, textures.farm, textures.ground.means[0]);
+  renderer.scene.add(grass.mesh);
   const makeEnvironment = () =>
     new Environment(renderer.scene, renderer.webgl, session.environment, map.seed, {
       cloudRangeM: QUALITY_PRESETS[quality].cloudRangeM,
@@ -343,7 +347,12 @@ export async function startGame(
     ground.splitFactor = preset.terrainDetail;
     setGroundDetail(terrainMaterial, preset.groundDetail);
     if (trees.settings !== preset.trees) trees.setSettings(preset.trees);
+    if (grass.settings !== preset.grass) grass.setSettings(preset.grass);
     environment.cloudRangeM = preset.cloudRangeM;
+    // Sun shadows (revision 46) on Medium and High.
+    renderer.webgl.shadowMap.enabled = preset.shadows !== null;
+    renderer.webgl.shadowMap.type = PCFShadowMap;
+    environment.setShadows(preset.shadows);
   };
   /** Settings changed (or the match starts): apply everything that can change live. */
   const applySettings = (s: Readonly<Settings>) => {
@@ -1078,6 +1087,7 @@ export async function startGame(
     ground.update(renderer.camera.position);
     worldFeatures.update(renderer.camera.position);
     trees.update(renderer.camera.position);
+    grass.update(renderer.camera.position, nowS);
     if (session.environment !== environmentSettings) {
       const weatherChanged = session.environment.weather !== environmentSettings.weather;
       environmentSettings = session.environment;
@@ -1263,6 +1273,7 @@ export async function startGame(
     ground.dispose();
     worldFeatures.dispose();
     trees.dispose();
+    grass.dispose();
     environment.dispose();
     session.dispose();
     renderer.dispose();

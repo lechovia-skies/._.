@@ -35,7 +35,8 @@ varying float vFade;
 #include <fog_pars_vertex>
 #include <logdepthbuf_pars_vertex>
 void main() {
-  vUv = uv;
+  // Every other puff mirrored, so a cloud is not the same bump repeated (revision 46).
+  vUv = vec2(fract(sin(dot(iPos.xz, vec2(12.9898, 78.233))) * 43758.5453) > 0.5 ? 1.0 - uv.x : uv.x, uv.y);
   vShade = iShade;
   vec4 mvPosition = modelViewMatrix * vec4(iPos, 1.0);
   // Puffs fade out as the camera flies into them; the whiteout haze takes over.
@@ -59,10 +60,11 @@ varying float vFade;
 void main() {
   #include <logdepthbuf_fragment>
   vec4 t = texture2D(uPuff, vUv);
-  float a = t.a * vFade * 0.9;
+  float a = t.a * vFade;
   if (a < 0.01) discard;
-  // Lighter toward the cloud top and the top of each puff.
-  float light = clamp(vShade * 0.75 + (1.0 - vUv.y) * -0.25 + t.r * 0.45, 0.0, 1.0);
+  // Stylized cumulus (revision 46): each bump lit from above, the cloud brighter toward its top, its base in shade.
+  float light = clamp(t.r * 0.62 + vShade * 0.55 - 0.08, 0.0, 1.0);
+  light = smoothstep(0.0, 1.0, light);
   gl_FragColor = vec4(mix(uShadow, uLit, light), a);
   #include <fog_fragment>
 }`;
@@ -103,34 +105,100 @@ void main() {
   #include <fog_fragment>
 }`;
 
-/** A soft cauliflower blob: overlapping round gradients, brighter at the top. */
+/** One bump of a cumulus puff: centre and radius in texture units (y down), drawn lit as a sphere. */
+export type Bump = readonly [x: number, y: number, r: number];
+
+/**
+ * The bumps of the cumulus puff (revision 46): a big dome with smaller domes round its top and sides, all resting on
+ * a flat base, the way a fair-weather cumulus is built.
+ */
+export const PUFF_BUMPS: readonly Bump[] = [
+  [0.5, 0.58, 0.27],
+  [0.32, 0.63, 0.19],
+  [0.69, 0.62, 0.2],
+  [0.4, 0.42, 0.2],
+  [0.6, 0.41, 0.19],
+  [0.5, 0.3, 0.17],
+  [0.2, 0.68, 0.13],
+  [0.8, 0.68, 0.13],
+  [0.27, 0.5, 0.13],
+  [0.74, 0.49, 0.13],
+  [0.44, 0.22, 0.11],
+  [0.59, 0.24, 0.1],
+];
+/** Where the puff's flat base is cut (texture y, down). */
+const PUFF_BASE = 0.76;
+
+/**
+ * Lights a puff's texel (revision 46): of the bumps over (x, y), the nearest to the viewer wins and is shaded as a
+ * sphere lit from above and a little in front. Returns [light 0..1, alpha 0..1]; alpha is 0 off the puff, with a
+ * narrow soft fringe at its outline and a soft cut at the flat base.
+ */
+export function puffTexel(x: number, y: number, bumps: readonly Bump[] = PUFF_BUMPS): [number, number] {
+  let zMax = -1;
+  let zNext = -1;
+  let edge = 0;
+  const lights: [number, number][] = [];
+  for (const [bx, by, r] of bumps) {
+    const dx = (x - bx) / r;
+    const dy = (y - by) / r;
+    const d2 = dx * dx + dy * dy;
+    if (d2 >= 1) continue;
+    // Height of this bump toward the viewer, in texture units, so bigger bumps stand in front.
+    const nz = Math.sqrt(1 - d2);
+    const z = nz * r;
+    // Light from above (−y in the texture) and slightly toward the viewer.
+    const lit = Math.max(0, -dy * 0.75 + nz * 0.45 - dx * 0.12);
+    lights.push([z, Math.min(1, 0.38 + 0.62 * lit)]);
+    edge = Math.max(edge, 1 - Math.sqrt(d2));
+    if (z > zMax) {
+      zNext = zMax;
+      zMax = z;
+    } else if (z > zNext) zNext = z;
+  }
+  if (zMax < 0) return [0, 0];
+  // Overlapping bumps blend where they meet, with a faint crease between them.
+  let sum = 0;
+  let weight = 0;
+  for (const [z, l] of lights) {
+    const w = Math.exp((z - zMax) / 0.012);
+    sum += w * l;
+    weight += w;
+  }
+  const crease = zNext < 0 ? 0 : 1 - Math.min(1, (zMax - zNext) / 0.02);
+  const light = (sum / weight) * (1 - 0.1 * crease);
+  const base = 1 - Math.min(1, Math.max(0, (y - PUFF_BASE) / 0.035));
+  const alpha = Math.min(1, edge / 0.12) * base;
+  // The underside lies in its own shade.
+  const under = Math.min(1, Math.max(0, (y - 0.55) / 0.25));
+  return [light * (1 - 0.3 * under), alpha];
+}
+
+/** The cumulus puff as a texture: red is the light on its bumps, alpha its cover. */
 function puffTexture(): CanvasTexture | null {
   if (typeof document === 'undefined') return null;
-  const size = 128;
+  const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  const blobs: [number, number, number][] = [
-    [0.5, 0.55, 0.36],
-    [0.32, 0.6, 0.22],
-    [0.68, 0.6, 0.24],
-    [0.42, 0.4, 0.22],
-    [0.6, 0.38, 0.2],
-    [0.5, 0.68, 0.26],
-  ];
-  for (const [x, y, r] of blobs) {
-    const g = ctx.createRadialGradient(x * size, y * size, 0, x * size, y * size, r * size);
-    // Red carries the brightness (lit tops), alpha the density.
-    const lit = Math.round(255 * (1 - y * 0.8));
-    g.addColorStop(0, `rgba(${lit},${lit},${lit},0.85)`);
-    g.addColorStop(0.6, `rgba(${lit},${lit},${lit},0.45)`);
-    g.addColorStop(1, `rgba(${lit},${lit},${lit},0)`);
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
+  const img = ctx.createImageData(size, size);
+  for (let py = 0; py < size; py++) {
+    for (let px = 0; px < size; px++) {
+      const [light, alpha] = puffTexel((px + 0.5) / size, (py + 0.5) / size);
+      const i = (py * size + px) * 4;
+      const l = Math.round(light * 255);
+      img.data[i] = l;
+      img.data[i + 1] = l;
+      img.data[i + 2] = l;
+      img.data[i + 3] = Math.round(alpha * 255);
+    }
   }
-  return new CanvasTexture(canvas);
+  ctx.putImageData(img, 0, 0);
+  const t = new CanvasTexture(canvas);
+  t.premultiplyAlpha = false;
+  return t;
 }
 
 /**

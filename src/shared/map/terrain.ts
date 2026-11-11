@@ -64,6 +64,26 @@ export class GridTerrain implements Terrain {
     return Math.max(this.heightAt(x, z), 0);
   }
 
+  /**
+   * The height of the ground as drawn (revision 46): the terrain mesh's two triangles per cell, split along the
+   * diagonal from (i+1, j) to (i, j+1). Within a few decimetres of `heightAt`, but exact for grass that stands on it.
+   */
+  meshHeightAt(x: number, z: number): number {
+    const n = this.resolution;
+    const gx = clamp((x - this.origin) / this.cellSize, 0, n - 1);
+    const gz = clamp((z - this.origin) / this.cellSize, 0, n - 1);
+    const i = Math.min(Math.floor(gx), n - 2);
+    const j = Math.min(Math.floor(gz), n - 2);
+    const tx = gx - i;
+    const tz = gz - j;
+    const h = this.heights;
+    const a = h[j * n + i];
+    const b = h[j * n + i + 1];
+    const c = h[(j + 1) * n + i];
+    const d = h[(j + 1) * n + i + 1];
+    return tx + tz <= 1 ? a + (b - a) * tx + (c - a) * tz : d + (c - d) * (1 - tx) + (b - d) * (1 - tz);
+  }
+
   normalAt(x: number, z: number, out: Vector3 = new Vector3()): Vector3 {
     const d = this.cellSize;
     const dx = this.heightAt(x + d, z) - this.heightAt(x - d, z);

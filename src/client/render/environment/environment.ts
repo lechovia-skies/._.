@@ -27,6 +27,35 @@ import { NightSky } from './night-sky.ts';
 import { horizonColor, type SkyParams } from './preetham.ts';
 import { Rain } from './rain.ts';
 
+/** Sun shadows round the camera (revision 46): the shadow map's size and the half width of the ground it covers. */
+export interface ShadowSettings {
+  mapSize: number;
+  halfM: number;
+}
+
+/** How far up and down the sun's shadow box reaches from the camera, metres. */
+const SHADOW_DEPTH_M = 2500;
+
+/**
+ * Where the sun's shadow box goes (revision 46): around `focus`, moved to the nearest whole shadow texel across the
+ * sun's beam so the shadows hold still as the camera moves instead of shimmering. `sun` points toward the sun.
+ */
+const snapX = new Vector3();
+const snapY = new Vector3();
+export function snapShadowFocus(focus: Vector3, sun: Vector3, texelM: number, out: Vector3): Vector3 {
+  const z = sun;
+  const x = snapX.set(0, 1, 0).cross(z);
+  if (x.lengthSq() < 1e-8) x.set(1, 0, 0);
+  x.normalize();
+  const y = snapY.crossVectors(z, x);
+  const fx = focus.dot(x);
+  const fy = focus.dot(y);
+  out.copy(focus);
+  out.addScaledVector(x, Math.round(fx / texelM) * texelM - fx);
+  out.addScaledVector(y, Math.round(fy / texelM) * texelM - fy);
+  return out;
+}
+
 /** Distance haze in clear air: ~7% at 10 km, 50% at 30 km (as with the photo sky before M4). */
 const HAZE_DENSITY = 2.8e-5;
 /** Inside a cloud the world fades to white within a few hundred metres. */
@@ -125,6 +154,9 @@ export class Environment {
   private readonly tmp = new Color();
   private readonly prevCamera = new Vector3();
   private readonly cameraVelocity = new Vector3();
+  private shadows: ShadowSettings | null = null;
+  private readonly shadowFocus = new Vector3();
+  private readonly viewDir = new Vector3();
 
   constructor(scene: Scene, renderer: WebGLRenderer, settings: EnvironmentSettings, mapSeed: number, opts: EnvironmentOptions) {
     this.scene = scene;
@@ -183,6 +215,34 @@ export class Environment {
   }
 
   /**
+   * Sun shadows round the camera (revision 46), or none: trees, jets and hangars throw them on the ground, the runway
+   * and each other. The renderer's shadow map must be switched on as well.
+   */
+  setShadows(s: ShadowSettings | null): void {
+    this.shadows = s;
+    this.sun.castShadow = s !== null;
+    if (!s) return;
+    const shadow = this.sun.shadow;
+    if (shadow.mapSize.x !== s.mapSize) {
+      shadow.mapSize.set(s.mapSize, s.mapSize);
+      shadow.map?.dispose();
+      shadow.map = null;
+    }
+    const cam = shadow.camera;
+    cam.left = -s.halfM;
+    cam.right = s.halfM;
+    cam.top = s.halfM;
+    cam.bottom = -s.halfM;
+    cam.near = 1;
+    cam.far = SHADOW_DEPTH_M * 2;
+    cam.updateProjectionMatrix();
+    const texel = (2 * s.halfM) / s.mapSize;
+    shadow.bias = -0.0002;
+    shadow.normalBias = texel * 1.5;
+    shadow.radius = 2;
+  }
+
+  /**
    * `subject`: the jet the camera follows. Whether we are in cloud (the white-out) goes by where it is, not the camera
    * (revision 25): a camera trailing a jet that skims a cloud top dipped into the cloud and turned the view white.
    */
@@ -216,8 +276,20 @@ export class Environment {
     const warm = smoothstep(0.02, 0.4, this.sunDirection.y);
     this.sun.color.setRGB(1, lerp(0.55, 0.95, warm), lerp(0.3, 0.88, warm));
     this.sun.intensity = SUN_INTENSITY * sunUp * cloudShade;
-    this.sun.position.copy(cam).addScaledVector(this.sunDirection, 1000);
-    this.sun.target.position.copy(cam);
+    if (this.shadows) {
+      // The shadow box sits a little ahead of the camera, where the view is, and moves in whole texels.
+      const s = this.shadows;
+      camera.getWorldDirection(this.viewDir);
+      this.viewDir.y = 0;
+      if (this.viewDir.lengthSq() > 1e-6) this.viewDir.normalize();
+      this.shadowFocus.copy(cam).addScaledVector(this.viewDir, s.halfM * 0.45);
+      snapShadowFocus(this.shadowFocus, this.sunDirection, (2 * s.halfM) / s.mapSize, this.shadowFocus);
+      this.sun.target.position.copy(this.shadowFocus);
+      this.sun.position.copy(this.shadowFocus).addScaledVector(this.sunDirection, SHADOW_DEPTH_M);
+    } else {
+      this.sun.position.copy(cam).addScaledVector(this.sunDirection, 1000);
+      this.sun.target.position.copy(cam);
+    }
     const moonUp = smoothstep(-0.02, 0.15, this.moonDirection.y);
     this.moon.intensity = MOON_INTENSITY * moonUp * this.night * (underDeck ? 0.3 : 1);
     this.moon.position.copy(cam).addScaledVector(this.moonDirection, 1000);
@@ -260,7 +332,7 @@ export class Environment {
       // By moonlight the clouds turn blue-grey rather than keeping the sunset's orange (revision 19).
       .lerp(MOONLIT_CLOUD, this.night)
       .multiplyScalar((p.deck ? 0.8 : 1.05) * sunLight + 0.04);
-    this.cloudLayer.shadow.setRGB(0.55, 0.58, 0.64).multiplyScalar(sunLight * (p.deck ? 0.75 : 0.9) + 0.02);
+    this.cloudLayer.shadow.setRGB(0.5, 0.56, 0.68).multiplyScalar(sunLight * (p.deck ? 0.75 : 0.9) + 0.02);
     this.cloudLayer.update(cam);
     this.nightSky.update(cam, this.night, this.moonDirection, clearSky);
     this.raining = p.rain && cam.y < p.cloudBaseM;
@@ -273,6 +345,7 @@ export class Environment {
 
   dispose(): void {
     for (const o of [this.sun, this.sun.target, this.moon, this.moon.target, this.ambient]) o.removeFromParent();
+    this.sun.shadow.map?.dispose();
     this.sun.dispose();
     this.moon.dispose();
     this.ambient.dispose();

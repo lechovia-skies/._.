@@ -132,6 +132,7 @@ export class TerrainLod {
     g.boundingSphere = new Sphere(new Vector3(0, midY, 0), Math.hypot(half, half, (d.maxY - d.minY) / 2 + skirtDepthM(d.level)));
     const mesh = new Mesh(g, this.material);
     mesh.name = `terrain-${id}`;
+    mesh.receiveShadow = true;
     mesh.position.set(d.centerX, 0, d.centerZ);
     mesh.matrixAutoUpdate = false;
     mesh.updateMatrix();

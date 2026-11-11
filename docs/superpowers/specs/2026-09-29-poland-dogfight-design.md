@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 45)
+# Lechovia Skies — Design Spec (revision 46)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -174,6 +174,9 @@
     game, "Fortnite level" (§15.4). Near the camera the ground now shows the game's own materials (grass, ploughed
     soil, forest floor, rock, sand) with relief, and stylized 3-D trees stand in the forests, copses and fields
     around the camera; the satellite colours are graded brighter and more vivid.
+  - Revision 46 (2026-11-11): the owner asked for all three follow-ups offered after revision 45 (§15.4): sun shadows
+    round the camera (trees, jets and buildings onto the ground), 3-D grass swaying on the meadows and fields when
+    flying low, and fuller, stylized cumulus clouds.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -1605,6 +1608,29 @@ chase views at other distances. There is no free camera.
     900 m. A forest-heavy view on High holds about 25,000 trees, 4,700 of them in full (about 1.2 M triangles
     including the terrain). The title screen's background has them too.
   - Anisotropic filtering: Medium 8×, High 16× (was 4× and 8×), which keeps the ground sharp at shallow angles.
+- **Revision 46, shadows, grass and clouds** (the owner: "全部入れて反映させて", all three follow-ups offered after
+  revision 45):
+  - Shadows (`environment.ts` `setShadows`): the sun casts a shadow map (PCF, soft edges) over a square round the
+    camera, pushed ahead along the view by 45% of its half-width. The square moves only by whole shadow texels across
+    the sun's beam (`snapShadowFocus`), so shadows hold still instead of shimmering as the camera moves. Trees within
+    the full-detail distance, the jets (opaque parts), town buildings, hangars and the tower cast shadows; the terrain,
+    roads, aprons, buildings, trees and grass receive them. Presets: Low none; Medium 1,536 px over 560 m; High
+    2,048 px over 800 m (about 0.4 m a texel). The clouds' shaded side is a cooler blue-grey.
+  - Grass (`render/world/grass.ts`): tufts of nine blades, dark at the root and light at the tip, about 0.5–1.3 m
+    tall, in 16 m patches round the camera. Each patch's tufts come from its own seed (a jittered grid), so the grass
+    is the same on every flight; each patch fills a slot of one instanced mesh, so moving only fills the patches that
+    come into range, nearest first, about 2 ms a frame. Chance by land cover, blended between grid points as the
+    trees are: meadow, field and airfield 100%, marsh 70%, forest 30%, town 20%, rock 15%, beach 8%. Roads, runways,
+    taxiways, aprons, hangars and the tower stay bare, and on farmland the shader reads the satellite colour as the
+    terrain does and leaves the tufts out where the terrain paints ploughed soil. Tufts stand on the ground as drawn
+    (`GridTerrain.meshHeightAt`, the mesh triangle rather than the bilinear height), are as bright as the ground
+    under them, sway in the wind, and thin out over the last third of the range and as the camera climbs from 60 m
+    to 140 m above the ground; above that none are drawn. Presets: Low 32 m round the camera, 1.6 m apart; Medium
+    48 m, 1.2 m; High 64 m, 1 m.
+  - Clouds (`cloud-layer.ts`): each puff is a cumulus drawn at start from twelve overlapping bumps (soft blends,
+    faint creases between them, a flat base) instead of a soft blob, shaded in a stylized way (lit tops, cool
+    undersides, a smooth step between; the whole cloud's light from top to bottom counts for more than each puff's
+    own, so stacked puffs read as one cloud), and mirrored at random so neighbouring puffs differ.
 - **Revision 31, the real types' airframes** (`src/client/render/airframes/`): at the owner's request the six jets
   without imported models are drawn as the F-22A (Tempest), F-15C (Condor), F-16C Block 50 (Kestrel), Su-35S
   (Yastreb), Su-30SM (Sapsan) and MiG-29 9.12 (Kobchik), after the owner's reference pictures.

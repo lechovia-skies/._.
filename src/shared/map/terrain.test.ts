@@ -33,4 +33,16 @@ describe('GridTerrain', () => {
   it('rejects a wrongly sized height array', () => {
     expect(() => new GridTerrain(4, 100, new Float32Array(10))).toThrow(/16/);
   });
+
+  it('follows the drawn triangles exactly (revision 46)', () => {
+    // One raised corner: the triangles and the bilinear surface differ inside the cell, agree at the corners.
+    const t = new GridTerrain(3, 200, new Float32Array([0, 0, 0, 0, 0, 0, 0, 0, 40]));
+    expect(t.meshHeightAt(0, 0)).toBeCloseTo(0, 9);
+    expect(t.meshHeightAt(100, 100)).toBeCloseTo(40, 9);
+    // On the far triangle of the raised cell: flat facets, not the bilinear bulge.
+    expect(t.meshHeightAt(75, 75)).toBeCloseTo(20, 9);
+    expect(t.heightAt(75, 75)).toBeCloseTo(22.5, 9);
+    // On the near triangle the raised corner does not count.
+    expect(t.meshHeightAt(20, 20)).toBeCloseTo(0, 9);
+  });
 });

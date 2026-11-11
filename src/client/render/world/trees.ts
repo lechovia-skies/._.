@@ -522,6 +522,10 @@ transformed *= 1.0 - smoothstep(treeRange * 0.8, treeRange, distance(treeAt, tre
       // Culling against the whole stand, whichever trees each mesh draws.
       far.computeBoundingSphere();
       near.boundingSphere = far.boundingSphere?.clone() ?? null;
+      // The full trees throw shadows (revision 46); all of them take them.
+      near.castShadow = true;
+      near.receiveShadow = true;
+      far.receiveShadow = true;
       near.count = 0;
       near.visible = false;
       group.add(far, near);
