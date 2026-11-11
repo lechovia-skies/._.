@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 44)
+# Lechovia Skies — Design Spec (revision 45)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -170,6 +170,10 @@
     line said); the jet buttons' badges still show each jet's price, condition or Grounded.
   - Revision 44 (2026-10-21): at the owner's request two quick taps never zoom the page on an iPad (§15.3):
     `touch-action: manipulation` on every element (menus still scroll), `none` on the touch controls and all inside.
+  - Revision 45 (2026-11-11): the owner found the ground still blurred close up and asked for graphics like a modern
+    game, "Fortnite level" (§15.4). Near the camera the ground now shows the game's own materials (grass, ploughed
+    soil, forest floor, rock, sand) with relief, and stylized 3-D trees stand in the forests, copses and fields
+    around the camera; the satellite colours are graded brighter and more vivid.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -1572,6 +1576,35 @@ chase views at other distances. There is no free camera.
   - Strike (M1d): each target is a small group of simple fictional structures (sheds, a dish, tanks) built from boxes
     and cylinders on a concrete pad. Damaged targets smoke; destroyed ones burn. Bomb impacts reuse the explosion
     effect with a dust burst.
+- **Revision 45, sharp ground and 3-D trees** (the owner: the ground was still blurred close up; graphics like a
+  modern game, Fortnite level):
+  - Why it blurred: the satellite photos cover about 9 m of ground per pixel, the height grid has a point every 98 m,
+    and forests were only a colour on the ground.
+  - Ground materials: `tools/make-ground-textures.ts` draws five seamless 1024 px materials from seeded noise (grass
+    with tufts, blades and flowers; ploughed soil; forest floor with moss, leaves and twigs; faceted rock; rippled
+    sand), each with a normal map (`src/client/assets/ground/`, 1.7 MB; the game's own, no licence). They are packed
+    into two texture arrays (`assets.ts` `GroundSet`). The terrain shader paints them within the fade range, by land
+    class: farmland is grass, or soil where the photo is brown; forest floor; rock on rock cover and on slopes steeper
+    than about 35°; sand on beaches. A tile covers 20 m (about 2 cm a pixel); a second, rotated 97 m sampling breaks
+    up the repeat. Borders between materials are ragged (noise per layer, then the strongest wins). The material
+    follows the photo's brightness fully and its hue by 30%, so fields keep their patchwork and nothing pops where
+    the materials fade out. Their normal maps light the relief. Only layers that show are sampled (gradients taken
+    outside the branch). Ground detail per preset: Low one sampling (to 700–3,200 m), Medium and High two (to
+    1,400–6,500 m). The old Poly Haven detail photo is gone.
+  - Colour: the satellite photos are graded 35% more saturated and a little brighter; forests seen from afar take a
+    lumpy canopy green so they match the trees.
+  - Trees (`render/world/trees.ts`): stylized conifers (trunk and three stacked cones) and broadleaf trees (trunk and a
+    crown of three lumps shaded as one ball, about 130 triangles), each also as a simpler far shape. The land is cut
+    into 800 m blocks; each block's trees come from a jittered grid with its own seed, so a forest is the same on
+    every flight. Chance per point, blended between land-cover grid points like the terrain's colours: forest 95%,
+    marsh 7%, meadow 2%, field 1.2%, rock 1%, with copses in open country. Conifer and broadleaf stands and older and
+    younger stands follow slow noise. Roads, runways (with their approaches) and towns stay clear. Trees within the
+    detail distance (3-D) are drawn in full, the rest in the simple shape, re-sorted as the camera moves; they shrink
+    away over the last fifth of the range instead of popping, and none are drawn when flying higher than the range.
+    Presets: Low 1,400 m range, 24 m spacing, full within 450 m; Medium 2,000 m, 19 m, 650 m; High 2,600 m, 16 m,
+    900 m. A forest-heavy view on High holds about 25,000 trees, 4,700 of them in full (about 1.2 M triangles
+    including the terrain). The title screen's background has them too.
+  - Anisotropic filtering: Medium 8×, High 16× (was 4× and 8×), which keeps the ground sharp at shallow angles.
 - **Revision 31, the real types' airframes** (`src/client/render/airframes/`): at the owner's request the six jets
   without imported models are drawn as the F-22A (Tempest), F-15C (Condor), F-16C Block 50 (Kestrel), Su-35S
   (Yastreb), Su-30SM (Sapsan) and MiG-29 9.12 (Kobchik), after the owner's reference pictures.

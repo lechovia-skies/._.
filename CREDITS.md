@@ -7,7 +7,7 @@ Lechovia Skies uses these free-license assets and the owner's own aircraft model
 | Asset | Source | Author | License |
 |---|---|---|---|
 | Satellite images `sat-farmland.jpg`, `sat-forest.jpg`, `sat-mountain.jpg` (Sentinel-2 cloudless 2017) | https://s2maps.eu | EOX IT Services GmbH | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
-| Close-up ground detail `detail-grass-rock.jpg` ("Aerial Grass Rock") | https://polyhaven.com/a/aerial_grass_rock | Rob Tuytel | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| Close-up ground materials `ground/*.jpg` (grass, soil, forest floor, rock, sand, with normal maps), since revision 45 | Drawn from seeded noise by `tools/make-ground-textures.ts` | Lechovia Skies | The game's own |
 | Water normal map `waternormals.jpg` | https://github.com/mrdoob/three.js (`examples/textures`, r186) | three.js authors | [MIT](https://github.com/mrdoob/three.js/blob/dev/LICENSE) |
 | Aircraft models `models/shade.glb` (F-35A-inspired, flown as the Shade) and `models/prizrak.glb` (Su-57-inspired, flown as the Prizrak), simplified, re-oriented and with resized textures by `tools/prepare-models.ts` | Generated with Tripo (https://www.tripo3d.ai) | Hiroto Matsui (project owner) | The owner's generated models; Tripo's terms of service apply |
 | Soundtrack `public/audio/life-in-the-danger-zone.mp3` ("Life in the Danger Zone", hybrid trailer music; re-encoded at 128 kbps), chosen by the owner | Pixabay (file 304406) | DJARTMUSIC | Pixabay Content License (no attribution required; credited anyway) |

@@ -9,11 +9,12 @@ import { Renderer } from './renderer.ts';
 import { Sea } from './sea.ts';
 import type { LoadedMap } from './terrain/map-loader.ts';
 import { TerrainLod } from './terrain/terrain-lod.ts';
+import { mapTreeGround, type TreeSettings, Trees } from './world/trees.ts';
 import { WorldFeatures } from './world/world-features.ts';
 import { Environment } from './environment/environment.ts';
 import { setAfterburner } from './effects/afterburner.ts';
 import type { EnvironmentSettings } from '../../shared/world/time-of-day.ts';
-import { createTerrainMaterial } from './terrain-material.ts';
+import { createTerrainMaterial, type GroundDetail } from './terrain-material.ts';
 
 export interface Pose {
   position: Vector3;
@@ -97,12 +98,15 @@ export class Showcase {
   private settings: EnvironmentSettings = { weather: 'scattered', startHour: 12, clockRunning: false };
   private lastFrameMs = 0;
   private features: WorldFeatures | null = null;
+  private trees: Trees | null = null;
+  private readonly treeSettings: TreeSettings | null;
   private running = true;
   private rafId = 0;
   private startMs = 0;
   private readonly still: boolean;
   private readonly detail: number;
   private readonly cloudRangeM: number;
+  private readonly groundDetail: GroundDetail;
 
   /** `still`: the system asks for reduced motion, so show one fixed shot. */
   constructor(root: HTMLElement, scenery: Promise<SceneryTextures>, world: Promise<LoadedMap>, aircraftMeshes: Promise<AircraftMeshes>, still: boolean, quality?: QualityPreset) {
@@ -113,6 +117,8 @@ export class Showcase {
     this.renderer.camera.updateProjectionMatrix();
     this.detail = quality?.terrainDetail ?? 1.6;
     this.cloudRangeM = quality?.cloudRangeM ?? 30000;
+    this.groundDetail = quality?.groundDetail ?? 2;
+    this.treeSettings = quality?.trees ?? null;
     Promise.all([scenery, world]).then(
       ([textures, map]) => {
         if (this.running) void this.build(textures, map);
@@ -149,6 +155,7 @@ export class Showcase {
     cancelAnimationFrame(this.rafId);
     this.ground?.dispose();
     this.features?.dispose();
+    this.trees?.dispose();
     this.environment?.dispose();
     this.renderer.dispose();
   }
@@ -165,10 +172,12 @@ export class Showcase {
   private async build(textures: SceneryTextures, map: LoadedMap): Promise<void> {
     const scene = this.renderer.scene;
     this.map = map;
-    this.ground = new TerrainLod(map, createTerrainMaterial(textures), this.detail);
+    this.ground = new TerrainLod(map, createTerrainMaterial(textures, this.groundDetail), this.detail);
     scene.add(this.ground.group);
     this.features = new WorldFeatures(map.def, map.terrain);
     scene.add(this.features.group);
+    this.trees = new Trees(mapTreeGround(map.def, map.terrain), this.treeSettings);
+    scene.add(this.trees.group);
     this.buildEnvironment(map);
     this.sea = new Sea(textures.waterNormals);
     scene.add(this.sea.mesh);
@@ -193,6 +202,7 @@ export class Showcase {
     camera.lookAt(this.pose.position);
     this.ground?.update(camera.position);
     this.features?.update(camera.position);
+    this.trees?.update(camera.position);
     const frameS = this.lastFrameMs === 0 ? 0 : Math.min(0.1, (now - this.lastFrameMs) / 1000);
     this.lastFrameMs = now;
     this.environment?.update(this.settings.startHour, camera, this.still ? 0 : frameS);

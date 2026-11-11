@@ -51,8 +51,9 @@ import { Sea } from './render/sea.ts';
 import { type LoadedMap, loadMap } from './render/terrain/map-loader.ts';
 import { TerrainLod } from './render/terrain/terrain-lod.ts';
 import { WorldFeatures } from './render/world/world-features.ts';
+import { mapTreeGround, Trees } from './render/world/trees.ts';
 import { Environment } from './render/environment/environment.ts';
-import { createTerrainMaterial } from './render/terrain-material.ts';
+import { createTerrainMaterial, setGroundDetail } from './render/terrain-material.ts';
 import { TrainingRings } from './render/training-rings.ts';
 import type { GameSession } from './session/game-session.ts';
 import { LocalSession } from './session/local-session.ts';
@@ -250,10 +251,14 @@ export async function startGame(
       // Training flies a calm noon.
       environment: options.mission === 'training' ? undefined : options.environment,
     });
-  const ground = new TerrainLod(loadedMap, createTerrainMaterial(textures), QUALITY_PRESETS[quality].terrainDetail);
+  const terrainMaterial = createTerrainMaterial(textures, QUALITY_PRESETS[quality].groundDetail);
+  const ground = new TerrainLod(loadedMap, terrainMaterial, QUALITY_PRESETS[quality].terrainDetail);
   renderer.scene.add(ground.group);
   const worldFeatures = new WorldFeatures(map, terrain);
   renderer.scene.add(worldFeatures.group);
+  // Trees (revision 45): in the forests, copses and fields around the camera.
+  const trees = new Trees(mapTreeGround(map, terrain), QUALITY_PRESETS[quality].trees);
+  renderer.scene.add(trees.group);
   const makeEnvironment = () =>
     new Environment(renderer.scene, renderer.webgl, session.environment, map.seed, {
       cloudRangeM: QUALITY_PRESETS[quality].cloudRangeM,
@@ -268,6 +273,7 @@ export async function startGame(
   // Build the ground around the start before the first frame.
   const startView = session.localView();
   if (startView) await ground.prepare(startView.position);
+  if (startView) trees.prepare(startView.position);
   stopLoadingText();
   loading.remove();
   const sceneSync = new SceneSync(renderer.scene, (config) => aircraftModelFor(config, meshes));
@@ -335,6 +341,8 @@ export async function startGame(
     effects.setParticleDensity(preset.particles);
     setSceneryAnisotropy(textures, preset.anisotropy);
     ground.splitFactor = preset.terrainDetail;
+    setGroundDetail(terrainMaterial, preset.groundDetail);
+    if (trees.settings !== preset.trees) trees.setSettings(preset.trees);
     environment.cloudRangeM = preset.cloudRangeM;
   };
   /** Settings changed (or the match starts): apply everything that can change live. */
@@ -1069,6 +1077,7 @@ export async function startGame(
     if (local && localModel) showCockpit(localModel.root, cameraRig.inCockpit, local.team);
     ground.update(renderer.camera.position);
     worldFeatures.update(renderer.camera.position);
+    trees.update(renderer.camera.position);
     if (session.environment !== environmentSettings) {
       const weatherChanged = session.environment.weather !== environmentSettings.weather;
       environmentSettings = session.environment;
@@ -1253,6 +1262,7 @@ export async function startGame(
     trainingRings.dispose();
     ground.dispose();
     worldFeatures.dispose();
+    trees.dispose();
     environment.dispose();
     session.dispose();
     renderer.dispose();

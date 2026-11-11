@@ -1,3 +1,6 @@
+import type { GroundDetail } from './terrain-material.ts';
+import type { TreeSettings } from './world/trees.ts';
+
 /** Graphics presets (spec §24, M1c). */
 export type QualityLevel = 'low' | 'medium' | 'high';
 export const QUALITY_LEVELS: readonly QualityLevel[] = ['low', 'medium', 'high'];
@@ -14,12 +17,16 @@ export interface QualityPreset {
   terrainDetail: number;
   /** cumulus clouds are drawn within this range, metres (M4) */
   cloudRangeM: number;
+  /** the close-up ground materials: one sampling, or two reaching further (revision 45) */
+  groundDetail: GroundDetail;
+  /** 3-D trees: how far and how dense (revision 45) */
+  trees: TreeSettings;
 }
 
 export const QUALITY_PRESETS: Readonly<Record<QualityLevel, QualityPreset>> = {
-  low: { pixelRatio: 0.75, antialias: false, particles: 0.5, anisotropy: 2, terrainDetail: 1.1, cloudRangeM: 20000 },
-  medium: { pixelRatio: 1, antialias: true, particles: 0.75, anisotropy: 4, terrainDetail: 1.4, cloudRangeM: 30000 },
-  high: { pixelRatio: 2, antialias: true, particles: 1, anisotropy: 8, terrainDetail: 1.8, cloudRangeM: 40000 },
+  low: { pixelRatio: 0.75, antialias: false, particles: 0.5, anisotropy: 2, terrainDetail: 1.1, cloudRangeM: 20000, groundDetail: 1, trees: { rangeM: 1400, spacingM: 24, detailM: 450 } },
+  medium: { pixelRatio: 1, antialias: true, particles: 0.75, anisotropy: 8, terrainDetail: 1.4, cloudRangeM: 30000, groundDetail: 2, trees: { rangeM: 2000, spacingM: 19, detailM: 650 } },
+  high: { pixelRatio: 2, antialias: true, particles: 1, anisotropy: 16, terrainDetail: 1.8, cloudRangeM: 40000, groundDetail: 2, trees: { rangeM: 2600, spacingM: 16, detailM: 900 } },
 };
 
 /** Screens larger than this many device pixels start Auto on Medium (a Retina laptop panel stays on High; 4K drops). */

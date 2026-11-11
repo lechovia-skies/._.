@@ -132,7 +132,6 @@ function credits(): HTMLParagraphElement {
     'Satellite imagery: <a href="https://s2maps.eu" target="_blank" rel="noopener">Sentinel-2 cloudless</a> ' +
     'by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2017), ' +
     '<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a> · ' +
-    'Ground detail: <a href="https://polyhaven.com" target="_blank" rel="noopener">Poly Haven</a> (CC0) · ' +
     'Water normals: three.js (MIT) · Rajdhani font: Indian Type Foundry (OFL) · ' +
     'Music: “Life in the Danger Zone” by DJARTMUSIC (Pixabay)';
   return p;

@@ -29,10 +29,6 @@ const sources: { name: string; url: string }[] = [
   { name: 'sat-forest.jpg', url: wmsUrl(SATELLITE_LAYER, squareBBox(52.785, 16.25, 6), 2048) },
   { name: 'sat-mountain.jpg', url: wmsUrl(SATELLITE_LAYER, squareBBox(49.2, 20.05, 7), 2048) },
   { name: 'waternormals.jpg', url: 'https://raw.githubusercontent.com/mrdoob/three.js/r186/examples/textures/waternormals.jpg' },
-  {
-    name: 'detail-grass-rock.jpg',
-    url: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_grass_rock/aerial_grass_rock_diff_1k.jpg',
-  },
 ];
 
 async function download(url: string, target: string): Promise<void> {
@@ -59,10 +55,10 @@ for (const s of sources) {
   console.log(`cached ${s.name} (${mb(join(cache, s.name))})`);
 }
 
-for (const name of ['sat-farmland.jpg', 'sat-forest.jpg', 'sat-mountain.jpg', 'waternormals.jpg', 'detail-grass-rock.jpg']) {
+for (const name of ['sat-farmland.jpg', 'sat-forest.jpg', 'sat-mountain.jpg', 'waternormals.jpg']) {
   copyFileSync(join(cache, name), join(out, name));
 }
 
-for (const name of ['sat-farmland.jpg', 'sat-forest.jpg', 'sat-mountain.jpg', 'waternormals.jpg', 'detail-grass-rock.jpg']) {
+for (const name of ['sat-farmland.jpg', 'sat-forest.jpg', 'sat-mountain.jpg', 'waternormals.jpg']) {
   console.log(`asset ${name}: ${mb(join(out, name))}`);
 }

@@ -12,6 +12,9 @@ is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The
 **Current milestone: M5 "Modes & polish"** (after M1a "Fly", M1b "Fight", M1d "Strike", M1c "Website basics", M2
 "Multiplayer", M3 "Roster & weapons" and M4 "World"). Online play (M2) was taken out again on 2026-10-02 and came back
 on 2026-10-08 without any server: the game still runs entirely in the browser.
+- **Sharper ground and 3-D trees** (2026-11-11): flying low, the ground shows grass, ploughed fields, forest floor,
+  rock and sand in detail, and stylized 3-D trees fill the forests and dot the fields; the colours are brighter.
+  Settings → Display → Graphics sets how far and how many (Low, Medium, High).
 - **Radar** (2026-10-21): the radar shows N, E, S and W round its rim, turning as you turn, and every aircraft as a
   small jet pointing the way it flies: friends outlined, enemies solid (faint when only a teammate's radar sees them),
   your target boxed.
@@ -408,7 +411,9 @@ on social sites, build with the site's address: `SITE_URL=https://example.org/ n
 ## Scenery
 
 The ground uses real Sentinel-2 satellite imagery of Polish farmland, forest and the Tatra mountains (EOX, CC BY 4.0),
-tiled across the fictional map by land type, with a close-up detail photo (Poly Haven, CC0). See `CREDITS.md`.
+tiled across the fictional map by land type. Close up, the game's own ground materials take over (grass, ploughed
+soil, forest floor, rock and sand, with relief; drawn by `node tools/make-ground-textures.ts`), and 3-D trees stand in
+the forests and fields around you. See `CREDITS.md`.
 `node tools/fetch-assets.ts` re-creates the photos in `src/client/assets/` from the original sources. The sky, the
 clouds and the light are computed from the time of day and the weather (until M4 the sky was a photo).
 
