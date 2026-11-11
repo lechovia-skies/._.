@@ -1628,7 +1628,8 @@ chase views at other distances. There is no free camera.
     to 140 m above the ground; above that none are drawn. Presets: Low 32 m round the camera, 1.6 m apart; Medium
     48 m, 1.2 m; High 64 m, 1 m.
   - Clouds (`cloud-layer.ts`): each puff is a cumulus drawn at start from twelve overlapping bumps (soft blends,
-    faint creases between them, a flat base) instead of a soft blob, shaded in a stylized way (lit tops, cool
+    faint creases between them, a flat base that fades out softly so a puff in front of another leaves no hard line)
+    instead of a soft blob, shaded in a stylized way (lit tops, cool
     undersides, a smooth step between; the whole cloud's light from top to bottom counts for more than each puff's
     own, so stacked puffs read as one cloud), and mirrored at random so neighbouring puffs differ.
 - **Revision 31, the real types' airframes** (`src/client/render/airframes/`): at the owner's request the six jets

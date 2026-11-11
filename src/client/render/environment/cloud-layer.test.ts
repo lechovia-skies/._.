@@ -18,15 +18,15 @@ describe('the overcast deck', () => {
 });
 
 describe('the cumulus puff (revision 46)', () => {
-  it('is lit on top, shaded underneath, and has a crisp outline and a flat base', () => {
+  it('is lit on top, shaded underneath, and has a crisp outline and a soft flat base', () => {
     const [topLight, topAlpha] = puffTexel(0.5, 0.33);
     const [baseLight, baseAlpha] = puffTexel(0.5, 0.74);
     expect(topAlpha).toBe(1);
     expect(baseAlpha).toBeGreaterThan(0.3);
-    expect(topLight).toBeGreaterThan(baseLight + 0.3);
+    expect(topLight).toBeGreaterThan(baseLight + 0.2);
     // Off the puff, and under its flat base: nothing.
     expect(puffTexel(0.02, 0.02)).toEqual([0, 0]);
-    expect(puffTexel(0.5, 0.82)[1]).toBe(0);
+    expect(puffTexel(0.5, 0.86)[1]).toBe(0);
     // The fringe is narrow: just inside the main dome's edge it is already mostly opaque.
     const [b] = PUFF_BUMPS;
     expect(puffTexel(b[0] + b[2] * 0.85, b[1] + 0.05)[1]).toBeGreaterThan(0.9);

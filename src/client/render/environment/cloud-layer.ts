@@ -167,11 +167,13 @@ export function puffTexel(x: number, y: number, bumps: readonly Bump[] = PUFF_BU
   }
   const crease = zNext < 0 ? 0 : 1 - Math.min(1, (zMax - zNext) / 0.02);
   const light = (sum / weight) * (1 - 0.1 * crease);
-  const base = 1 - Math.min(1, Math.max(0, (y - PUFF_BASE) / 0.035));
+  // A soft base, so a puff in front of another leaves no hard line across it.
+  const t = Math.min(1, Math.max(0, (y - PUFF_BASE + 0.04) / 0.12));
+  const base = 1 - t * t * (3 - 2 * t);
   const alpha = Math.min(1, edge / 0.12) * base;
   // The underside lies in its own shade.
   const under = Math.min(1, Math.max(0, (y - 0.55) / 0.25));
-  return [light * (1 - 0.3 * under), alpha];
+  return [light * (1 - 0.2 * under), alpha];
 }
 
 /** The cumulus puff as a texture: red is the light on its bumps, alpha its cover. */
