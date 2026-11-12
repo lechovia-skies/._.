@@ -1,7 +1,7 @@
 import type { Airfield, MapFeatures, River, Road, Settlement } from '../../../map/features.ts';
 import { AIRFIELD_GROUND_HALF_WIDTH_M, AIRFIELD_GROUND_OVERRUN_M, airfieldLocal, airfieldWorld } from '../../../map/features.ts';
 import { COVER_CODE } from '../../../map/land-cover.ts';
-import { createNoise2D, fbm2D } from '../../../math/noise.ts';
+import { createNoise2D, fbm2D, type Noise2D } from '../../../math/noise.ts';
 import { Rng } from '../../../math/rng.ts';
 import { clamp, DEG, lerp, smoothstep } from '../../../math/units.ts';
 import { CITY_NAMES, villageName } from './names.ts';
@@ -99,8 +99,83 @@ interface Column {
   shore: number;
 }
 
-/** Height before rivers, lakes and airfields (metres). */
-function baseHeight(geo: Geography, nPlain: ReturnType<typeof createNoise2D>, nHigh: ReturnType<typeof createNoise2D>, col: Column, Z: number): number {
+/**
+ * How far hills may rise here (revision 47): 0 on a city's or an airfield's ground, 1 well away. Cities stand on the
+ * plain; round an airfield the calm reaches about 11 km to the sides and twice as far along the runway, so the
+ * approaches stay clear.
+ */
+function calmness(X: number, Z: number): number {
+  let calm = 1;
+  for (const c of CITIES) {
+    const reach = c.r + 8;
+    if (Math.abs(X - c.x) > reach || Math.abs(Z - c.z) > reach) continue;
+    const d = Math.hypot(X - c.x, Z - c.z);
+    if (d < reach) calm = Math.min(calm, smoothstep(c.r + 1.5, reach, d));
+  }
+  for (const a of AIRFIELDS) {
+    const dx = X - a.x / KM;
+    const dz = Z - a.z / KM;
+    if (Math.abs(dx) > 28 || Math.abs(dz) > 28) continue;
+    const sx = Math.sin(a.headingRad);
+    const sz = -Math.cos(a.headingRad);
+    const u = Math.abs(dx * sx + dz * sz) - a.lengthM / 2 / KM;
+    const v = Math.abs(-dx * sz + dz * sx);
+    const d = Math.hypot(Math.max(0, u) * 0.45, v);
+    if (d < 11) calm = Math.min(calm, smoothstep(2.5, 11, d));
+  }
+  return calm;
+}
+
+/**
+ * Hills (revision 47), metres to add to the plain: rolling ground everywhere, swells of a few tens of metres a few
+ * kilometres apart; and hill country over broad uplands (about half the land) and all the foothills, rounded hills of
+ * 100–400 m with winding valleys. Less in the lake district, the eastern lowland and the high mountains (which
+ * have their own), and little round the cities and airfields (`calm`).
+ */
+function relief(n: Noise2D, X: number, Z: number, south: number, mountains: number, lakes: number, lowland: number, calm: number): number {
+  const roll = 40 * fbm2D(n, X / 4, Z / 4, 3) + 7 * n(X / 0.9 + 11, Z / 0.9 + 11);
+  const upland = Math.max(smoothstep(-0.2, 0.2, fbm2D(n, X / 55 + 50, Z / 55 + 50, 2)), south) * (1 - 0.8 * lakes) * (1 - lowland) * (1 - 0.85 * mountains);
+  let hills = 0;
+  if (upland > 0.001) {
+    // Lightly warped so the hills wind rather than line up; squared so tops are rounded and valleys wide and low.
+    const wx = X + 1.5 * n(X / 9 + 5, Z / 9 + 5);
+    const wz = Z + 1.5 * n(X / 9 + 9, Z / 9 + 9);
+    hills = upland * 540 * Math.pow(clamp(0.5 + 0.5 * fbm2D(n, wx / 12 + 80, wz / 12 + 80, 5), 0, 1), 2.2);
+  }
+  return (0.35 + 0.65 * calm) * (1 - 0.75 * lowland) * roll + calm * hills;
+}
+
+/** The southern foothills' share: 0 north of 15 km south of the centre, 1 from 62 km. */
+const southShare = (Z: number) => (Z > 12 ? smoothstep(15, 62, Z) : 0);
+/** The high mountains' share. */
+const mountainShare = (nHigh: Noise2D, X: number, Z: number) => (Z > 48 ? smoothstep(56 + 5 * nHigh(X / 25, 3.3), 88, Z) : 0);
+
+/**
+ * The hills on every other grid sample, read back bilinearly: the finest swell is 900 m across, which samples 196 m
+ * apart still hold, at a quarter of the cost.
+ */
+function reliefGrid(geo: Geography, nHigh: Noise2D, nRelief: Noise2D): (i: number, j: number) => number {
+  const M = (N + 1) / 2;
+  const r = new Float32Array(M * M);
+  for (let b = 0; b < M; b++) {
+    const Z = gx(b * 2) / KM;
+    const south = southShare(Z);
+    for (let a = 0; a < M; a++) {
+      const X = gx(a * 2) / KM;
+      r[b * M + a] = relief(nRelief, X, Z, south, mountainShare(nHigh, X, Z), geo.lakeDistrict(X, Z), geo.eastLowland(X, Z), calmness(X, Z));
+    }
+  }
+  return (i, j) => {
+    const a = i >> 1;
+    const b = j >> 1;
+    const a1 = Math.min(M - 1, a + (i & 1));
+    const b1 = Math.min(M - 1, b + (j & 1));
+    return (r[b * M + a] + r[b * M + a1] + r[b1 * M + a] + r[b1 * M + a1]) / 4;
+  };
+}
+
+/** Height before rivers, lakes and airfields (metres); `hills` from `relief`. */
+function baseHeight(geo: Geography, nPlain: Noise2D, nHigh: Noise2D, hills: number, col: Column, Z: number): number {
   const X = col.X;
   const out = Z - col.coast;
   if (out < 0) return Math.max(-60, -2 + 9 * out);
@@ -118,17 +193,18 @@ function baseHeight(geo: Geography, nPlain: ReturnType<typeof createNoise2D>, nH
   const inland = Z - col.shore;
   let h = 100 + 45 * fbm2D(nPlain, X / 45, Z / 45, 2) + 15 * fbm2D(nPlain, X / 7 + 20, Z / 7 + 20, 3);
   if (Z > 12) {
-    const south = smoothstep(15, 62, Z);
+    const south = southShare(Z);
     h += south * (170 + 150 * fbm2D(nHigh, X / 14 + 40, Z / 14 + 40, 3));
-    if (Z > 48) {
-      const m = smoothstep(56 + 5 * nHigh(X / 25, 3.3), 88, Z);
-      if (m > 0) h += m * (280 + 2050 * Math.pow(ridged(nHigh, X, Z), 1.6));
-    }
+    const m = mountainShare(nHigh, X, Z);
+    if (m > 0) h += m * (280 + 2050 * Math.pow(ridged(nHigh, X, Z), 1.6));
   }
+  h += hills;
   const ld = geo.lakeDistrict(X, Z);
-  if (ld > 0) h += ld * (45 + 30 * fbm2D(nPlain, X / 2.2, Z / 2.2, 3) + 20 * nPlain(X / 6 + 3, Z / 6 + 3));
   const e = geo.eastLowland(X, Z);
+  if (ld > 0) h += ld * (45 + 30 * fbm2D(nPlain, X / 2.2, Z / 2.2, 3) + 20 * nPlain(X / 6 + 3, Z / 6 + 3));
   if (e > 0) h -= e * 45;
+  // Inland the swells never dip below the sea (revision 47).
+  h = Math.max(h, 6);
   // The coastal plain falls to a few metres at the shore, with a dune line along the open sea.
   if (inland < 6) {
     h = lerp(2.5 + 1.5 * nPlain(X / 3, Z / 3), h, smoothstep(0, 6, inland));
@@ -213,6 +289,7 @@ export function generateLechovia(seed: number): LechoviaData {
   const nPlain = createNoise2D(seed * 31 + 2);
   const nHigh = createNoise2D(seed * 31 + 3);
   const nCover = createNoise2D(seed * 31 + 4);
+  const nRelief = createNoise2D(seed * 31 + 5);
   const rng = new Rng(seed * 7919 + 17);
   const heights = new Float32Array(N * N);
   const cover = new Uint8Array(N * N).fill(UNSET);
@@ -222,10 +299,11 @@ export function generateLechovia(seed: number): LechoviaData {
     const X = gx(i) / KM;
     return { X, coast: geo.coastZ(X), lagoon: geo.lagoonW(X), shore: geo.shoreZ(X) };
   });
+  const hillsAt = reliefGrid(geo, nHigh, nRelief);
   for (let j = 0; j < N; j++) {
     const Z = gx(j) / KM;
     for (let i = 0; i < N; i++) {
-      const h = baseHeight(geo, nPlain, nHigh, columns[i], Z);
+      const h = baseHeight(geo, nPlain, nHigh, hillsAt(i, j), columns[i], Z);
       heights[idx(i, j)] = h;
       if (h < 0) cover[idx(i, j)] = C.sea;
     }
@@ -317,6 +395,8 @@ export function generateLechovia(seed: number): LechoviaData {
       if (settlements.some((s) => Math.hypot(s.x - x, s.z - z) < s.radiusM + a + 2000)) continue;
       if (AIRFIELDS.some((f) => Math.hypot(f.x - x, f.z - z) < f.lengthM / 2 + a + 3000)) continue;
       if (lakes.some((l) => Math.hypot(l.x - x, l.z - z) < l.a + a + 1000)) continue;
+      // In a hollow of gentle ground, not cut into a hillside (revision 47).
+      if (spanWithin(heights, x, z, a * 1.5) > 70) continue;
       lakes.push({ x, z, a, b, angle, level: 0 });
       placed++;
     }
@@ -421,6 +501,8 @@ export function generateLechovia(seed: number): LechoviaData {
     const k2 = idx(gi(x), gi(z));
     if (heights[k2] < 4 || heights[k2] > 900) continue;
     if (slopeAt(heights, gi(x), gi(z)) > 0.06) continue;
+    // On gentle ground: a lowland village on the level, a hill or mountain village on a gentler slope (revision 47).
+    if (spanWithin(heights, x, z, radiusM) > (heights[k2] < 280 ? 50 : 120)) continue;
     if (!dry(x, z, radiusM + 300)) continue;
     if (settlements.some((s) => Math.hypot(s.x - x, s.z - z) < (s.kind === 'city' ? s.radiusM + 4000 : 5000))) continue;
     if (airfields.some((a) => Math.hypot(a.x - x, a.z - z) < a.lengthM / 2 + 3000)) continue;
@@ -465,6 +547,24 @@ export function generateLechovia(seed: number): LechoviaData {
   }
 
   return { seed, heights, cover, features: { settlements, roads, rivers, airfields } };
+}
+
+/** Highest minus lowest ground within `radius` of a point, from every other grid sample (revision 47). */
+function spanWithin(heights: Float32Array, x: number, z: number, radius: number): number {
+  const r = Math.ceil(radius / CELL);
+  const ci = gi(x);
+  const cj = gi(z);
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let dj = -r; dj <= r; dj += 2) {
+    for (let di = -r; di <= r; di += 2) {
+      if (di * di + dj * dj > r * r) continue;
+      const h = heights[idx(clamp(ci + di, 0, N - 1), clamp(cj + dj, 0, N - 1))];
+      lo = Math.min(lo, h);
+      hi = Math.max(hi, h);
+    }
+  }
+  return hi - lo;
 }
 
 /** 1 − normal.y of the grid at a sample. */

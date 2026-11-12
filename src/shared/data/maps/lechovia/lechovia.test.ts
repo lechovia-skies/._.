@@ -27,10 +27,57 @@ describe('Lechovia (spec §12.3)', () => {
     for (let x = -98000; x <= 98000; x += 400) for (let z = 60000; z <= 98000; z += 400) peak = Math.max(peak, terrain.heightAt(x, z));
     expect(peak).toBeGreaterThan(2200);
     expect(peak).toBeLessThan(2800);
-    // The central plains stay low.
-    let plain = 0;
-    for (let x = -40000; x <= 40000; x += 2000) for (let z = -30000; z <= 30000; z += 2000) plain = Math.max(plain, terrain.heightAt(x, z));
-    expect(plain).toBeLessThan(320);
+    // North of the foothills the land stays below 700 m.
+    let north = 0;
+    for (let x = -96000; x <= 96000; x += 2000) for (let z = -76000; z <= 30000; z += 2000) north = Math.max(north, terrain.heightAt(x, z));
+    expect(north).toBeLessThan(700);
+  });
+
+  /** Highest minus lowest ground within `r` of a point. */
+  const span = (x: number, z: number, r: number) => {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let dz = -r; dz <= r; dz += r / 10) {
+      for (let dx = -r; dx <= r; dx += r / 10) {
+        if (dx * dx + dz * dz > r * r + 1) continue;
+        const h = terrain.heightAt(x + dx, z + dz);
+        lo = Math.min(lo, h);
+        hi = Math.max(hi, h);
+      }
+    }
+    return hi - lo;
+  };
+
+  it('rolls everywhere and rises into hill country, calm round the towns and airfields (revision 47)', () => {
+    // Relief within 1.5 km, on land north of the foothills: rolling ground nearly everywhere, hills in places.
+    const spans: number[] = [];
+    for (let z = -70000; z <= 40000; z += 3000) for (let x = -95000; x <= 95000; x += 3000) if (terrain.heightAt(x, z) > 1) spans.push(span(x, z, 1500));
+    spans.sort((a, b) => a - b);
+    expect(spans.reduce((a, b) => a + b, 0) / spans.length).toBeGreaterThan(70);
+    expect(spans[Math.floor(spans.length * 0.25)]).toBeGreaterThan(25);
+    expect(spans[Math.floor(spans.length * 0.9)]).toBeGreaterThan(180);
+    // Hills of a few hundred metres north of the foothills.
+    let hill = 0;
+    for (let x = -96000; x <= 96000; x += 1000) for (let z = -76000; z <= 20000; z += 1000) hill = Math.max(hill, terrain.heightAt(x, z));
+    expect(hill).toBeGreaterThan(380);
+    // Lowland villages on the level.
+    for (const s of features.settlements) {
+      if (s.kind !== 'village' || terrain.heightAt(s.x, s.z) >= 280) continue;
+      expect(span(s.x, s.z, s.radiusM), s.name).toBeLessThan(70);
+    }
+    // Approaches and climb-outs clear of a 3° slope from the runway ends out to 15 km, a runway width either side.
+    for (const a of features.airfields) {
+      const d = { x: Math.sin(a.headingRad), z: -Math.cos(a.headingRad) };
+      for (const sign of [-1, 1]) {
+        for (let out = 500; out <= 15000; out += 250) {
+          const u = sign * (a.lengthM / 2 + out);
+          for (const v of [-600, 0, 600]) {
+            const ground = terrain.heightAt(a.x + d.x * u - d.z * v, a.z + d.z * u + d.x * v);
+            expect(ground, `${a.id} ${sign * out}`).toBeLessThan(a.elevationM + Math.tan((3 * Math.PI) / 180) * out);
+          }
+        }
+      }
+    }
   });
 
   it('has a lagoon behind a sand spit in the north-east', () => {

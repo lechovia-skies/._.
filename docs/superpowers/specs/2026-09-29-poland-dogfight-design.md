@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 46)
+# Lechovia Skies — Design Spec (revision 47)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -177,6 +177,8 @@
   - Revision 46 (2026-11-11): the owner asked for all three follow-ups offered after revision 45 (§15.4): sun shadows
     round the camera (trees, jets and buildings onto the ground), 3-D grass swaying on the meadows and fields when
     flying low, and fuller, stylized cumulus clouds.
+  - Revision 47 (2026-11-12): the owner found the land too flat (§12.3). The land now rolls everywhere and rises into
+    hill country over about half of it and all the foothills; the cities and airfields stay on calm ground.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -1037,6 +1039,18 @@ The owner asked for a way to fly home and take on missiles and gun rounds again 
   (neutral). 3,000 m (2,500–2,600 m neutral) by 45 m runways, flattened ground ±450 m, a parallel taxiway, an apron,
   four arched hangars and a tower.
 - Combat area: 85 km radius around the centre. Airborne spawn lines 15 km either side of the capital at 5,000 m.
+- **Hills (revision 47).** At the owner's request ("not that flat"): until then the land north of the foothills varied
+  by about ±45 m over 45 km (27 m of relief within 1.5 km on average, nothing above 244 m). `relief` in `generate.ts`
+  now adds, before rivers, lakes and airfields are carved: rolling ground everywhere (swells of about ±40 m some 4 km
+  apart, with a 900 m ripple); and hill country over broad uplands (a 55 km noise, about half the land, and all the
+  foothills), rounded hills of 100–400 m with winding valleys (a lightly warped five-octave noise, squared). Less in
+  the lake district, the eastern lowland (where inland ground never dips below 6 m) and the high mountains. Round
+  every city the hills fade out from 8 km beyond its edge, and round every airfield from 11 km to the sides and about
+  25 km along the runway, so approaches and climb-outs clear a 3° slope; the rolling keeps a third of its height
+  there. Villages pick level ground (under 50 m from lowest to highest within the village below 280 m, 120 m above)
+  and lakes a hollow (under 70 m within 1.5 times their length). The hills are computed on every other grid sample
+  and read back bilinearly, so generation takes about 3 s (was 2.5). Relief within 1.5 km now averages about 100 m,
+  hills north of the foothills reach about 470 m, and rivers cut valleys through the uplands.
 - Rendering: 64-cell chunks at six levels, chosen by distance (graphics preset: split at 1.1, 1.4 or 1.8 chunk
   widths), skirts against cracks, parents shown until all children are built, an outer ring that stretches the map's
   edges to the horizon. Roads are ribbons that bridge rivers, and the terrain shader tints towns and marshes. Towns:

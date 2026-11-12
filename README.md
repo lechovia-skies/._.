@@ -12,6 +12,8 @@ is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The
 **Current milestone: M5 "Modes & polish"** (after M1a "Fly", M1b "Fight", M1d "Strike", M1c "Website basics", M2
 "Multiplayer", M3 "Roster & weapons" and M4 "World"). Online play (M2) was taken out again on 2026-10-02 and came back
 on 2026-10-08 without any server: the game still runs entirely in the browser.
+- **Hills** (2026-11-12): the land rolls everywhere and rises into hill country with valleys, rivers winding through
+  them; cities and airfields stay on level ground.
 - **Shadows, grass and fuller clouds** (2026-11-11): the sun casts shadows from trees, jets and buildings; flying
   low, grass sways on the meadows and fields; the clouds are fuller, stylized cumulus. Settings → Display → Graphics:
   Low has no shadows and less grass.
