@@ -27,10 +27,10 @@ describe('Lechovia (spec §12.3)', () => {
     for (let x = -98000; x <= 98000; x += 400) for (let z = 60000; z <= 98000; z += 400) peak = Math.max(peak, terrain.heightAt(x, z));
     expect(peak).toBeGreaterThan(2200);
     expect(peak).toBeLessThan(2800);
-    // North of the foothills the land stays below 700 m.
+    // North of the foothills the land stays below 800 m.
     let north = 0;
     for (let x = -96000; x <= 96000; x += 2000) for (let z = -76000; z <= 30000; z += 2000) north = Math.max(north, terrain.heightAt(x, z));
-    expect(north).toBeLessThan(700);
+    expect(north).toBeLessThan(800);
   });
 
   /** Highest minus lowest ground within `r` of a point. */
@@ -59,7 +59,7 @@ describe('Lechovia (spec §12.3)', () => {
     // Hills of a few hundred metres north of the foothills.
     let hill = 0;
     for (let x = -96000; x <= 96000; x += 1000) for (let z = -76000; z <= 20000; z += 1000) hill = Math.max(hill, terrain.heightAt(x, z));
-    expect(hill).toBeGreaterThan(380);
+    expect(hill).toBeGreaterThan(500);
     // Lowland villages on the level.
     for (const s of features.settlements) {
       if (s.kind !== 'village' || terrain.heightAt(s.x, s.z) >= 280) continue;

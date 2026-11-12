@@ -128,19 +128,19 @@ function calmness(X: number, Z: number): number {
 
 /**
  * Hills (revision 47), metres to add to the plain: rolling ground everywhere, swells of a few tens of metres a few
- * kilometres apart; and hill country over broad uplands (about half the land) and all the foothills, rounded hills of
- * 100–400 m with winding valleys. Less in the lake district, the eastern lowland and the high mountains (which
- * have their own), and little round the cities and airfields (`calm`).
+ * kilometres apart; and hill country over broad uplands (about half the land) and all the foothills, hills of
+ * 150–600 m with ridges and winding valleys some 8 km apart. Less in the lake district, the eastern lowland and the
+ * high mountains (which have their own), and little round the cities and airfields (`calm`).
  */
 function relief(n: Noise2D, X: number, Z: number, south: number, mountains: number, lakes: number, lowland: number, calm: number): number {
-  const roll = 40 * fbm2D(n, X / 4, Z / 4, 3) + 7 * n(X / 0.9 + 11, Z / 0.9 + 11);
+  const roll = 55 * fbm2D(n, X / 3, Z / 3, 3) + 10 * n(X / 0.8 + 11, Z / 0.8 + 11);
   const upland = Math.max(smoothstep(-0.2, 0.2, fbm2D(n, X / 55 + 50, Z / 55 + 50, 2)), south) * (1 - 0.8 * lakes) * (1 - lowland) * (1 - 0.85 * mountains);
   let hills = 0;
   if (upland > 0.001) {
     // Lightly warped so the hills wind rather than line up; squared so tops are rounded and valleys wide and low.
-    const wx = X + 1.5 * n(X / 9 + 5, Z / 9 + 5);
-    const wz = Z + 1.5 * n(X / 9 + 9, Z / 9 + 9);
-    hills = upland * 540 * Math.pow(clamp(0.5 + 0.5 * fbm2D(n, wx / 12 + 80, wz / 12 + 80, 5), 0, 1), 2.2);
+    const wx = X + 1.2 * n(X / 7 + 5, Z / 7 + 5);
+    const wz = Z + 1.2 * n(X / 7 + 9, Z / 7 + 9);
+    hills = upland * 820 * Math.pow(clamp(0.5 + 0.5 * fbm2D(n, wx / 8 + 80, wz / 8 + 80, 5), 0, 1), 2.2);
   }
   return (0.35 + 0.65 * calm) * (1 - 0.75 * lowland) * roll + calm * hills;
 }
