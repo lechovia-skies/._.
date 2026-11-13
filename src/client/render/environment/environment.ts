@@ -332,7 +332,7 @@ export class Environment {
       // By moonlight the clouds turn blue-grey rather than keeping the sunset's orange (revision 19).
       .lerp(MOONLIT_CLOUD, this.night)
       .multiplyScalar((p.deck ? 0.8 : 1.05) * sunLight + 0.04);
-    this.cloudLayer.shadow.setRGB(0.5, 0.56, 0.68).multiplyScalar(sunLight * (p.deck ? 0.75 : 0.9) + 0.02);
+    this.cloudLayer.shadow.setRGB(0.55, 0.58, 0.64).multiplyScalar(sunLight * (p.deck ? 0.75 : 0.9) + 0.02);
     this.cloudLayer.update(cam);
     this.nightSky.update(cam, this.night, this.moonDirection, clearSky);
     this.raining = p.rain && cam.y < p.cloudBaseM;

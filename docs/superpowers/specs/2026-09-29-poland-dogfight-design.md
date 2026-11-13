@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 47)
+# Lechovia Skies — Design Spec (revision 48)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -179,6 +179,8 @@
     flying low, and fuller, stylized cumulus clouds.
   - Revision 47 (2026-11-12): the owner found the land too flat (§12.3). The land now rolls everywhere and rises into
     hill country over about half of it and all the foothills; the cities and airfields stay on calm ground.
+  - Revision 48 (2026-11-13): at the owner's request the clouds are the soft puffs of before revision 46 again
+    (§15.4).
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -1643,7 +1645,8 @@ chase views at other distances. There is no free camera.
     under them, sway in the wind, and thin out over the last third of the range and as the camera climbs from 60 m
     to 140 m above the ground; above that none are drawn. Presets: Low 32 m round the camera, 1.6 m apart; Medium
     48 m, 1.2 m; High 64 m, 1 m.
-  - Clouds (`cloud-layer.ts`): each puff is a cumulus drawn at start from twelve overlapping bumps (soft blends,
+  - Clouds (`cloud-layer.ts`), undone in revision 48 at the owner's request (the soft puffs are back): each puff was
+    a cumulus drawn at start from twelve overlapping bumps (soft blends,
     faint creases between them, a flat base that fades out softly so a puff in front of another leaves no hard line)
     instead of a soft blob, shaded in a stylized way (lit tops, cool
     undersides, a smooth step between; the whole cloud's light from top to bottom counts for more than each puff's

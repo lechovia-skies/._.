@@ -14,9 +14,8 @@ is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The
 on 2026-10-08 without any server: the game still runs entirely in the browser.
 - **Hills** (2026-11-12): the land rolls everywhere and rises into hill country with valleys, rivers winding through
   them; cities and airfields stay on level ground.
-- **Shadows, grass and fuller clouds** (2026-11-11): the sun casts shadows from trees, jets and buildings; flying
-  low, grass sways on the meadows and fields; the clouds are fuller, stylized cumulus. Settings → Display → Graphics:
-  Low has no shadows and less grass.
+- **Shadows and grass** (2026-11-11): the sun casts shadows from trees, jets and buildings; flying low, grass sways
+  on the meadows and fields. Settings → Display → Graphics: Low has no shadows and less grass.
 - **Sharper ground and 3-D trees** (2026-11-11): flying low, the ground shows grass, ploughed fields, forest floor,
   rock and sand in detail, and stylized 3-D trees fill the forests and dot the fields; the colours are brighter.
   Settings → Display → Graphics sets how far and how many (Low, Medium, High).
