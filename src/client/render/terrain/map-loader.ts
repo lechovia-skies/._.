@@ -3,6 +3,7 @@ import type { MapId } from '../../../shared/data/maps/registry.ts';
 import { GridTerrain } from '../../../shared/map/terrain.ts';
 import type { LoadProgress } from '../load-progress.ts';
 import { buildChunk, type ChunkData, type ChunkKey } from './chunk-builder.ts';
+import { buildLandMap, type LandMap } from './land-map.ts';
 import { buildMapSource, mapFromPayload } from './map-source.ts';
 import TerrainWorker from './terrain-worker.ts?worker&inline';
 import type { TerrainReply, TerrainRequest } from './terrain-worker.ts';
@@ -12,6 +13,8 @@ export interface LoadedMap {
   id: MapId;
   def: MapDefinition;
   terrain: GridTerrain;
+  /** water, towns, forest, ridges and valleys per height sample, for the terrain shader (revision 48) */
+  land: LandMap;
   /** Builds one terrain chunk, in the worker when there is one. */
   requestChunk(key: ChunkKey): Promise<ChunkData>;
 }
@@ -58,6 +61,7 @@ function viaWorker(id: MapId): Promise<LoadedMap> {
           id,
           def,
           terrain,
+          land: msg.land,
           requestChunk: (key) =>
             new Promise<ChunkData>((res, rej) => {
               const reqId = nextId++;
@@ -84,5 +88,6 @@ async function onPage(id: MapId): Promise<LoadedMap> {
   await new Promise((r) => setTimeout(r, 0));
   const source = buildMapSource(id);
   const terrain = new GridTerrain(source.grid.resolution, source.grid.sizeM, source.grid.heights);
-  return { id, def: source.def, terrain, requestChunk: async (key) => buildChunk(source.grid, source.coverAt, key) };
+  const land = buildLandMap(source.grid, source.coverAt);
+  return { id, def: source.def, terrain, land, requestChunk: async (key) => buildChunk(source.grid, source.coverAt, key) };
 }

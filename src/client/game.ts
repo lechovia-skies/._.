@@ -48,6 +48,7 @@ import type { ParticleFrame } from './render/effects/particles.ts';
 import { Renderer } from './render/renderer.ts';
 import { SceneSync } from './render/scene-sync.ts';
 import { Sea } from './render/sea.ts';
+import { landTexture } from './render/terrain/land-texture.ts';
 import { type LoadedMap, loadMap } from './render/terrain/map-loader.ts';
 import { TerrainLod } from './render/terrain/terrain-lod.ts';
 import { WorldFeatures } from './render/world/world-features.ts';
@@ -252,7 +253,7 @@ export async function startGame(
       // Training flies a calm noon.
       environment: options.mission === 'training' ? undefined : options.environment,
     });
-  const terrainMaterial = createTerrainMaterial(textures, QUALITY_PRESETS[quality].groundDetail);
+  const terrainMaterial = createTerrainMaterial(textures, landTexture(loadedMap), QUALITY_PRESETS[quality].groundDetail);
   const ground = new TerrainLod(loadedMap, terrainMaterial, QUALITY_PRESETS[quality].terrainDetail);
   renderer.scene.add(ground.group);
   const worldFeatures = new WorldFeatures(map, terrain);

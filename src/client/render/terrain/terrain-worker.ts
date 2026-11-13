@@ -1,12 +1,13 @@
 import type { MapId } from '../../../shared/data/maps/registry.ts';
 import { buildChunk, type ChunkData, type ChunkKey } from './chunk-builder.ts';
+import { buildLandMap, type LandMap } from './land-map.ts';
 import { buildMapSource, type MapPayload, type MapSource } from './map-source.ts';
 
 /** Messages to the terrain worker. */
 export type TerrainRequest = { type: 'init'; mapId: MapId } | { type: 'chunk'; id: number; key: ChunkKey };
 
 /** Messages from the terrain worker. */
-export type TerrainReply = { type: 'map'; payload: MapPayload } | { type: 'chunk'; id: number; data: ChunkData } | { type: 'error'; message: string };
+export type TerrainReply = { type: 'map'; payload: MapPayload; land: LandMap } | { type: 'chunk'; id: number; data: ChunkData } | { type: 'error'; message: string };
 
 /** The parts of the worker's global scope used here (the page's DOM types describe `self` otherwise). */
 interface WorkerScope {
@@ -23,8 +24,10 @@ scope.onmessage = (e: MessageEvent<TerrainRequest>) => {
   try {
     if (msg.type === 'init') {
       source = buildMapSource(msg.mapId);
-      // Copied, not transferred: the worker keeps its own grids for building chunks.
-      scope.postMessage({ type: 'map', payload: source.payload });
+      // The payload is copied, not transferred: the worker keeps its own grids for building chunks. The land map
+      // (revision 48) is only the page's.
+      const land = buildLandMap(source.grid, source.coverAt);
+      scope.postMessage({ type: 'map', payload: source.payload, land }, [land.data.buffer]);
     } else if (msg.type === 'chunk' && source) {
       const data = buildChunk(source.grid, source.coverAt, msg.key);
       scope.postMessage({ type: 'chunk', id: msg.id, data }, [data.positions.buffer, data.normals.buffer, data.landClass.buffer, data.landExtra.buffer]);

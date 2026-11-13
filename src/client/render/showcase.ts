@@ -7,6 +7,7 @@ import type { SceneryTextures } from './assets.ts';
 import type { QualityPreset } from './quality.ts';
 import { Renderer } from './renderer.ts';
 import { Sea } from './sea.ts';
+import { landTexture } from './terrain/land-texture.ts';
 import type { LoadedMap } from './terrain/map-loader.ts';
 import { TerrainLod } from './terrain/terrain-lod.ts';
 import { mapTreeGround, type TreeSettings, Trees } from './world/trees.ts';
@@ -172,7 +173,7 @@ export class Showcase {
   private async build(textures: SceneryTextures, map: LoadedMap): Promise<void> {
     const scene = this.renderer.scene;
     this.map = map;
-    this.ground = new TerrainLod(map, createTerrainMaterial(textures, this.groundDetail), this.detail);
+    this.ground = new TerrainLod(map, createTerrainMaterial(textures, landTexture(map), this.groundDetail), this.detail);
     scene.add(this.ground.group);
     this.features = new WorldFeatures(map.def, map.terrain);
     scene.add(this.features.group);

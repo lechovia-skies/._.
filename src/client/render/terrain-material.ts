@@ -1,4 +1,6 @@
-import { type DataArrayTexture, MeshStandardMaterial, type Texture, Vector3 } from 'three';
+import { type DataArrayTexture, MeshStandardMaterial, type Texture, Vector2, Vector3 } from 'three';
+import { LAND_RELIEF_M_PER_STEP } from './terrain/land-map.ts';
+import type { LandTexture } from './terrain/land-texture.ts';
 
 export interface TerrainTextures {
   farm: Texture;
@@ -12,6 +14,9 @@ export interface TerrainTextures {
  * ground materials, or two (a second, coarser sampling breaks up the repeat and carries the detail further out).
  */
 export type GroundDetail = 0 | 1 | 2;
+
+/** How much of the sky's light the terrain takes (1 elsewhere): the sun shapes the hills more (revision 48). */
+export const TERRAIN_SKY_LIGHT = 0.8;
 
 /** Ground covered by one repeat of a ground material, metres: about 2 cm a pixel. */
 export const GROUND_TILE_M = 20;
@@ -34,8 +39,12 @@ export const GROUND_FADE_M: Readonly<Record<GroundDetail, readonly [number, numb
  * doesn't repeat visibly. The ground materials follow the photo's colour, so fields keep their patchwork and nothing
  * pops where they fade out. Revision 45 also grades the photos a little brighter and more vivid.
  */
-export function createTerrainMaterial(t: TerrainTextures, detail: GroundDetail = 2): MeshStandardMaterial {
-  const material = new MeshStandardMaterial({ roughness: 0.95, metalness: 0 });
+export function createTerrainMaterial(t: TerrainTextures, land: LandTexture, detail: GroundDetail = 2): MeshStandardMaterial {
+  // Less light from the whole sky than other things get, so the sun shapes the hills more (revision 48).
+  const material = new MeshStandardMaterial({ roughness: 0.95, metalness: 0, envMapIntensity: TERRAIN_SKY_LIGHT });
+  // The land map's texel centres sit on the height samples.
+  const n = land.resolution;
+  const landUv = new Vector2((n - 1) / (n * land.sizeM), 0.5);
   const fade = new Vector3(GROUND_FADE_M[detail][0], GROUND_FADE_M[detail][1], 0);
   material.defines = { CS_GROUND: detail };
   material.userData.csFade = fade;
@@ -47,6 +56,8 @@ export function createTerrainMaterial(t: TerrainTextures, detail: GroundDetail =
     shader.uniforms.csGroundN = { value: t.ground.normal };
     shader.uniforms.csMeans = { value: t.ground.means };
     shader.uniforms.csFade = { value: fade };
+    shader.uniforms.csLand = { value: land.texture };
+    shader.uniforms.csLandUv = { value: landUv };
 
     shader.vertexShader = shader.vertexShader
       .replace(
@@ -82,6 +93,8 @@ uniform highp sampler2DArray csGround;
 uniform highp sampler2DArray csGroundN;
 uniform vec3 csMeans[5];
 uniform vec3 csFade;
+uniform sampler2D csLand;
+uniform vec2 csLandUv;
 varying vec4 vCsClass;
 varying vec4 vCsExtra;
 varying vec2 vCsWorldXZ;
@@ -89,6 +102,10 @@ varying float vCsViewDist;
 varying vec3 vCsNormalW;
 vec3 csGroundNormal;
 float csGroundShare;
+// Land weights (revision 48): farm, forest, mountain, sand; and water, snow, town, marsh. Forest, water and towns come
+// from the land map, the rest from the vertices.
+vec4 csW;
+vec4 csX;
 
 float csHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float csNoise(vec2 p) {
@@ -114,14 +131,23 @@ vec3 csGrade(vec3 c) {
       )
       .replace(
         '#include <map_fragment>',
-        `vec3 csColor = csPhoto(csFarm, vCsWorldXZ, 18000.0) * vCsClass.x
-  + csPhoto(csForest, vCsWorldXZ, 12000.0) * vCsClass.y
-  + csPhoto(csMountain, vCsWorldXZ, 14000.0) * vCsClass.z
-  + vec3(0.62, 0.53, 0.33) * vCsClass.w;
+        `vec4 csLandAt = texture2D(csLand, vCsWorldXZ * csLandUv.x + csLandUv.y);
+csW = vec4(0.0, csLandAt.b, vCsClass.z, vCsClass.w);
+// Far chunks' vertices can disagree with the map: keep the shares adding up to one.
+float csRest = csW.z + csW.w;
+if (csRest > 1.0 - csW.y) csW.zw *= (1.0 - csW.y) / csRest;
+csW.x = max(0.0, 1.0 - csW.y - csW.z - csW.w);
+csX = vec4(csLandAt.r, vCsExtra.y, csLandAt.g, vCsExtra.w);
+// Ridge (+1) or valley (−1): height against the mean round it.
+float csRelief = clamp((csLandAt.a * 255.0 - 128.0) * ${LAND_RELIEF_M_PER_STEP.toFixed(1)} / 140.0, -1.0, 1.0);
+vec3 csColor = csPhoto(csFarm, vCsWorldXZ, 18000.0) * csW.x
+  + csPhoto(csForest, vCsWorldXZ, 12000.0) * csW.y
+  + csPhoto(csMountain, vCsWorldXZ, 14000.0) * csW.z
+  + vec3(0.62, 0.53, 0.33) * csW.w;
 csColor = csGrade(csColor);
 // Forests from afar read as the 3-D trees' canopy (revision 45): lumpy green, not the photo's near-black.
 float csCanopy = 0.72 + 0.28 * csNoise(vCsWorldXZ / 26.0) + 0.18 * (csNoise(vCsWorldXZ / 310.0) - 0.5);
-csColor = mix(csColor, vec3(0.085, 0.22, 0.04) * csCanopy, vCsClass.y * 0.85);
+csColor = mix(csColor, vec3(0.085, 0.22, 0.04) * csCanopy, csW.y * 0.85);
 csGroundNormal = normalize(vCsNormalW);
 csGroundShare = 0.0;
 #if CS_GROUND > 0
@@ -130,20 +156,20 @@ csGroundShare = 0.0;
 // the gradients come from outside the branch so the mipmaps stay right.
 {
   float near = 1.0 - smoothstep(csFade.x, csFade.y, vCsViewDist);
-  float land = (1.0 - vCsExtra.x) * (1.0 - 0.85 * vCsExtra.z) * (1.0 - 0.7 * vCsExtra.y);
+  float land = (1.0 - csX.x) * (1.0 - 0.85 * csX.z) * (1.0 - 0.7 * csX.y);
   csGroundShare = near * land;
   vec2 uvA = vCsWorldXZ / ${GROUND_TILE_M.toFixed(1)};
   vec2 uvB = mat2(0.8829, -0.4695, 0.4695, 0.8829) * vCsWorldXZ / ${GROUND_TILE_FAR_M.toFixed(1)} + vec2(0.21, 0.67);
   vec2 dAx = dFdx(uvA), dAy = dFdy(uvA), dBx = dFdx(uvB), dBy = dFdy(uvB);
   if (csGroundShare > 0.002) {
-    float soilness = smoothstep(-0.015, 0.05, csColor.r - csColor.g) * vCsClass.x;
+    float soilness = smoothstep(-0.015, 0.05, csColor.r - csColor.g) * csW.x;
     float steep = 1.0 - smoothstep(0.78, 0.9, csGroundNormal.y);
     float w[5];
-    w[0] = vCsClass.x - soilness * 0.85;
+    w[0] = csW.x - soilness * 0.85;
     w[1] = soilness * 0.85;
-    w[2] = vCsClass.y;
-    w[3] = vCsClass.z;
-    w[4] = vCsClass.w;
+    w[2] = csW.y;
+    w[3] = csW.z;
+    w[4] = csW.w;
     for (int i = 0; i < 5; i++) w[i] *= 1.0 - steep;
     w[3] += steep;
     // Ragged borders: each layer's share rises and falls with its own noise, then the strongest wins.
@@ -176,22 +202,27 @@ csGroundShare = 0.0;
     vec3 hue = clamp((csColor / max(mean, vec3(0.01))) / light, vec3(0.75), vec3(1.3));
     vec3 tint = mix(1.0, light, 0.7) * mix(vec3(1.0), hue, 0.3);
     // Under the trees the forest floor lies in their shade.
-    csColor = mix(csColor, albedo * tint * (1.0 - 0.25 * vCsClass.y), csGroundShare);
+    csColor = mix(csColor, albedo * tint * (1.0 - 0.25 * csW.y), csGroundShare);
     csGroundNormal = normalize(vec3(csGroundNormal.x + bump.x * 1.6 * csGroundShare, csGroundNormal.y, csGroundNormal.z - bump.y * 1.6 * csGroundShare));
   }
 }
 #endif
-// Towns: grey roofs and streets broken up in blocks of about 60 m; marshes: dark, olive, with pools.
+// Towns (revision 48: lighter, with red-brown roofs, so they read from afar): concrete and tiled roofs in blocks of
+// about 60 m; marshes: dark, olive, with pools.
 float csBlock = csNoise(vCsWorldXZ / 60.0);
-vec3 csTown = mix(vec3(0.2, 0.19, 0.18), vec3(0.31, 0.26, 0.22), csBlock) * (0.75 + 0.35 * csNoise(vCsWorldXZ / 17.0));
+float csTiles = smoothstep(0.35, 0.65, csNoise(vCsWorldXZ / 23.0 + 3.1));
+vec3 csTown = mix(vec3(0.34, 0.33, 0.31), vec3(0.36, 0.16, 0.1), csTiles) * mix(0.7, 1.15, csBlock);
 // Parks and gardens keep some of the ground photo.
 float csGreen = smoothstep(0.62, 0.75, csNoise(vCsWorldXZ / 230.0 + 7.0));
-csColor = mix(csColor, csTown, vCsExtra.z * 0.75 * (1.0 - csGreen));
-float csPools = smoothstep(0.55, 0.7, csNoise(vCsWorldXZ / 140.0)) * vCsExtra.w;
-csColor = mix(csColor, csColor * vec3(0.7, 0.78, 0.55), vCsExtra.w * 0.7);
+csColor = mix(csColor, csTown, csX.z * 0.88 * (1.0 - csGreen));
+float csPools = smoothstep(0.55, 0.7, csNoise(vCsWorldXZ / 140.0)) * csX.w;
+csColor = mix(csColor, csColor * vec3(0.7, 0.78, 0.55), csX.w * 0.7);
 csColor = mix(csColor, vec3(0.02, 0.04, 0.045), csPools);
-csColor = mix(csColor, vec3(0.012, 0.03, 0.045), vCsExtra.x);
-csColor = mix(csColor, vec3(0.82, 0.85, 0.9), vCsExtra.y * 0.85);
+// Water: a deep blue that mirrors the sky at a slant (revision 48: rivers and lakes stand out from afar).
+csColor = mix(csColor, vec3(0.02, 0.055, 0.08), csX.x);
+csColor = mix(csColor, vec3(0.82, 0.85, 0.9), csX.y * 0.85);
+// Ridges a little lighter and valleys a little darker, so hills read from afar (revision 48).
+csColor *= 1.0 + 0.2 * csRelief * (1.0 - csX.x);
 diffuseColor.rgb *= csColor;`,
       )
       .replace(
@@ -204,10 +235,10 @@ if (csGroundShare > 0.002) normal = normalize((viewMatrix * vec4(csGroundNormal,
       .replace(
         '#include <roughnessmap_fragment>',
         `#include <roughnessmap_fragment>
-roughnessFactor = mix(roughnessFactor, 0.2, max(vCsExtra.x, csPools));`,
+roughnessFactor = mix(roughnessFactor, 0.12, max(csX.x, csPools));`,
       );
   };
-  material.customProgramCacheKey = () => `lechovia-terrain-v3-${detail}`;
+  material.customProgramCacheKey = () => `lechovia-terrain-v4-${detail}`;
   return material;
 }
 
@@ -217,6 +248,6 @@ export function setGroundDetail(material: MeshStandardMaterial, detail: GroundDe
   material.defines = { ...material.defines, CS_GROUND: detail };
   const fade = material.userData.csFade as Vector3 | undefined;
   fade?.set(GROUND_FADE_M[detail][0], GROUND_FADE_M[detail][1], 0);
-  material.customProgramCacheKey = () => `lechovia-terrain-v3-${detail}`;
+  material.customProgramCacheKey = () => `lechovia-terrain-v4-${detail}`;
   material.needsUpdate = true;
 }

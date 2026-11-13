@@ -180,7 +180,7 @@
   - Revision 47 (2026-11-12): the owner found the land too flat (§12.3). The land now rolls everywhere and rises into
     hill country over about half of it and all the foothills; the cities and airfields stay on calm ground.
   - Revision 48 (2026-11-13): at the owner's request the clouds are the soft puffs of before revision 46 again
-    (§15.4).
+    (§15.4); and towns, mountains, valleys and rivers read clearly from afar (§12.3).
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -1041,6 +1041,20 @@ The owner asked for a way to fly home and take on missiles and gun rounds again 
   (neutral). 3,000 m (2,500–2,600 m neutral) by 45 m runways, flattened ground ±450 m, a parallel taxiway, an apron,
   four arched hangars and a tower.
 - Combat area: 85 km radius around the centre. Airborne spawn lines 15 km either side of the capital at 5,000 m.
+- **Reading the land from afar (revision 48).** At the owner's request ("from far away you should clearly see there is
+  a city, mountains, valleys, rivers"). Far terrain chunks space their vertices up to 32 height samples apart (3 km),
+  and the land classes were per vertex, so rivers (200–450 m wide), villages and the outlines of towns and forests
+  dropped out or smeared at range. Now:
+  - A land map (`render/terrain/land-map.ts`, built in the terrain worker, one RGBA texel per height sample, 2049²,
+    mipmapped, 8× anisotropic): water, town and forest shares, and a ridge-or-valley value (height against the mean
+    within 1.5 km, ±256 m). The terrain shader takes forest, water and towns from it at every pixel; the other
+    classes still come from the vertices, scaled so the shares add up to one.
+  - Towns are lighter, concrete grey and red-brown tiled roofs in blocks (88% over the photo, parks aside).
+  - Water is a deep blue (0.02, 0.055, 0.08) with roughness 0.12, so rivers and lakes mirror the sky at a slant.
+  - Ridges are up to 20% lighter and valleys up to 20% darker; the terrain takes 80% of the sky's light (other things
+    100%), so the sun shapes the hills more.
+  - Woods on the hills, farmland in the valleys: the generator's forest score rises with the height the hills add
+    there (+0.55 from 80 to 300 m). Forest covers 43% of the land (was 34%).
 - **Hills (revision 47).** At the owner's request ("not that flat"): until then the land north of the foothills varied
   by about ±45 m over 45 km (27 m of relief within 1.5 km on average, nothing above 244 m). `relief` in `generate.ts`
   now adds, before rivers, lakes and airfields are carved: rolling ground everywhere (swells of about ±40 m some 3 km

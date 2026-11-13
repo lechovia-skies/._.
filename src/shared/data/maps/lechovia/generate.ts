@@ -517,7 +517,7 @@ export function generateLechovia(seed: number): LechoviaData {
       const k2 = idx(i, j);
       if (cover[k2] !== UNSET) continue;
       const h = heights[k2];
-      cover[k2] = landCoverAt(geo, nCover, columns[i], Z, h, slopeAt(heights, i, j), riverDist[k2]);
+      cover[k2] = landCoverAt(geo, nCover, columns[i], Z, h, slopeAt(heights, i, j), riverDist[k2], hillsAt(i, j));
     }
   }
   for (const s of settlements) paintSettlement(cover, s, nCover);
@@ -578,7 +578,8 @@ function slopeAt(heights: Float32Array, i: number, j: number): number {
   return 1 - 1 / Math.sqrt(1 + sx * sx + sz * sz);
 }
 
-function landCoverAt(geo: Geography, n: ReturnType<typeof createNoise2D>, col: Column, Z: number, h: number, slope: number, riverDistM: number): number {
+/** `hills`: the height the hills add here (revision 48: woods on the hills, farmland in the valleys). */
+function landCoverAt(geo: Geography, n: Noise2D, col: Column, Z: number, h: number, slope: number, riverDistM: number, hills: number): number {
   const X = col.X;
   const inland = Z - col.shore;
   if (inland < 0 && col.lagoon > 0.15) return C.beach;
@@ -597,7 +598,8 @@ function landCoverAt(geo: Geography, n: ReturnType<typeof createNoise2D>, col: C
     0.3 * geo.lakeDistrict(X, Z) +
     0.5 * mountainForest +
     (inland < 8 ? 0.15 : 0) -
-    0.12 * plains;
+    0.12 * plains +
+    0.55 * smoothstep(80, 300, hills);
   if (f < 0.45 && geo.eastLowland(X, Z) > 0.4 && n(X / 3 + 30, Z / 3 + 30) > 0.25) return C.marsh;
   if (f > 0.2) return C.forest;
   if (riverDistM < 1200 || h > 900 || n(X / 3 + 60, Z / 3 + 60) > 0.38) return C.meadow;
