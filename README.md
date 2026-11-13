@@ -13,8 +13,9 @@ is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The
 "Multiplayer", M3 "Roster & weapons" and M4 "World"). Online play (M2) was taken out again on 2026-10-02 and came back
 on 2026-10-08 without any server: the game still runs entirely in the browser.
 - **Clear from afar** (2026-11-13): towns, rivers, lakes and forests keep their shape at any distance, towns are
-  lighter with red roofs, water mirrors the sky, ridges and valleys are shaded, and woods cover the hills. The clouds
-  are the soft ones again.
+  lighter with red roofs, water mirrors the sky, hills are shaded to the horizon, woods cover the hills and show their
+  tree crowns from far off, villages are drawn further out and the haze is lighter. The clouds are the soft ones
+  again.
 - **Hills** (2026-11-12): the land rolls everywhere and rises into hill country with valleys, rivers winding through
   them; cities and airfields stay on level ground.
 - **Shadows and grass** (2026-11-11): the sun casts shadows from trees, jets and buildings; flying low, grass sways

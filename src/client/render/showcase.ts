@@ -15,7 +15,7 @@ import { WorldFeatures } from './world/world-features.ts';
 import { Environment } from './environment/environment.ts';
 import { setAfterburner } from './effects/afterburner.ts';
 import type { EnvironmentSettings } from '../../shared/world/time-of-day.ts';
-import { createTerrainMaterial, type GroundDetail } from './terrain-material.ts';
+import { createTerrainMaterial, type GroundDetail, setTreeRange } from './terrain-material.ts';
 
 export interface Pose {
   position: Vector3;
@@ -173,7 +173,9 @@ export class Showcase {
   private async build(textures: SceneryTextures, map: LoadedMap): Promise<void> {
     const scene = this.renderer.scene;
     this.map = map;
-    this.ground = new TerrainLod(map, createTerrainMaterial(textures, landTexture(map), this.groundDetail), this.detail);
+    const material = createTerrainMaterial(textures, landTexture(map), this.groundDetail);
+    setTreeRange(material, this.treeSettings?.rangeM ?? null);
+    this.ground = new TerrainLod(map, material, this.detail);
     scene.add(this.ground.group);
     this.features = new WorldFeatures(map.def, map.terrain);
     scene.add(this.features.group);

@@ -1055,6 +1055,17 @@ The owner asked for a way to fly home and take on missiles and gun rounds again 
     100%), so the sun shapes the hills more.
   - Woods on the hills, farmland in the valleys: the generator's forest score rises with the height the hills add
     there (+0.55 from 80 to 300 m). Forest covers 43% of the land (was 34%).
+  - Then the owner asked for buildings, trees and relief clearly visible from further still:
+    - Slopes on every pixel: the land map also holds the ground's normal per height sample (RG8), and the terrain
+      shades every pixel from it (plus the ground materials' relief near the camera), so far hills keep their light
+      and shade on chunks whose vertices are kilometres apart.
+    - Far forests: a sixth ground layer, tree crowns seen from above (`canopy`, drawn by the texture tool: round,
+      overlapping crowns 2.5–5 m across, each its own green, with a relief map), one tile per 48 m. Beyond the 3-D
+      trees (in over 70–95% of the trees' range, everywhere when the preset draws none or the jet is above their
+      range) forests show these crowns, lit by their own relief and tinted to the canopy green; from 2.5 to 7 km a
+      2.7× coarser sampling takes over, so woods keep a texture of tree clumps further out.
+    - Haze in clear air about 5% at 10 km and 35% at 30 km (density 2.2e-5; was 7% and 50%).
+    - Village buildings drawn to 30 km (was 18), castles to 35 km (was 25); cities stay at 45 km.
 - **Hills (revision 47).** At the owner's request ("not that flat"): until then the land north of the foothills varied
   by about ±45 m over 45 km (27 m of relief within 1.5 km on average, nothing above 244 m). `relief` in `generate.ts`
   now adds, before rivers, lakes and airfields are carved: rolling ground everywhere (swells of about ±40 m some 3 km

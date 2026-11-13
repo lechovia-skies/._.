@@ -20,6 +20,11 @@ export const TERRAIN_SKY_LIGHT = 0.8;
 
 /** Ground covered by one repeat of a ground material, metres: about 2 cm a pixel. */
 export const GROUND_TILE_M = 20;
+/** One repeat of the tree-crown layer far forests show (revision 48), metres: crowns 2.5–5 m across. */
+export const CANOPY_TILE_M = 48;
+/** The canopy layer's index in the ground texture arrays (assets.ts GROUND_LAYERS). */
+const CANOPY_LAYER = 5;
+
 /** The coarser second sampling, metres (rotated, so the two never line up). */
 export const GROUND_TILE_FAR_M = 97;
 
@@ -45,6 +50,9 @@ export function createTerrainMaterial(t: TerrainTextures, land: LandTexture, det
   // The land map's texel centres sit on the height samples.
   const n = land.resolution;
   const landUv = new Vector2((n - 1) / (n * land.sizeM), 0.5);
+  // Where far forests change from 3-D trees to tree crowns painted on the ground (setTreeRange).
+  const trees = new Vector2(0, 1);
+  material.userData.csTrees = trees;
   const fade = new Vector3(GROUND_FADE_M[detail][0], GROUND_FADE_M[detail][1], 0);
   material.defines = { CS_GROUND: detail };
   material.userData.csFade = fade;
@@ -58,6 +66,8 @@ export function createTerrainMaterial(t: TerrainTextures, land: LandTexture, det
     shader.uniforms.csFade = { value: fade };
     shader.uniforms.csLand = { value: land.texture };
     shader.uniforms.csLandUv = { value: landUv };
+    shader.uniforms.csLandN = { value: land.normals };
+    shader.uniforms.csTrees = { value: trees };
 
     shader.vertexShader = shader.vertexShader
       .replace(
@@ -68,8 +78,7 @@ attribute vec4 landExtra;
 varying vec4 vCsClass;
 varying vec4 vCsExtra;
 varying vec2 vCsWorldXZ;
-varying float vCsViewDist;
-varying vec3 vCsNormalW;`,
+varying float vCsViewDist;`,
       )
       .replace(
         '#include <project_vertex>',
@@ -78,8 +87,7 @@ vec4 csWorld = modelMatrix * vec4(transformed, 1.0);
 vCsWorldXZ = csWorld.xz;
 vCsViewDist = distance(csWorld.xyz, cameraPosition);
 vCsClass = landClass;
-vCsExtra = landExtra;
-vCsNormalW = normalize(mat3(modelMatrix) * objectNormal);`,
+vCsExtra = landExtra;`,
       );
 
     shader.fragmentShader = shader.fragmentShader
@@ -91,15 +99,16 @@ uniform sampler2D csForest;
 uniform sampler2D csMountain;
 uniform highp sampler2DArray csGround;
 uniform highp sampler2DArray csGroundN;
-uniform vec3 csMeans[5];
+uniform vec3 csMeans[6];
 uniform vec3 csFade;
 uniform sampler2D csLand;
+uniform sampler2D csLandN;
 uniform vec2 csLandUv;
+uniform vec2 csTrees;
 varying vec4 vCsClass;
 varying vec4 vCsExtra;
 varying vec2 vCsWorldXZ;
 varying float vCsViewDist;
-varying vec3 vCsNormalW;
 vec3 csGroundNormal;
 float csGroundShare;
 // Land weights (revision 48): farm, forest, mountain, sand; and water, snow, town, marsh. Forest, water and towns come
@@ -131,7 +140,10 @@ vec3 csGrade(vec3 c) {
       )
       .replace(
         '#include <map_fragment>',
-        `vec4 csLandAt = texture2D(csLand, vCsWorldXZ * csLandUv.x + csLandUv.y);
+        `vec2 csLandXY = vCsWorldXZ * csLandUv.x + csLandUv.y;
+vec4 csLandAt = texture2D(csLand, csLandXY);
+// The ground's slope at every pixel (revision 48): far chunks' own normals smooth the hills away.
+vec2 csSlope = texture2D(csLandN, csLandXY).rg * 2.0 - 1.0;
 csW = vec4(0.0, csLandAt.b, vCsClass.z, vCsClass.w);
 // Far chunks' vertices can disagree with the map: keep the shares adding up to one.
 float csRest = csW.z + csW.w;
@@ -148,7 +160,7 @@ csColor = csGrade(csColor);
 // Forests from afar read as the 3-D trees' canopy (revision 45): lumpy green, not the photo's near-black.
 float csCanopy = 0.72 + 0.28 * csNoise(vCsWorldXZ / 26.0) + 0.18 * (csNoise(vCsWorldXZ / 310.0) - 0.5);
 csColor = mix(csColor, vec3(0.085, 0.22, 0.04) * csCanopy, csW.y * 0.85);
-csGroundNormal = normalize(vCsNormalW);
+csGroundNormal = normalize(vec3(csSlope.x, sqrt(max(0.0, 1.0 - dot(csSlope, csSlope))), csSlope.y));
 csGroundShare = 0.0;
 #if CS_GROUND > 0
 // The ground materials near the camera (revision 45), by land class: grass or ploughed soil on farmland (soil where
@@ -207,6 +219,22 @@ csGroundShare = 0.0;
   }
 }
 #endif
+// Far forests (revision 48): beyond the 3-D trees, tree crowns seen from above, lit by their own relief; further out
+// a coarser sampling keeps a texture of clumps of trees. Tinted to the canopy green forests show from afar.
+{
+  float far = smoothstep(csTrees.x, csTrees.y, vCsViewDist) * csW.y;
+  vec2 uvC = vCsWorldXZ / ${CANOPY_TILE_M.toFixed(1)};
+  vec2 uvD = vCsWorldXZ / ${(CANOPY_TILE_M * 2.7).toFixed(1)} + vec2(0.31, 0.77);
+  vec2 cx = dFdx(uvC), cy = dFdy(uvC), dx = dFdx(uvD), dy = dFdy(uvD);
+  if (far > 0.01) {
+    float coarse = smoothstep(2500.0, 7000.0, vCsViewDist);
+    vec3 crowns = mix(textureGrad(csGround, vec3(uvC, ${CANOPY_LAYER}.0), cx, cy).rgb, textureGrad(csGround, vec3(uvD, ${CANOPY_LAYER}.0), dx, dy).rgb, coarse);
+    vec2 bump = mix(textureGrad(csGroundN, vec3(uvC, ${CANOPY_LAYER}.0), cx, cy).xy, textureGrad(csGroundN, vec3(uvD, ${CANOPY_LAYER}.0), dx, dy).xy, coarse) * 2.0 - 1.0;
+    vec3 tint = vec3(0.085, 0.22, 0.04) * csCanopy / max(csMeans[${CANOPY_LAYER}], vec3(0.01));
+    csColor = mix(csColor, crowns * tint, far);
+    csGroundNormal = normalize(vec3(csGroundNormal.x + bump.x * 1.3 * far, csGroundNormal.y, csGroundNormal.z - bump.y * 1.3 * far));
+  }
+}
 // Towns (revision 48: lighter, with red-brown roofs, so they read from afar): concrete and tiled roofs in blocks of
 // about 60 m; marshes: dark, olive, with pools.
 float csBlock = csNoise(vCsWorldXZ / 60.0);
@@ -228,9 +256,8 @@ diffuseColor.rgb *= csColor;`,
       .replace(
         '#include <normal_fragment_maps>',
         `#include <normal_fragment_maps>
-#if CS_GROUND > 0
-if (csGroundShare > 0.002) normal = normalize((viewMatrix * vec4(csGroundNormal, 0.0)).xyz);
-#endif`,
+// The slope from the land map, the ground materials' and the crowns' relief (revision 48: on every pixel).
+normal = normalize((viewMatrix * vec4(csGroundNormal, 0.0)).xyz);`,
       )
       .replace(
         '#include <roughnessmap_fragment>',
@@ -238,7 +265,7 @@ if (csGroundShare > 0.002) normal = normalize((viewMatrix * vec4(csGroundNormal,
 roughnessFactor = mix(roughnessFactor, 0.12, max(csX.x, csPools));`,
       );
   };
-  material.customProgramCacheKey = () => `lechovia-terrain-v4-${detail}`;
+  material.customProgramCacheKey = () => `lechovia-terrain-v5-${detail}`;
   return material;
 }
 
@@ -248,6 +275,17 @@ export function setGroundDetail(material: MeshStandardMaterial, detail: GroundDe
   material.defines = { ...material.defines, CS_GROUND: detail };
   const fade = material.userData.csFade as Vector3 | undefined;
   fade?.set(GROUND_FADE_M[detail][0], GROUND_FADE_M[detail][1], 0);
-  material.customProgramCacheKey = () => `lechovia-terrain-v4-${detail}`;
+  material.customProgramCacheKey = () => `lechovia-terrain-v5-${detail}`;
   material.needsUpdate = true;
+}
+
+/**
+ * Where far forests change from the 3-D trees to crowns painted on the ground (revision 48): the crowns come in over
+ * the last quarter of the trees' range, or everywhere when a preset draws no trees.
+ */
+export function setTreeRange(material: MeshStandardMaterial, rangeM: number | null): void {
+  const trees = material.userData.csTrees as Vector2 | undefined;
+  if (!trees) return;
+  if (rangeM === null) trees.set(0, 1);
+  else trees.set(rangeM * 0.7, rangeM * 0.95);
 }

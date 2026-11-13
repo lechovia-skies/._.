@@ -22,6 +22,11 @@ export const LAND_RELIEF_M_PER_STEP = 2;
 export interface LandMap {
   /** RGBA, `size` × `size`, row by row from the north-west (the height grid's order) */
   data: Uint8Array;
+  /**
+   * The ground's slope per sample (revision 48): the normal's x and z as 0…255 for −1…1 (its y follows). Far chunks'
+   * vertices are kilometres apart and smooth the hills away; the shader shades every pixel from these instead.
+   */
+  normals: Uint8Array;
   size: number;
 }
 
@@ -33,6 +38,7 @@ export function buildLandMap(grid: HeightGrid, coverAt: CoverAt): LandMap {
   const origin = -grid.sizeM / 2;
   const h = grid.heights;
   const data = new Uint8Array(n * n * 4);
+  const normals = new Uint8Array(n * n * 2);
   // Summed heights, for the mean over a square round each sample.
   const sums = new Float64Array((n + 1) * (n + 1));
   for (let j = 0; j < n; j++) {
@@ -53,7 +59,10 @@ export function buildLandMap(grid: HeightGrid, coverAt: CoverAt): LandMap {
       const y = h[k];
       const dx = (h[j * n + Math.min(n - 1, i + 1)] - h[j * n + Math.max(0, i - 1)]) / (2 * cell);
       const dz = (h[Math.min(n - 1, j + 1) * n + i] - h[Math.max(0, j - 1) * n + i]) / (2 * cell);
-      const cover = coverAt(origin + i * cell, z, y, 1 - 1 / Math.hypot(dx, 1, dz));
+      const len = Math.hypot(dx, 1, dz);
+      normals[k * 2] = Math.round((-dx / len) * 127.5 + 127.5);
+      normals[k * 2 + 1] = Math.round((-dz / len) * 127.5 + 127.5);
+      const cover = coverAt(origin + i * cell, z, y, 1 - 1 / len);
       let w = weights.get(cover);
       if (!w) weights.set(cover, (w = landClassWeights(cover)));
       const i0 = Math.max(0, i - r);
@@ -66,5 +75,5 @@ export function buildLandMap(grid: HeightGrid, coverAt: CoverAt): LandMap {
       data[k * 4 + 3] = Math.round(Math.min(255, Math.max(0, 128 + (Math.max(0, y) - mean) / LAND_RELIEF_M_PER_STEP)));
     }
   }
-  return { data, size: n };
+  return { data, normals, size: n };
 }

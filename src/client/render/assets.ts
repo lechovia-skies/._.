@@ -1,4 +1,6 @@
 import { DataArrayTexture, LinearMipmapLinearFilter, MirroredRepeatWrapping, NoColorSpace, RepeatWrapping, SRGBColorSpace, type Texture, TextureLoader, Vector3 } from 'three';
+import canopyNormalUrl from '../assets/ground/canopy-normal.jpg';
+import canopyUrl from '../assets/ground/canopy.jpg';
 import forestFloorNormalUrl from '../assets/ground/forest-floor-normal.jpg';
 import forestFloorUrl from '../assets/ground/forest-floor.jpg';
 import grassNormalUrl from '../assets/ground/grass-normal.jpg';
@@ -17,15 +19,17 @@ import type { LoadProgress } from './load-progress.ts';
 
 /**
  * The close-up ground materials (spec revision 45), drawn by tools/make-ground-textures.ts, in the order of their
- * layers in the texture arrays (the terrain shader's GROUND_* indices).
+ * layers in the texture arrays (the terrain shader's GROUND_* indices). The last, tree crowns seen from above, is
+ * what far forests show (revision 48).
  */
-export const GROUND_LAYERS = ['grass', 'soil', 'forest-floor', 'rock', 'sand'] as const;
+export const GROUND_LAYERS = ['grass', 'soil', 'forest-floor', 'rock', 'sand', 'canopy'] as const;
 const GROUND_URLS: Readonly<Record<(typeof GROUND_LAYERS)[number], [string, string]>> = {
   grass: [grassUrl, grassNormalUrl],
   soil: [soilUrl, soilNormalUrl],
   'forest-floor': [forestFloorUrl, forestFloorNormalUrl],
   rock: [rockUrl, rockNormalUrl],
   sand: [sandUrl, sandNormalUrl],
+  canopy: [canopyUrl, canopyNormalUrl],
 };
 
 /** The ground materials as two texture arrays, colour and normals, one layer a material. */

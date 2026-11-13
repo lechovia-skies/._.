@@ -55,7 +55,7 @@ import { WorldFeatures } from './render/world/world-features.ts';
 import { Grass, mapGrassGround } from './render/world/grass.ts';
 import { mapTreeGround, Trees } from './render/world/trees.ts';
 import { Environment } from './render/environment/environment.ts';
-import { createTerrainMaterial, setGroundDetail } from './render/terrain-material.ts';
+import { createTerrainMaterial, setGroundDetail, setTreeRange } from './render/terrain-material.ts';
 import { TrainingRings } from './render/training-rings.ts';
 import type { GameSession } from './session/game-session.ts';
 import { LocalSession } from './session/local-session.ts';
@@ -347,6 +347,7 @@ export async function startGame(
     setSceneryAnisotropy(textures, preset.anisotropy);
     ground.splitFactor = preset.terrainDetail;
     setGroundDetail(terrainMaterial, preset.groundDetail);
+    setTreeRange(terrainMaterial, preset.trees?.rangeM ?? null);
     if (trees.settings !== preset.trees) trees.setSettings(preset.trees);
     if (grass.settings !== preset.grass) grass.setSettings(preset.grass);
     environment.cloudRangeM = preset.cloudRangeM;

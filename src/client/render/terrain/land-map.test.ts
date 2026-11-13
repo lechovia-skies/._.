@@ -38,6 +38,22 @@ describe('the land map (revision 48)', () => {
     expect(texel(1500, 1500).slice(0, 3)).toEqual([0, 0, 0]);
   });
 
+  it('holds the slope of the ground at every sample', () => {
+    const slope = (x: number, z: number) => {
+      const i = Math.round(((x + sizeM / 2) / sizeM) * (n - 1));
+      const j = Math.round(((z + sizeM / 2) / sizeM) * (n - 1));
+      return [(land.normals[(j * n + i) * 2] - 127.5) / 127.5, (land.normals[(j * n + i) * 2 + 1] - 127.5) / 127.5];
+    };
+    expect(land.normals.length).toBe(n * n * 2);
+    // Flat far from the hill; on the hill's east flank the ground falls to the east, so the normal leans east (+x).
+    for (const v of slope(2500, 2500)) expect(Math.abs(v)).toBeLessThan(0.02);
+    const [nx, nz] = slope(-1600 + 500, 1600);
+    expect(nx).toBeGreaterThan(0.2);
+    expect(Math.abs(nz)).toBeLessThan(0.05);
+    // and on its north flank (−z) it leans north.
+    expect(slope(-1600, 1600 - 500)[1]).toBeLessThan(-0.2);
+  });
+
   it('lifts ridges and sinks valleys against the ground round them', () => {
     expect(LAND_RELIEF_RADIUS_M).toBeGreaterThan(500);
     const top = texel(-1600, 1600)[3];

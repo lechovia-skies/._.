@@ -11,8 +11,8 @@ import { airfieldLayout, airfieldPoint, type Ground, nameSeed, roadRibbon, runwa
 
 /** Settlements and roads disappear beyond these distances (their ground tint and night lights stay). */
 const CITY_RANGE_M = 45000;
-const VILLAGE_RANGE_M = 18000;
-const CASTLE_RANGE_M = 25000;
+const VILLAGE_RANGE_M = 30000;
+const CASTLE_RANGE_M = 35000;
 /** A town's meshes are built a little each frame, at most this long, so flying toward a city never stutters. */
 const BUILD_BUDGET_MS = 4;
 /** A built town is freed this far beyond its range (a share of it), and built again on the way back. */

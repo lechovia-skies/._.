@@ -1,6 +1,6 @@
 /**
  * Draws the close-up ground materials (spec revision 45): seamless, stylized textures for grass, ploughed soil, forest
- * floor, rock and sand, each with a normal map, so the ground stays sharp when a jet flies low. Everything is made
+ * floor, rock and sand, and tree crowns seen from above for far forests (revision 48), each with a normal map, so the ground stays sharp when a jet flies low. Everything is made
  * from seeded noise, so the files are the game's own (no download, no licence) and the same on every run.
  *
  * Each texture covers GROUND_TILE_M of ground (see terrain-material.ts) in TEXTURE_PX pixels: about 2 cm a pixel,
@@ -282,6 +282,63 @@ function sand(): Layer {
   return L;
 }
 
+/**
+ * Tree crowns seen from above (revision 48), one tile CANOPY_TILE_M across (terrain-material.ts): what forests show
+ * beyond the 3-D trees, so woods read as woods from a few kilometres off and from high up. Round crowns 2.5–5 m
+ * across on a jittered grid, each its own green, with leaf clumps and dark gaps between; the relief makes every crown
+ * catch the sun.
+ */
+function canopy(): Layer {
+  const L = layer();
+  const greens = ['#2f5b1c', '#3d6c23', '#26491b', '#4b752a', '#34602b', '#1f421d', '#56782c'].map(hex);
+  const gap = hex('#15260f');
+  const P = 9;
+  each((x, y, i) => {
+    const px = (x + fbm(x, y, 6, 3, 61) * 0.012) * P;
+    const py = (y + fbm(x, y, 6, 3, 62) * 0.012) * P;
+    const ix = Math.floor(px);
+    const iy = Math.floor(py);
+    // Round crowns that overlap: the highest dome over a pixel wins (bigger crowns stand taller).
+    let top = 0;
+    let next = 0;
+    let id = 0;
+    for (let j = -1; j <= 1; j++) {
+      for (let k = -1; k <= 1; k++) {
+        const cx = mod(ix + k, P);
+        const cy = mod(iy + j, P);
+        const r = 0.5 + 0.32 * hash(cx, cy, 65);
+        const d = Math.hypot(px - (ix + k + hash(cx, cy, 63)), py - (iy + j + hash(cx, cy, 64))) / r;
+        if (d >= 1) continue;
+        const z = Math.sqrt(1 - d * d) * r;
+        if (z > top) {
+          next = top;
+          top = z;
+          id = hash(cx, cy, 66);
+        } else if (z > next) next = z;
+      }
+    }
+    const leaf = fbm(x, y, 96, 3, 64);
+    if (top > 0) {
+      const g = greens[Math.floor(id * 997) % greens.length];
+      const dome = top / 0.82;
+      // Where one crown dips under another, a shaded fold.
+      const fold = next > 0 ? clamp01((top - next) * 12) : 1;
+      const s = (0.68 + 0.42 * dome + 0.14 * leaf) * (0.7 + 0.3 * fold);
+      L.r[i] = g[0] * s;
+      L.g[i] = g[1] * s;
+      L.b[i] = g[2] * s;
+      L.h[i] = top * 34 + leaf * 2.5;
+    } else {
+      const s = 0.8 + 0.3 * leaf;
+      L.r[i] = gap[0] * s;
+      L.g[i] = gap[1] * s;
+      L.b[i] = gap[2] * s;
+      L.h[i] = leaf;
+    }
+  });
+  return L;
+}
+
 // ---------- Output ----------
 
 /** The normal map (tangent space: x east, y north) from the relief by central differences, `strength` steep. */
@@ -319,11 +376,15 @@ const MATERIALS: [string, () => Layer, number][] = [
   ['forest-floor', forestFloor, 0.6],
   ['rock', rock, 0.5],
   ['sand', sand, 0.3],
+  ['canopy', canopy, 1],
 ];
 
 if (process.argv[1]?.endsWith('make-ground-textures.ts')) {
   mkdirSync(out, { recursive: true });
+  // ONLY=canopy,rock remakes just those.
+  const only = process.env.ONLY?.split(',');
   for (const [name, make, strength] of MATERIALS) {
+    if (only && !only.includes(name)) continue;
     const started = Date.now();
     const L = make();
     const raw = { width: N, height: N, channels: 3 as const };

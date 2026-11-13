@@ -56,8 +56,8 @@ export function snapShadowFocus(focus: Vector3, sun: Vector3, texelM: number, ou
   return out;
 }
 
-/** Distance haze in clear air: ~7% at 10 km, 50% at 30 km (as with the photo sky before M4). */
-const HAZE_DENSITY = 2.8e-5;
+/** Distance haze in clear air: ~5% at 10 km, 35% at 30 km (revision 48, so far land keeps its shape; was 7% and 50%). */
+const HAZE_DENSITY = 2.2e-5;
 /** Inside a cloud the world fades to white within a few hundred metres. */
 const WHITEOUT_DENSITY = 5e-3;
 const SUN_INTENSITY = 2.6;

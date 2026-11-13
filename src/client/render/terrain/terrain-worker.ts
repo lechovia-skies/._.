@@ -27,7 +27,7 @@ scope.onmessage = (e: MessageEvent<TerrainRequest>) => {
       // The payload is copied, not transferred: the worker keeps its own grids for building chunks. The land map
       // (revision 48) is only the page's.
       const land = buildLandMap(source.grid, source.coverAt);
-      scope.postMessage({ type: 'map', payload: source.payload, land }, [land.data.buffer]);
+      scope.postMessage({ type: 'map', payload: source.payload, land }, [land.data.buffer, land.normals.buffer]);
     } else if (msg.type === 'chunk' && source) {
       const data = buildChunk(source.grid, source.coverAt, msg.key);
       scope.postMessage({ type: 'chunk', id: msg.id, data }, [data.positions.buffer, data.normals.buffer, data.landClass.buffer, data.landExtra.buffer]);
