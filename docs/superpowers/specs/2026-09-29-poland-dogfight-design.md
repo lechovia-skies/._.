@@ -1062,8 +1062,9 @@ The owner asked for a way to fly home and take on missiles and gun rounds again 
     - Far forests: a sixth ground layer, tree crowns seen from above (`canopy`, drawn by the texture tool: round,
       overlapping crowns 2.5–5 m across, each its own green, with a relief map), one tile per 48 m. Beyond the 3-D
       trees (in over 70–95% of the trees' range, everywhere when the preset draws none or the jet is above their
-      range) forests show these crowns, lit by their own relief and tinted to the canopy green; from 2.5 to 7 km a
-      2.7× coarser sampling takes over, so woods keep a texture of tree clumps further out.
+      range) forests show these crowns, lit by their own relief and tinted a darker green than the fields; from 2.5 to
+      7 km a 2.7× coarser sampling, turned 37° (its relief turned back to match), takes over, so woods keep a texture
+      of tree clumps further out.
     - Haze in clear air about 5% at 10 km and 35% at 30 km (density 2.2e-5; was 7% and 50%).
     - Village buildings drawn to 30 km (was 18), castles to 35 km (was 25); cities stay at 45 km.
 - **Hills (revision 47).** At the owner's request ("not that flat"): until then the land north of the foothills varied

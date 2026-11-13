@@ -224,15 +224,21 @@ csGroundShare = 0.0;
 {
   float far = smoothstep(csTrees.x, csTrees.y, vCsViewDist) * csW.y;
   vec2 uvC = vCsWorldXZ / ${CANOPY_TILE_M.toFixed(1)};
-  vec2 uvD = vCsWorldXZ / ${(CANOPY_TILE_M * 2.7).toFixed(1)} + vec2(0.31, 0.77);
+  // The coarser sampling turned 37° so the two repeats never line up (its relief is turned back below).
+  mat2 turn = mat2(0.8, -0.6, 0.6, 0.8);
+  vec2 uvD = turn * vCsWorldXZ / ${(CANOPY_TILE_M * 2.7).toFixed(1)} + vec2(0.31, 0.77);
   vec2 cx = dFdx(uvC), cy = dFdy(uvC), dx = dFdx(uvD), dy = dFdy(uvD);
   if (far > 0.01) {
     float coarse = smoothstep(2500.0, 7000.0, vCsViewDist);
     vec3 crowns = mix(textureGrad(csGround, vec3(uvC, ${CANOPY_LAYER}.0), cx, cy).rgb, textureGrad(csGround, vec3(uvD, ${CANOPY_LAYER}.0), dx, dy).rgb, coarse);
-    vec2 bump = mix(textureGrad(csGroundN, vec3(uvC, ${CANOPY_LAYER}.0), cx, cy).xy, textureGrad(csGroundN, vec3(uvD, ${CANOPY_LAYER}.0), dx, dy).xy, coarse) * 2.0 - 1.0;
-    vec3 tint = vec3(0.085, 0.22, 0.04) * csCanopy / max(csMeans[${CANOPY_LAYER}], vec3(0.01));
+    // Each sampling's relief as a lean east (x) and south (z).
+    vec2 bA = textureGrad(csGroundN, vec3(uvC, ${CANOPY_LAYER}.0), cx, cy).xy * 2.0 - 1.0;
+    vec2 bD = textureGrad(csGroundN, vec3(uvD, ${CANOPY_LAYER}.0), dx, dy).xy * 2.0 - 1.0;
+    vec2 lean = mix(vec2(bA.x, -bA.y), transpose(turn) * vec2(bD.x, -bD.y), coarse);
+    // Darker than the fields, as woods are from the air.
+    vec3 tint = vec3(0.06, 0.155, 0.03) * csCanopy / max(csMeans[${CANOPY_LAYER}], vec3(0.01));
     csColor = mix(csColor, crowns * tint, far);
-    csGroundNormal = normalize(vec3(csGroundNormal.x + bump.x * 1.3 * far, csGroundNormal.y, csGroundNormal.z - bump.y * 1.3 * far));
+    csGroundNormal = normalize(vec3(csGroundNormal.x + lean.x * 1.3 * far, csGroundNormal.y, csGroundNormal.z + lean.y * 1.3 * far));
   }
 }
 // Towns (revision 48: lighter, with red-brown roofs, so they read from afar): concrete and tiled roofs in blocks of
