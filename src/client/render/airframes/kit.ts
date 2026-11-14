@@ -1,4 +1,4 @@
-import { BufferAttribute, BufferGeometry, Float32BufferAttribute } from 'three';
+import { BoxGeometry, BufferAttribute, BufferGeometry, Float32BufferAttribute, SphereGeometry } from 'three';
 import { DEG } from '../../../shared/math/units.ts';
 
 /**
@@ -447,7 +447,13 @@ export interface CanopySpec {
 }
 
 /** A canopy: glass, frame bows just proud of it, a dark cockpit below the coaming and a helmet per seat. */
-export function canopy(spec: CanopySpec): { glass: BufferGeometry; trim: BufferGeometry[]; dark: BufferGeometry; crew: BufferGeometry[] } {
+/** The pilot round each helmet (revision 49): the flight suit's shoulders and the seat's headrest, and the visor. */
+export interface PilotParts {
+  suit: BufferGeometry[];
+  visor: BufferGeometry[];
+}
+
+export function canopy(spec: CanopySpec): { glass: BufferGeometry; trim: BufferGeometry[]; dark: BufferGeometry; crew: BufferGeometry[]; pilot: PilotParts } {
   const glass = loft(spec.rings, { around: 36, step: 0.2 });
   const at = ringSampler(spec.rings);
   const trim = spec.frames.map((fs) => loft([at(fs - 0.045), at(fs + 0.045)], { around: 36, step: 1, grow: 0.018, arc: [-0.08, Math.PI + 0.08] }));
@@ -457,14 +463,37 @@ export function canopy(spec: CanopySpec): { glass: BufferGeometry; trim: BufferG
     spec.rings.map((r) => ({ ...r, w: r.w * 0.94, up: Math.min(r.up, 0.16), down: r.down })),
     { around: 24, step: 0.3, capStart: true, capEnd: true },
   );
+  const pilot: PilotParts = { suit: [], visor: [] };
   const crew = spec.seats.map((fs) => {
     const sill = at(Math.min(last, Math.max(first, fs)));
-    return ball(sill.bl, sill.wl + (spec.headUp ?? 0.48), fs, 0.15, 14);
+    const head = sill.wl + (spec.headUp ?? 0.48);
+    pilot.visor.push(visor(sill.bl, head, fs));
+    pilot.suit.push(...shouldersAndHeadrest(sill.bl, head, fs));
+    return ball(sill.bl, head, fs, 0.15, 20);
   });
-  return { glass, trim, dark: tub, crew };
+  return { glass, trim, dark: tub, crew, pilot };
 }
 
 /** A sphere (IRST ball, helmet). */
+/** A visor over the front of a helmet centred at (bl, wl, fs): a band of a slightly larger sphere, forward (−fs). */
+function visor(bl: number, wl: number, fs: number): BufferGeometry {
+  // three.js puts phi = 3π/2 toward −z, which is forward (toward the nose) in drawing coordinates.
+  const g = new SphereGeometry(0.157, 24, 10, (3 * Math.PI) / 2 - 1.25, 2.5, 0.95, 0.85);
+  g.deleteAttribute('uv');
+  return g.translate(bl, wl, fs);
+}
+
+/** The pilot's shoulders (a flattened ball under the helmet) and the seat's headrest behind it. */
+function shouldersAndHeadrest(bl: number, wl: number, fs: number): BufferGeometry[] {
+  const shoulders = new SphereGeometry(1, 18, 10);
+  shoulders.deleteAttribute('uv');
+  shoulders.scale(0.25, 0.13, 0.15).translate(bl, wl - 0.33, fs + 0.06);
+  const headrest = new BoxGeometry(0.3, 0.42, 0.12);
+  headrest.deleteAttribute('uv');
+  headrest.translate(bl, wl - 0.04, fs + 0.24);
+  return [shoulders, headrest];
+}
+
 export function ball(bl: number, wl: number, fs: number, r: number, segments = 16): BufferGeometry {
   const keys: Ring[] = [];
   const rows = segments / 2;

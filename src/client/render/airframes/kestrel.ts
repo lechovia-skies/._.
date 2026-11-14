@@ -106,6 +106,7 @@ function parts(): AirframeParts {
     glass: [cockpit.glass],
     trim: [...withMirror(tipRails), probe, ...cockpit.trim],
     crew: cockpit.crew,
+    pilot: cockpit.pilot,
     nozzles: [engine],
   };
 }

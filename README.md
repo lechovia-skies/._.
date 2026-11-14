@@ -12,6 +12,8 @@ is rebuilt after every push ([Publish as a website](#publish-as-a-website)). The
 **Current milestone: M5 "Modes & polish"** (after M1a "Fly", M1b "Fight", M1d "Strike", M1c "Website basics", M2
 "Multiplayer", M3 "Roster & weapons" and M4 "World"). Online play (M2) was taken out again on 2026-10-02 and came back
 on 2026-10-08 without any server: the game still runs entirely in the browser.
+- **Better-looking jets** (2026-11-14): engraved panel lines, hatches and fasteners, panels a shade apart, grime and
+  soot, a glossy coat and a pilot with a visor on the six jets drawn in code; sharper textures on the F-35A and Su-57.
 - **Clear from afar** (2026-11-13): towns, rivers, lakes and forests keep their shape at any distance, towns are
   lighter with red roofs, water mirrors the sky, hills are shaded to the horizon, woods cover the hills and show their
   tree crowns from far off, villages are drawn further out and the haze is lighter. The clouds are the soft ones

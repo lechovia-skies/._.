@@ -122,6 +122,7 @@ function parts(): AirframeParts {
     glass: [cockpit.glass, irst],
     trim: [probe, ...cockpit.trim],
     crew: cockpit.crew,
+    pilot: cockpit.pilot,
     nozzles: exits,
   };
 }

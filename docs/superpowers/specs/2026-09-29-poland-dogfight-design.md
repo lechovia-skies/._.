@@ -1,4 +1,4 @@
-# Lechovia Skies — Design Spec (revision 48)
+# Lechovia Skies — Design Spec (revision 49)
 
 - **Date:** 2026-09-29
 - **Status:** Approved.
@@ -181,6 +181,10 @@
     hill country over about half of it and all the foothills; the cities and airfields stay on calm ground.
   - Revision 48 (2026-11-13): at the owner's request the clouds are the soft puffs of before revision 46 again
     (§15.4); and towns, mountains, valleys and rivers read clearly from afar (§12.3).
+  - Revision 49 (2026-11-14): the owner found the jets rough and cheap-looking and asked for them to look like the 3D
+    models they sent (§15.4). The six jets drawn in code get engraved panel seams, access hatches and fasteners, a
+    shade per panel, grime, soot at the nozzles, a thin clear coat and a pilot with a suit, headrest and visor; the
+    owner's two models keep their textures sharp at a slant. Their full detail waits on the original files.
 - **Owner:** Hiroto Matsui
 - **Title:** Lechovia Skies (`lechovia-skies`); the working title until revision 19 was Contested Skies.
 
@@ -1677,6 +1681,21 @@ chase views at other distances. There is no free camera.
     instead of a soft blob, shaded in a stylized way (lit tops, cool
     undersides, a smooth step between; the whole cloud's light from top to bottom counts for more than each puff's
     own, so stacked puffs read as one cloud), and mirrored at random so neighbouring puffs differ.
+- **Revision 49, better-looking jets** (the owner: the jets look rough and cheap; they should look like the 3D
+  models the owner sent):
+  - Why: the owner's two models (Tripo, F-35A- and Su-57-inspired, about 11 MB and 200,000+ triangles each) were cut
+    to 25,000–32,000 triangles and 1024 px textures when imported (revision 31's `tools/prepare-models.ts`), which made
+    them lumpy and blurry; and the six jets drawn in code had flat paint with faint panel lines, like plastic. The
+    original files were never committed and are not in this container, so the two models stay as they are until the
+    owner sends them again; they now get 16× anisotropic filtering, which glTF textures lacked.
+  - The airframes' skin (`airframes/paint.ts`): a 1024 px panel texture drawn in code (R seams about 1 cm wide, G a
+    shade per panel, B fasteners; rows of panels 0.35–0.9 m by 0.4–1.2 m, access hatches with fastener rings), laid
+    on from three directions over 3 m. The seams and fasteners are engraved (a bump from screen-space slopes of their
+    depth, 4 mm and 1.2 mm), fading out once a pixel is wider than a seam; each panel is up to 7% lighter or darker;
+    roughness rises along seams, in grimy places and with soot. Soot streaks the tail round the nozzles. The skin is a
+    MeshPhysicalMaterial with a thin clear coat (0.35, roughness 0.32).
+  - The pilot: the helmet (clear-coated) gets a dark, glossy visor, an olive flight suit's shoulders and the seat's
+    headrest, all hidden from the cockpit view.
 - **Revision 31, the real types' airframes** (`src/client/render/airframes/`): at the owner's request the six jets
   without imported models are drawn as the F-22A (Tempest), F-15C (Condor), F-16C Block 50 (Kestrel), Su-35S
   (Yastreb), Su-30SM (Sapsan) and MiG-29 9.12 (Kobchik), after the owner's reference pictures.

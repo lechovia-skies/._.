@@ -3,7 +3,7 @@ import { addEngines, type AircraftModel } from '../aircraft-model.ts';
 import type { GearLeg } from '../landing-gear.ts';
 import type { Loadout } from '../../../shared/data/loadout.ts';
 import { cockpitFitFrom } from '../cockpit.ts';
-import { merge, type NozzleParts } from './kit.ts';
+import { merge, type NozzleParts, type PilotParts } from './kit.ts';
 import { type BodyFrame, type PaintSpec, skinMaterial } from './paint.ts';
 import { planPylons, type StoresPlan, storeMeshes, tankGeometry } from './stores.ts';
 
@@ -21,6 +21,8 @@ export interface AirframeParts {
   trim: BufferGeometry[];
   /** helmets */
   crew: BufferGeometry[];
+  /** the pilot's suit, headrest and visor round the helmets (revision 49; hidden from the cockpit view) */
+  pilot?: PilotParts;
   nozzles: NozzleParts[];
 }
 
@@ -71,6 +73,9 @@ const darkMaterial = new MeshStandardMaterial({ color: 0x15181b, roughness: 0.92
 const trimMaterial = new MeshStandardMaterial({ color: 0x2b3035, roughness: 0.55, metalness: 0.4, side: DoubleSide });
 const metalMaterial = new MeshStandardMaterial({ color: 0x5a5c5e, roughness: 0.38, metalness: 0.85 });
 const cavityMaterial = new MeshStandardMaterial({ color: 0x232120, roughness: 0.8, metalness: 0.3, side: DoubleSide });
+// The pilot (revision 49): an olive flight suit and a dark, glossy visor that mirrors the sky.
+const suitMaterial = new MeshStandardMaterial({ color: 0x3b4033, roughness: 0.85, metalness: 0 });
+const visorMaterial = new MeshPhysicalMaterial({ color: 0x0c0e12, roughness: 0.06, metalness: 0.4, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.6 });
 
 /**
  * Builds the airframe in the body frame (nose toward -z), with afterburner flames at the nozzle exits and the stores
@@ -131,8 +136,10 @@ export function buildAirframe(bp: Blueprint, loads: { air: Loadout; strike?: Loa
     depthWrite: false,
   });
   const glassMesh = add(parts.glass, glass, 'canopy-glass');
-  const crewMesh = add(parts.crew, new MeshStandardMaterial({ color: bp.helmet, roughness: 0.45, metalness: 0.1 }), 'crew');
-  for (const m of [glassMesh, crewMesh]) if (m) canopy.add(m);
+  const crewMesh = add(parts.crew, new MeshPhysicalMaterial({ color: bp.helmet, roughness: 0.4, metalness: 0.05, clearcoat: 0.6, clearcoatRoughness: 0.2 }), 'crew');
+  const suitMesh = add(parts.pilot?.suit ?? [], suitMaterial, 'crew-suit');
+  const visorMesh = add(parts.pilot?.visor ?? [], visorMaterial, 'crew-visor');
+  for (const m of [glassMesh, crewMesh, suitMesh, visorMesh]) if (m) canopy.add(m);
   root.add(canopy);
   const exits = parts.nozzles.map((n) => new Vector3(...n.exit).applyMatrix4(toBody).add(new Vector3(0, 0, 0.05)));
   const radius = parts.nozzles[0]?.radius ?? 0.5;

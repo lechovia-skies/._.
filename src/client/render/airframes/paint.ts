@@ -1,4 +1,4 @@
-import { CanvasTexture, Color, MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, type Texture, Vector3, Vector4 } from 'three';
+import { CanvasTexture, Color, DataTexture, LinearMipmapLinearFilter, MeshPhysicalMaterial, type MeshStandardMaterial, NoColorSpace, RepeatWrapping, RGBAFormat, SRGBColorSpace, type Texture, UnsignedByteType, Vector3, Vector4 } from 'three';
 import { Rng } from '../../../shared/math/rng.ts';
 import { drawMarking, type MarkingArt, markingAspect } from './markings.ts';
 
@@ -211,66 +211,115 @@ export function markingAtlas(markings: readonly Marking[]): { texture: Texture; 
   return { texture, cells };
 }
 
-let panelTexture: Texture | null | undefined;
+/** Pixels across one tile of the panel texture, which covers PANEL_TILE_M of skin. */
+export const PANEL_PX = 1024;
+export const PANEL_TILE_M = 3;
 
 /**
- * Panel lines as a tiling texture (3 m square): rows of panels of random lengths, with fastener rows along some
- * seams. Laid onto the skin from three directions and blended by the surface's facing.
+ * The skin's panels as a tiling texture, PANEL_TILE_M square (revision 49): R the seams, G each panel's own shade of
+ * the paint, B the fasteners. Rows of panels 0.35–0.9 m deep and 0.4–1.2 m long, smaller access hatches inside some
+ * of them, and fastener rows along the hatches and some seams. Everything wraps round the edges so the tiles meet.
  */
-export function panelLineTexture(): Texture | null {
-  if (panelTexture !== undefined) return panelTexture;
-  const made = canvas(512, 512);
-  if (!made) return (panelTexture = null);
-  const [c, ctx] = made;
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, 512, 512);
+export function panelData(): Uint8Array {
+  const n = PANEL_PX;
+  const seam = new Float32Array(n * n);
+  const tone = new Uint8Array(n * n).fill(128);
+  const rivet = new Float32Array(n * n);
+  const wrap = (v: number) => ((v % n) + n) % n;
   const rng = new Rng(0x9a4e1);
-  ctx.strokeStyle = '#fff';
-  ctx.fillStyle = '#fff';
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  // Rows of panels; seams wrap around the edges so the texture tiles.
-  let yPos = 0;
-  while (yPos < 512) {
-    const h = Math.min(512 - yPos, Math.round(rng.range(60, 150)));
-    ctx.moveTo(0, yPos);
-    ctx.lineTo(512, yPos);
-    let xPos = rng.range(0, 80);
-    while (xPos < 512) {
-      ctx.moveTo(xPos, yPos);
-      ctx.lineTo(xPos, yPos + h);
-      xPos += rng.range(70, 210);
+  /** A seam along x (horizontal) or y, about 4 px wide with soft edges. */
+  const seamLine = (horizontal: boolean, at: number, from: number, to: number) => {
+    for (let t = from; t < to; t++) {
+      for (let d = -3; d <= 3; d++) {
+        const w = Math.max(0, Math.min(1, 2.6 - Math.abs(d)));
+        const k = horizontal ? wrap(at + d) * n + wrap(t) : wrap(t) * n + wrap(at + d);
+        seam[k] = Math.max(seam[k], w);
+      }
     }
-    yPos += h;
-  }
-  ctx.stroke();
-  // Fasteners along a few seams.
-  ctx.globalAlpha = 0.5;
-  for (let i = 0; i < 14; i++) {
-    const vertical = rng.next() < 0.5;
-    const at = rng.range(0, 512);
-    const from = rng.range(0, 380);
-    for (let s = from; s < from + rng.range(60, 130); s += 7) {
-      ctx.beginPath();
-      ctx.arc(vertical ? at + 4 : s, vertical ? s : at + 4, 1, 0, Math.PI * 2);
-      ctx.fill();
+  };
+  const dot = (cx: number, cy: number) => {
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        const w = Math.max(0, 1 - Math.hypot(dx, dy) / 2.2);
+        const k = wrap(Math.round(cy) + dy) * n + wrap(Math.round(cx) + dx);
+        rivet[k] = Math.max(rivet[k], w);
+      }
     }
+  };
+  const fill = (x0: number, y0: number, x1: number, y1: number, shade: number) => {
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) tone[wrap(y) * n + wrap(x)] = shade;
+  };
+  let y = 0;
+  while (y < n) {
+    const h = Math.min(n - y, Math.round(rng.range(120, 300)));
+    const first = Math.round(rng.range(0, 160));
+    let x = first;
+    while (x < first + n) {
+      const w = Math.min(first + n - x, Math.round(rng.range(140, 420)));
+      fill(x, y, x + w, y + h, Math.round(rng.range(92, 164)));
+      seamLine(false, x, y, y + h);
+      // An access hatch in some panels, a shade of its own, fastened round its edge.
+      if (w > 120 && h > 90 && rng.next() < 0.45) {
+        const hw = Math.round(rng.range(40, Math.min(130, w - 50)));
+        const hh = Math.round(rng.range(34, Math.min(110, h - 44)));
+        const hx = x + Math.round(rng.range(22, w - hw - 22));
+        const hy = y + Math.round(rng.range(20, h - hh - 20));
+        fill(hx, hy, hx + hw, hy + hh, Math.round(rng.range(80, 176)));
+        seamLine(true, hy, hx, hx + hw);
+        seamLine(true, hy + hh, hx, hx + hw + 1);
+        seamLine(false, hx, hy, hy + hh);
+        seamLine(false, hx + hw, hy, hy + hh);
+        for (let t = 6; t < hw - 3; t += 11) {
+          dot(hx + t, hy + 6);
+          dot(hx + t, hy + hh - 6);
+        }
+        for (let t = 6; t < hh - 3; t += 11) {
+          dot(hx + 6, hy + t);
+          dot(hx + hw - 6, hy + t);
+        }
+      }
+      x += w;
+    }
+    seamLine(true, y, 0, n);
+    // Fasteners along some seams.
+    if (rng.next() < 0.6) for (let t = Math.round(rng.range(0, 12)); t < n; t += 12) dot(t, y + 7);
+    y += h;
   }
-  ctx.globalAlpha = 1;
-  const t = new CanvasTexture(c);
+  const data = new Uint8Array(n * n * 4);
+  for (let k = 0; k < n * n; k++) {
+    data[k * 4] = Math.round(seam[k] * 255);
+    data[k * 4 + 1] = tone[k];
+    data[k * 4 + 2] = Math.round(rivet[k] * 255);
+    data[k * 4 + 3] = 255;
+  }
+  return data;
+}
+
+let panelTexture: Texture | undefined;
+
+/** The panel texture (see panelData), made once and shared by every airframe. */
+export function panelLineTexture(): Texture {
+  if (panelTexture) return panelTexture;
+  const t = new DataTexture(panelData(), PANEL_PX, PANEL_PX, RGBAFormat, UnsignedByteType);
+  t.colorSpace = NoColorSpace;
   t.wrapS = t.wrapT = RepeatWrapping;
+  t.minFilter = LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
   t.anisotropy = 8;
+  t.needsUpdate = true;
   return (panelTexture = t);
 }
 
 const linear = (hex: string) => new Color(hex);
 
 /**
- * The skin material for one type: a MeshStandardMaterial whose base colour comes from the paint scheme, worked out
- * per pixel from the body-space position. Shared by every jet of the type.
+ * The skin material for one type: a MeshPhysicalMaterial (revision 49: with a thin clear coat) whose base colour
+ * comes from the paint scheme, worked out per pixel from the body-space position, with engraved panel seams and
+ * fasteners, a shade per panel, grime and soot. Shared by every jet of the type.
  */
 export function skinMaterial(spec: PaintSpec, frame: BodyFrame): MeshStandardMaterial {
-  const material = new MeshStandardMaterial({ color: 0xffffff, roughness: spec.roughness, metalness: spec.metalness });
+  // A thin clear coat (revision 49): the paint catches the sun and the sky in soft highlights.
+  const material = new MeshPhysicalMaterial({ color: 0xffffff, roughness: spec.roughness, metalness: spec.metalness, clearcoat: 0.35, clearcoatRoughness: 0.32 });
   material.name = 'airframe-skin';
   const colors = [...spec.colors];
   while (colors.length < 5) colors.push(colors[0]);
@@ -324,6 +373,7 @@ export function skinMaterial(spec: PaintSpec, frame: BodyFrame): MeshStandardMat
     afAtlas: { value: atlas?.texture ?? null },
     afPanels: { value: panelLineTexture() },
     afParams: { value: new Vector4(spec.soft, spec.warp, spec.undersideAmount, spec.panelLines) },
+    afLength: { value: frame.lengthM },
   };
   material.userData.airframeUniforms = uniforms;
   material.onBeforeCompile = (shader) => {
@@ -333,9 +383,16 @@ export function skinMaterial(spec: PaintSpec, frame: BodyFrame): MeshStandardMat
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvAfPos = position;\nvAfNormal = normal;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${SKIN_GLSL}`)
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= afPaint(vAfPos, normalize(vAfNormal));');
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= afPaint(vAfPos, normalize(vAfNormal));')
+      // Worn, grimy and sooty places are rougher; seams rougher still (revision 49).
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp(roughnessFactor + afRoughDelta, 0.08, 1.0);')
+      // Engraved seams and fasteners catch the light up close; they fade out once a pixel is wider than a seam.
+      .replace(
+        '#include <normal_fragment_maps>',
+        '#include <normal_fragment_maps>\nnormal = afBumped(-vViewPosition, normal, afHeight * (1.0 - smoothstep(0.015, 0.05, length(fwidth(vAfPos)))));',
+      );
   };
-  material.customProgramCacheKey = () => 'airframe-skin';
+  material.customProgramCacheKey = () => 'airframe-skin-v2';
   return material;
 }
 
@@ -352,6 +409,21 @@ uniform int afDecalCount;
 uniform sampler2D afAtlas;
 uniform sampler2D afPanels;
 uniform vec4 afParams;
+uniform float afLength;
+// Set by afPaint for the roughness and the normal (revision 49).
+float afHeight;
+float afRoughDelta;
+
+// Bump from a height in metres (three.js's perturbNormalArb): screen-space slopes of the height bend the normal.
+vec3 afBumped(vec3 pos, vec3 nrm, float h) {
+  vec3 dpdx = dFdx(pos);
+  vec3 dpdy = dFdy(pos);
+  vec3 r1 = cross(dpdy, nrm);
+  vec3 r2 = cross(nrm, dpdx);
+  float det = dot(dpdx, r1);
+  vec3 grad = sign(det) * (dFdx(h) * r1 + dFdy(h) * r2);
+  return normalize(abs(det) * nrm - grad);
+}
 
 float afHash(vec3 p) {
   p = fract(p * 0.3183099 + 0.1);
@@ -397,12 +469,16 @@ vec3 afPaint(vec3 p, vec3 n) {
     vec3 inside = smoothstep(a.xyz - a.w, a.xyz + a.w, p) * (1.0 - smoothstep(b.xyz - a.w, b.xyz + a.w, p));
     col = mix(col, c.rgb, inside.x * inside.y * inside.z * b.w);
   }
-  // Panel lines from three directions.
+  // Panels from three directions (revision 49): seams, fasteners, and each panel a shade apart, as real jets are
+  // where panels were repainted or replaced.
   vec3 bw = pow(abs(n), vec3(4.0));
   bw /= bw.x + bw.y + bw.z;
-  float s = 1.0 / 3.0;
-  float lines = texture2D(afPanels, p.zy * s).r * bw.x + texture2D(afPanels, p.xz * s).r * bw.y + texture2D(afPanels, p.xy * s).r * bw.z;
-  col *= 1.0 - afParams.w * lines;
+  float s = 1.0 / ${PANEL_TILE_M.toFixed(1)};
+  vec3 pan = texture2D(afPanels, p.zy * s).rgb * bw.x + texture2D(afPanels, p.xz * s).rgb * bw.y + texture2D(afPanels, p.xy * s).rgb * bw.z;
+  float tone = pan.g - 0.5;
+  col *= (1.0 - afParams.w * pan.r) * (1.0 + 0.14 * tone) * (1.0 - 0.24 * pan.b);
+  afHeight = -0.004 * pan.r - 0.0012 * pan.b + 0.0005 * tone;
+  afRoughDelta = 0.14 * pan.r - 0.09 * tone + 0.1 * (afNoise(p * 2.3 + 7.0) - 0.5);
   // Markings.
   vec4 hp = vec4(p, 1.0);
   for (int i = 0; i < ${MAX_DECALS}; i++) {
@@ -418,6 +494,11 @@ vec3 afPaint(vec3 p, vec3 n) {
   }
   // Weathering: faded and grimy in places.
   col *= 0.95 + 0.08 * afNoise(p * 0.9 + 3.0) - 0.04 * afNoise(p * 7.0);
+  // Soot round the nozzles at the tail, streaky (revision 49).
+  float soot = smoothstep(afLength * 0.3, afLength * 0.5, p.z) * (1.0 - smoothstep(1.1, 2.4, length(vec2(p.x * 0.55, p.y))));
+  soot *= 0.55 + 0.45 * afNoise(vec3(p.x * 6.0, p.y * 6.0, p.z * 0.8));
+  col *= 1.0 - 0.38 * soot;
+  afRoughDelta += 0.18 * soot;
   return col;
 }
 `;

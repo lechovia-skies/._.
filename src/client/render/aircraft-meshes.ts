@@ -1,4 +1,4 @@
-import { Group, type Object3D, Vector3 } from 'three';
+import { Group, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import type { AircraftConfig } from '../../shared/data/aircraft/types.ts';
@@ -59,13 +59,30 @@ export async function loadAircraftMeshes(
     Object.entries(fits).map(async ([id, fit]) => {
       try {
         const loading = loader.loadAsync(fit.url);
-        meshes.set(id, (await (progress ? progress.track(loading) : loading)).scene);
+        const scene = (await (progress ? progress.track(loading) : loading)).scene;
+        sharpenTextures(scene);
+        meshes.set(id, scene);
       } catch (err) {
         console.error(`The ${id} model could not load; that jet uses the generated model.`, err);
       }
     }),
   );
   return meshes;
+}
+
+/**
+ * Textures seen at a slant stay sharp (revision 49): glTF textures load with no anisotropic filtering, which blurs
+ * the paint and panel detail on a jet seen from behind or below. three.js lowers this to what the card allows.
+ */
+export const MODEL_ANISOTROPY = 16;
+export function sharpenTextures(scene: Object3D): void {
+  scene.traverse((o) => {
+    const material = (o as Mesh).material as MeshStandardMaterial | undefined;
+    if (!material || Array.isArray(material)) return;
+    for (const t of [material.map, material.normalMap, material.roughnessMap, material.metalnessMap, material.emissiveMap, material.aoMap]) {
+      if (t) t.anisotropy = MODEL_ANISOTROPY;
+    }
+  });
 }
 
 /** A copy of a loaded model at the jet's length, with nozzle exits and afterburners like the generated model's. */

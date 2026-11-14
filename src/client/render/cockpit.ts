@@ -434,7 +434,7 @@ export function showCockpit(root: Object3D, on: boolean, team: TeamId): boolean 
     root.add(interior);
   }
   if (interior) interior.visible = on;
-  for (const name of ['crew', 'cockpit-tub']) {
+  for (const name of ['crew', 'crew-suit', 'crew-visor', 'cockpit-tub']) {
     const o = root.getObjectByName(name);
     if (o) o.visible = !on;
   }

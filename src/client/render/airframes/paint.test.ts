@@ -71,3 +71,28 @@ describe('airframe paint (revision 31)', () => {
     expect(markingAspect({ kind: 'text', text: '331' })).toBeGreaterThan(markingAspect({ kind: 'text', text: 'LN' }));
   });
 });
+
+describe('the panel texture (revision 49)', () => {
+  it('draws seams, a shade per panel and fasteners, and tiles', async () => {
+    const { panelData, PANEL_PX } = await import('./paint.ts');
+    const d = panelData();
+    const n = PANEL_PX;
+    expect(d.length).toBe(n * n * 4);
+    let seams = 0;
+    let rivets = 0;
+    const tones = new Set<number>();
+    for (let k = 0; k < n * n; k++) {
+      if (d[k * 4] > 128) seams++;
+      if (d[k * 4 + 2] > 128) rivets++;
+      tones.add(d[k * 4 + 1]);
+    }
+    // Seams cover a few per cent of the skin, fasteners less; dozens of panels each have their own shade.
+    expect(seams / (n * n)).toBeGreaterThan(0.01);
+    expect(seams / (n * n)).toBeLessThan(0.12);
+    expect(rivets).toBeGreaterThan(500);
+    expect(tones.size).toBeGreaterThan(20);
+    // The first row's seam runs along the top edge and wraps to the bottom row of pixels, so tiles meet.
+    expect(d[0]).toBeGreaterThan(128);
+    expect(d[(n - 1) * n * 4]).toBeGreaterThan(100);
+  });
+});

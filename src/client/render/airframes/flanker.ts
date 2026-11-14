@@ -170,6 +170,7 @@ function flankerParts(o: FlankerOptions): AirframeParts {
     glass: [cockpit.glass, irst],
     trim: [...withMirror(rail), probe, ...cockpit.trim],
     crew: cockpit.crew,
+    pilot: cockpit.pilot,
     nozzles: exits,
   };
 }
